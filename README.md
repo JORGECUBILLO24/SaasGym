@@ -33,7 +33,7 @@ cd SpartanGym
 ```
 
 Crea una base de datos PostgreSQL llamada `spartangym_db` y ejecuta
-`spartan_gym_schema.sql`. El esquema se administra mediante ese archivo porque
+`gimnasio_schema.sql`. El esquema se administra mediante ese archivo porque
 Hibernate está configurado con `ddl-auto=none`.
 
 El esquema no precarga sucursales. Después de iniciar sesión con la cuenta

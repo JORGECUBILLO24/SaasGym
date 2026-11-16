@@ -1,4 +1,4 @@
-# Blueprint de Render para la API de Spartan Gym (conectada a Neon).
+# Blueprint de Render para la API del Gimnasio (conectada a Neon).
 # Al importar este archivo, Render crea el servicio; solo hay que llenar las
 # variables marcadas con sync:false (secretas) en el dashboard.
 services:

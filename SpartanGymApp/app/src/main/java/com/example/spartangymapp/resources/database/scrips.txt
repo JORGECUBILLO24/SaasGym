@@ -1,1 +1,1 @@
-El esquema vigente está en spartan_gym_schema.sql, en la raíz del repositorio. No ejecutar versiones antiguas de este archivo. Consulta README.md para preparar PostgreSQL.
+El esquema vigente está en gimnasio_schema.sql, en la raíz del repositorio. No ejecutar versiones antiguas de este archivo. Consulta README.md para preparar PostgreSQL.

@@ -1554,7 +1554,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
             return
         }
 
-        if (!tokenLimpio.startsWith("SPARTAN_GYM_VALIDACION_WEB|")) {
+        if (!tokenLimpio.startsWith("GIMNASIO_VALIDACION_WEB|")) {
             validacion = null
             mensajeQr = null
             errorQr = "Este QR no corresponde a la validacion web de asistencia."

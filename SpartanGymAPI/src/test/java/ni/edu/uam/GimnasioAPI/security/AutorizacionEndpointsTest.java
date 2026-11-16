@@ -1,0 +1,131 @@
+package ni.edu.uam.GimnasioAPI.security;
+
+import ni.edu.uam.GimnasioAPI.models.Usuario;
+import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
+import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.services.DashboardService;
+import ni.edu.uam.GimnasioAPI.services.ReporteService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Verifica que las reglas de autorización se apliquen de verdad en el filtro de seguridad.
+ *
+ * Un test unitario del método del controller NO sirve para esto: las @PreAuthorize las aplica
+ * el proxy de Spring, así que ese test pasaría igual aunque la anotación no existiera.
+ */
+@SpringBootTest
+class AutorizacionEndpointsTest {
+
+    private static final UUID ID_SOCIO = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID ID_OTRO_SOCIO = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
+    @Autowired private WebApplicationContext contexto;
+
+    @MockitoBean private ReporteService reporteService;
+    @MockitoBean private DashboardService dashboardService;
+    @MockitoBean private SucursalRepository sucursalRepository;
+    @MockitoBean private UsuarioRepository usuarioRepository;
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(contexto)
+                .apply(springSecurity())
+                .build();
+
+        org.mockito.Mockito.when(sucursalRepository.findByEstadoIgnoreCase("Operativa")).thenReturn(List.of());
+
+        Usuario socio = new Usuario();
+        socio.setId(ID_SOCIO);
+        socio.setEmail("socio@ejemplo.com");
+        org.mockito.Mockito.when(usuarioRepository.findByEmailIgnoreCase("socio@ejemplo.com"))
+                .thenReturn(Optional.of(socio));
+        // Los servicios quedan mockeados devolviendo null: acá solo importa el status,
+        // no el cuerpo. Si la autorización deja pasar, el status es 200 igual.
+    }
+
+    @Test
+    void visitante_puedeConsultarSucursalesOperativasParaRegistrarse() throws Exception {
+        mockMvc.perform(get("/api/sucursales/disponibles"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void visitante_noPuedeConsultarElListadoAdministrativoDeSucursales() throws Exception {
+        mockMvc.perform(get("/api/sucursales"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void visitante_noPuedeCrearSucursal() throws Exception {
+        mockMvc.perform(post("/api/sucursales"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void usuarioAutenticado_puedeConsultarElListadoAdministrativoDeSucursales() throws Exception {
+        org.mockito.Mockito.when(sucursalRepository.findAll()).thenReturn(List.of());
+        mockMvc.perform(get("/api/sucursales").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
+    void socio_noPuedeLeerLosIngresosDelGimnasio() throws Exception {
+        mockMvc.perform(get("/api/reportes/resumen"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin@ejemplo.com", roles = "ADMIN")
+    void admin_siPuedeLeerLosIngresosDelGimnasio() throws Exception {
+        mockMvc.perform(get("/api/reportes/resumen"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
+    void socio_noPuedeVerElDashboardDeOtroSocio() throws Exception {
+        mockMvc.perform(get("/api/dashboard/inicio/" + ID_OTRO_SOCIO))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
+    void socio_siPuedeVerSuPropioDashboard() throws Exception {
+        mockMvc.perform(get("/api/dashboard/inicio/" + ID_SOCIO))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
+    void socio_noPuedeVerElHistorialDeProgresoDeOtro() throws Exception {
+        mockMvc.perform(get("/api/progreso/socio/" + ID_OTRO_SOCIO))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
+    void socio_noPuedeVerLosPagosDeOtro() throws Exception {
+        mockMvc.perform(get("/api/operacion/pagos/socio/" + ID_OTRO_SOCIO))
+                .andExpect(status().isForbidden());
+    }
+}

@@ -9,12 +9,12 @@
 		<relativePath/> </parent>
 
 	<groupId>ni.edu.uam</groupId>
-	<artifactId>SpartanGymAPI</artifactId>
+	<artifactId>GimnasioAPI</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>SpartanGymAPI</name>
-	<description>API REST para el Sistema de Gestión de Gimnasio SpartanGym</description>
+	<name>GimnasioAPI</name>
+	<description>API REST para el Sistema de Gestión de Gimnasio</description>
 
 	<properties>
 		<java.version>17</java.version>
