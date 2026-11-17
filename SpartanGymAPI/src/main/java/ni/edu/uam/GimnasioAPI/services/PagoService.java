@@ -59,6 +59,7 @@ public class PagoService {
     }
 
     private FacturaMembresiaResponse procesarRenovacion(Socio socio, Integer tipoMembresiaId, String metodoPago) {
+        String metodoPagoValidado = MembresiaService.validarMetodoPago(metodoPago);
         TipoMembresia tipoMembresia = tipoMembresiaRepository.findById(tipoMembresiaId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de membresía no encontrado"));
 
@@ -88,7 +89,7 @@ public class PagoService {
         Pago pago = new Pago();
         pago.setSocio(socio);
         pago.setMonto(total);
-        pago.setMetodoPago(metodoPago);
+        pago.setMetodoPago(metodoPagoValidado);
         pago.setNumeroFactura(generarNumeroFactura());
         pago.setFechaTransaccion(LocalDateTime.now());
         pago = pagoRepository.save(pago);

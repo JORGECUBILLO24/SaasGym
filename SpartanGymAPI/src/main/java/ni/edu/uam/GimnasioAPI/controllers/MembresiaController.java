@@ -3,7 +3,7 @@ package ni.edu.uam.GimnasioAPI.controllers;
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.dto.CompraMembresiaRequest;
 import ni.edu.uam.GimnasioAPI.dto.TipoMembresiaRequest;
-import ni.edu.uam.GimnasioAPI.models.MembresiaSocio;
+import ni.edu.uam.GimnasioAPI.dto.MembresiaSocioResponse;
 import ni.edu.uam.GimnasioAPI.models.TipoMembresia;
 import ni.edu.uam.GimnasioAPI.services.MembresiaService;
 import org.springframework.http.ResponseEntity;
@@ -55,13 +55,14 @@ public class MembresiaController {
     }
 
     @PostMapping("/comprar")
-    public ResponseEntity<MembresiaSocio> comprarMembresia(
+    public ResponseEntity<MembresiaSocioResponse> comprarMembresia(
             @RequestBody CompraMembresiaRequest request,
             Authentication authentication // Spring Security inyecta aquí los datos del usuario autenticado
     ) {
         // Sacamos el email del contexto de seguridad, no del JSON. Los errores los traduce
         // GlobalExceptionHandler, igual que en el resto de la API (antes un try/catch propio
         // devolvía siempre 400 y se salteaba el contrato de errores).
-        return ResponseEntity.ok(membresiaService.comprarMembresia(authentication.getName(), request));
+        return ResponseEntity.ok(MembresiaSocioResponse.desde(
+                membresiaService.comprarMembresia(authentication.getName(), request)));
     }
 }

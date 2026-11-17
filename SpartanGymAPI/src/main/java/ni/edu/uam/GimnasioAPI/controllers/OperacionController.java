@@ -133,8 +133,12 @@ public class OperacionController {
     public ResponseEntity<Map<String, Object>> marcarLeida(@PathVariable UUID id, Authentication auth) {
         Usuario usuario = usuarioAutenticado(auth);
         Notificacion notificacion = notificacionRepository.findById(id)
-                .filter(n -> n.getUsuario() == null || n.getUsuario().getId().equals(usuario.getId()))
                 .orElseThrow(() -> new RecursoNoEncontradoException("Notificación no encontrada"));
+        // Las globales (sin usuario) las puede leer cualquiera; las personales, solo su dueño.
+        // 404 y no 403: confirmar que el id existe ya filtraria informacion de otra persona.
+        if (notificacion.getUsuario() != null && !notificacion.getUsuario().getId().equals(usuario.getId())) {
+            throw new RecursoNoEncontradoException("Notificación no encontrada");
+        }
         notificacion.setLeida(true);
         return ResponseEntity.ok(notificacionMap(notificacionRepository.save(notificacion)));
     }

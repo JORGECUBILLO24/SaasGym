@@ -17,6 +17,7 @@ public class CatalogoController {
 
     private final CatalogoService catalogoService;
 
+    // Leer el catalogo es libre para cualquier sesion; modificarlo, solo para quien arma rutinas.
     @PostMapping("/grupos-musculares")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'ENTRENADOR')")
     public ResponseEntity<GrupoMuscular> crearGrupo(@RequestBody GrupoMuscular grupo) {

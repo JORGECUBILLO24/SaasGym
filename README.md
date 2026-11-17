@@ -1,4 +1,4 @@
-# SpartanGym
+# SaasGym
 
 Sistema de gestión para gimnasios compuesto por una API REST, una aplicación web
 para administración y recepción, y una aplicación Android para socios y
@@ -8,9 +8,9 @@ entrenadores.
 
 | Componente | Ubicación | Tecnología |
 | --- | --- | --- |
-| API | `SpartanGymAPI` | Spring Boot 4, Java 17, PostgreSQL, JWT |
-| Web | `SpartanGymWeb` | React 19, Vite, Tailwind CSS |
-| Android | `SpartanGymApp` | Kotlin, Jetpack Compose, Retrofit |
+| API | `SaasGym` | Spring Boot 4, Java 17, PostgreSQL, JWT |
+| Web | `SaasGym` | React 19, Vite, Tailwind CSS |
+| Android | `SaasGym` | Kotlin, Jetpack Compose, Retrofit |
 
 La API expone autenticación, socios, personal, membresías, pagos, asistencias,
 rutinas, inventario, ventas, finanzas, reportes, sucursales y notificaciones.
@@ -28,16 +28,17 @@ rutinas, inventario, ventas, finanzas, reportes, sucursales y notificaciones.
 ### 1. Clonar y preparar la base de datos
 
 ```powershell
-git clone https://github.com/JORGECUBILLO24/SpartanGym.git
-cd SpartanGym
+git clone https://github.com/JORGECUBILLO24/SaasGym.git
+cd SaasGym
 ```
 
 Crea una base de datos PostgreSQL llamada `spartangym_db` y ejecuta
 `gimnasio_schema.sql`. El esquema se administra mediante ese archivo porque
 Hibernate está configurado con `ddl-auto=none`.
 
-El esquema no precarga sucursales. Después de iniciar sesión con la cuenta
-administrativa inicial, crea al menos una en **Administración → Sucursales**;
+El esquema no crea cuentas administrativas ni precarga sucursales. Debes crear
+la primera cuenta administrativa mediante un procedimiento controlado de
+provisión y después crear al menos una sucursal en **Administración → Sucursales**;
 el registro público de socios se habilita cuando existe una sucursal.
 
 ### 2. Configurar y ejecutar la API
@@ -137,7 +138,15 @@ Variables importantes de producción:
 | `JWT_SECRET` | Clave de firma de tokens |
 | `APP_CORS_ORIGINS` | Orígenes web permitidos, separados por coma |
 | `APP_WEB_RESET_PASSWORD_URL` | URL web para restablecer contraseñas |
-| `MAIL_USERNAME` y `MAIL_PASSWORD` | Correo SMTP opcional |
+| `ATTENDANCE_QR_SECRET` | Secreto HMAC obligatorio para los QR fuera de local |
+| `MAIL_USERNAME` y `MAIL_PASSWORD` | Credenciales SMTP/Brevo para correo |
+
+### Correo con Brevo
+
+La API usa SMTP. Para Brevo configura en Render las variables `MAIL_USERNAME`
+con el correo remitente verificado y `MAIL_PASSWORD` con la clave SMTP de
+Brevo. Mantén `spring.mail.host=smtp-relay.brevo.com`, puerto `587` y TLS
+habilitado; no guardes esas credenciales en Git.
 
 ## Pruebas
 

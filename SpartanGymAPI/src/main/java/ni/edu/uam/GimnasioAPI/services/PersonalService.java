@@ -16,6 +16,7 @@ import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
 import ni.edu.uam.GimnasioAPI.security.JwtService;
 import ni.edu.uam.GimnasioAPI.security.UserDetailsImpl;
+import ni.edu.uam.GimnasioAPI.util.ValidacionCuenta;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -85,21 +86,29 @@ public class PersonalService {
 
     @Transactional
     public AuthResponse registrarPersonal(RegisterPersonalRequest request) {
+        String email = ValidacionCuenta.email(request.getEmail());
+        String password = ValidacionCuenta.password(request.getPassword());
+        String nombres = ValidacionCuenta.requerido(request.getNombres(), "nombres");
+        String apellidos = ValidacionCuenta.requerido(request.getApellidos(), "apellidos");
+        if (usuarioRepository.findByEmailIgnoreCase(email).isPresent()) {
+            throw new ConflictoException("El correo ya está en uso.");
+        }
+
         String rolSolicitado = normalizarRol(request.getRol());
         Rol rol = rolRepository.findByNombre(rolSolicitado)
                 .orElseThrow(() -> new IllegalStateException("Rol " + rolSolicitado + " no configurado"));
 
         Usuario usuario = new Usuario();
-        usuario.setEmail(request.getEmail());
-        usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        usuario.setEmail(email);
+        usuario.setPasswordHash(passwordEncoder.encode(password));
         usuario.setRol(rol);
         usuario.setActivo(true);
         usuario = usuarioRepository.save(usuario);
 
         Personal personal = new Personal();
         personal.setUsuario(usuario);
-        personal.setNombres(request.getNombres());
-        personal.setApellidos(request.getApellidos());
+        personal.setNombres(nombres);
+        personal.setApellidos(apellidos);
         personal.setTelefono(request.getTelefono());
         personal.setEspecialidad(request.getEspecialidad());
         personal.setSucursal(obtenerSucursalOpcional(request.getSucursalId()));
@@ -129,7 +138,7 @@ public class PersonalService {
                 .orElseThrow(() -> new AccesoDenegadoException("Perfil de personal no encontrado"));
 
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            usuario.setEmail(request.getEmail().trim());
+            usuario.setEmail(ValidacionCuenta.email(request.getEmail()));
         }
         if (request.getNombres() != null && !request.getNombres().isBlank()) {
             personal.setNombres(request.getNombres().trim());
