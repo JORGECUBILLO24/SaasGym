@@ -37,6 +37,16 @@ const ventaInicial = {
 
 const metodosPago = ['Efectivo', 'Tarjeta', 'Transferencia'];
 
+// Lo que se puede vender: en un producto preparado la API lo calcula con sus insumos.
+const existencia = (producto) => Number(producto?.disponible ?? producto?.stock ?? 0);
+
+const recetaLegible = (producto) => (producto?.componentes || [])
+  .map((componente) => {
+    const unidad = componente.insumo?.unidad;
+    return `${componente.cantidad} ${!unidad || unidad === 'unidad' ? '' : `${unidad} `}${componente.insumo?.nombre || ''}`.replace(/\s+/g, ' ').trim();
+  })
+  .join(', ');
+
 const VentaProductosCompartida = ({
   subtitulo = 'Ventas',
   titulo = 'Vender productos',
@@ -88,9 +98,11 @@ const VentaProductosCompartida = ({
   const [categoria, setCategoria] = useState('Todas');
   const idSucursalDe = (producto) => producto.sucursal?.id || producto.sucursalId || null;
   // Solo se puede facturar lo que pertenece a la sucursal elegida (la API rechaza el resto).
+  // Los insumos (leche, proteína a granel) no se venden sueltos: los consume la receta.
   const productosSucursal = productos.filter((producto) => {
     const sucursalProducto = idSucursalDe(producto);
-    return !sucursalProducto || !formulario.sucursalId || sucursalProducto === formulario.sucursalId;
+    return producto.vendible !== false
+      && (!sucursalProducto || !formulario.sucursalId || sucursalProducto === formulario.sucursalId);
   });
   const categorias = ['Todas', ...Array.from(new Set(productosSucursal.map((producto) => producto.categoria).filter(Boolean))).sort()];
   const productosFiltrados = productosSucursal.filter((producto) => {
@@ -149,15 +161,20 @@ const VentaProductosCompartida = ({
   };
 
   const agregarProducto = (producto) => {
-    if (Number(producto.stock || 0) <= 0) {
-      setMensaje({ tipo: 'error', texto: 'Este producto no tiene stock disponible.' });
+    if (existencia(producto) <= 0) {
+      setMensaje({
+        tipo: 'error',
+        texto: producto.componentes?.length
+          ? 'No alcanzan los insumos para preparar este producto.'
+          : 'Este producto no tiene stock disponible.',
+      });
       return;
     }
 
     setCarrito((actual) => {
       const existe = actual.find((item) => item.producto.id === producto.id);
       if (!existe) return [...actual, { producto, cantidad: 1 }];
-      if (existe.cantidad >= Number(producto.stock || 0)) return actual;
+      if (existe.cantidad >= existencia(producto)) return actual;
       return actual.map((item) =>
         item.producto.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
       );
@@ -169,7 +186,7 @@ const VentaProductosCompartida = ({
       actual
         .map((item) => {
           if (item.producto.id !== productoId) return item;
-          const nuevaCantidad = Math.max(0, Math.min(item.cantidad + delta, Number(item.producto.stock || 0)));
+          const nuevaCantidad = Math.max(0, Math.min(item.cantidad + delta, existencia(item.producto)));
           return { ...item, cantidad: nuevaCantidad };
         })
         .filter((item) => item.cantidad > 0)
@@ -315,18 +332,23 @@ const VentaProductosCompartida = ({
                     <div className="sales-product-copy">
                       <h3 title={producto.nombre}>{producto.nombre}</h3>
                       <p>{producto.categoria || 'Sin categoría'}</p>
+                      {(producto.componentes?.length || producto.descripcion) ? (
+                        <p className="sales-product-recipe" title={producto.descripcion || recetaLegible(producto)}>
+                          {producto.componentes?.length ? `Lleva ${recetaLegible(producto)}` : producto.descripcion}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <div className="sales-product-details">
                     <strong>{formatearMonto(producto.precio)}</strong>
-                    <span className={`sales-stock ${Number(producto.stock || 0) > 5 ? 'is-available' : 'is-low'}`}>
-                      {producto.stock} disp.
+                    <span className={`sales-stock ${existencia(producto) > 5 ? 'is-available' : 'is-low'}`}>
+                      {existencia(producto)} disp.
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => agregarProducto(producto)}
-                    disabled={Number(producto.stock || 0) <= 0}
+                    disabled={existencia(producto) <= 0}
                     className="sales-add-button"
                   >
                     <Plus size={15} /> Añadir
@@ -455,7 +477,7 @@ const VentaProductosCompartida = ({
                   <div className="sales-quantity-control" aria-label={`Cantidad de ${item.producto.nombre}`}>
                     <button type="button" onClick={() => cambiarCantidad(item.producto.id, -1)} aria-label={`Quitar una unidad de ${item.producto.nombre}`}><Minus size={14} /></button>
                     <span>{item.cantidad}</span>
-                    <button type="button" onClick={() => cambiarCantidad(item.producto.id, 1)} aria-label={`Agregar una unidad de ${item.producto.nombre}`} disabled={item.cantidad >= Number(item.producto.stock || 0)}><Plus size={14} /></button>
+                    <button type="button" onClick={() => cambiarCantidad(item.producto.id, 1)} aria-label={`Agregar una unidad de ${item.producto.nombre}`} disabled={item.cantidad >= existencia(item.producto)}><Plus size={14} /></button>
                   </div>
                   <strong className="sales-cart-line-total">{formatearMonto(Number(item.producto.precio || 0) * item.cantidad)}</strong>
                   <button type="button" onClick={() => cambiarCantidad(item.producto.id, -item.cantidad)} aria-label={`Eliminar ${item.producto.nombre} del carrito`} className="sales-remove-button"><Trash2 size={15} /></button>

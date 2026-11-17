@@ -3,6 +3,7 @@ package ni.edu.uam.GimnasioAPI.services;
 import ni.edu.uam.GimnasioAPI.exceptions.*;
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.dto.FacturaDetalleResponse;
+import ni.edu.uam.GimnasioAPI.dto.LineaReceta;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoDetalleRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoResponse;
@@ -14,6 +15,7 @@ import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.models.VentaProducto;
 import ni.edu.uam.GimnasioAPI.models.VentaProductoDetalle;
 import ni.edu.uam.GimnasioAPI.repositories.MovimientoFinancieroRepository;
+import ni.edu.uam.GimnasioAPI.repositories.ProductoComponenteRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
@@ -27,10 +29,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -41,6 +47,7 @@ public class VentaProductoService {
 
     private final VentaProductoRepository ventaRepository;
     private final ProductoInventarioRepository productoRepository;
+    private final ProductoComponenteRepository componenteRepository;
     private final SocioRepository socioRepository;
     private final SucursalRepository sucursalRepository;
     private final UsuarioRepository usuarioRepository;
@@ -99,27 +106,54 @@ public class VentaProductoService {
         venta.setObservaciones(limpiarTexto(request.getObservaciones()));
         venta.setFechaCreacion(LocalDateTime.now());
 
-        // Se bloquean TODOS los productos de la venta antes de leer su stock, siempre en el mismo
-        // orden (por id). Sin esto, dos ventas simultaneas facturaban unidades que ya no existian,
-        // y dos ventas con los mismos productos en orden distinto terminaban en deadlock.
-        Map<UUID, ProductoInventario> productos = bloquearProductos(request.getDetalles());
+        // Un producto preparado (batido, café...) no tiene stock propio: descuenta de sus insumos.
+        // Las recetas se leen como valores sueltos para saber qué filas bloquear antes de leer stock.
+        List<UUID> idsVendidos = idsDeLaVenta(request.getDetalles());
+        Map<UUID, List<LineaReceta>> recetas = componenteRepository.recetasDe(idsVendidos).stream()
+                .collect(Collectors.groupingBy(LineaReceta::productoId));
 
+        // Se bloquean TODAS las filas que se van a tocar (productos e insumos) antes de leer su
+        // stock, siempre en el mismo orden. Sin esto, dos ventas simultaneas facturaban unidades
+        // que ya no existian, y dos ventas en orden distinto terminaban en deadlock.
+        // Primero las filas sin receta y despues las preparadas: al cargar un preparado, Hibernate
+        // trae tambien sus insumos, y para entonces ya tienen que estar bloqueados.
+        Set<UUID> sinReceta = new TreeSet<>();
+        Set<UUID> preparados = new TreeSet<>();
+        for (UUID id : idsVendidos) {
+            (recetas.containsKey(id) ? preparados : sinReceta).add(id);
+        }
+        recetas.values().forEach(lineas -> lineas.forEach(linea -> sinReceta.add(linea.insumoId())));
+        Set<UUID> aBloquear = new java.util.LinkedHashSet<>(sinReceta);
+        aBloquear.addAll(preparados);
+        Map<UUID, ProductoInventario> productos = bloquearProductos(aBloquear);
+
+        // Lo que sale del inventario, sumado por fila: si se venden 2 batidos y 1 bote de la misma
+        // proteina, se valida contra el total y no linea por linea.
+        Map<UUID, Long> consumo = new LinkedHashMap<>();
+        Map<UUID, String> usadoEn = new LinkedHashMap<>();
         BigDecimal subtotal = BigDecimal.ZERO;
         for (VentaProductoDetalleRequest detalleRequest : request.getDetalles()) {
             ProductoInventario producto = productos.get(detalleRequest.getProductoId());
             if (producto.getSucursal() != null && !producto.getSucursal().getId().equals(sucursal.getId())) {
                 throw new ReglaNegocioException(producto.getNombre() + " pertenece a otra sucursal");
             }
+            if (Boolean.FALSE.equals(producto.getVendible())) {
+                throw new ReglaNegocioException(producto.getNombre() + " es un insumo y no se vende por separado");
+            }
             int cantidad = detalleRequest.getCantidad() == null ? 0 : detalleRequest.getCantidad();
             if (cantidad <= 0) {
                 throw new ReglaNegocioException("La cantidad debe ser mayor a cero");
             }
-            if (producto.getStock() < cantidad) {
-                throw new ReglaNegocioException("Stock insuficiente para " + producto.getNombre());
-            }
 
-            producto.setStock(producto.getStock() - cantidad);
-            productoRepository.save(producto);
+            List<LineaReceta> receta = recetas.getOrDefault(producto.getId(), List.of());
+            if (receta.isEmpty()) {
+                consumo.merge(producto.getId(), (long) cantidad, Long::sum);
+            } else {
+                for (LineaReceta linea : receta) {
+                    consumo.merge(linea.insumoId(), (long) cantidad * linea.cantidad(), Long::sum);
+                    usadoEn.putIfAbsent(linea.insumoId(), producto.getNombre());
+                }
+            }
 
             BigDecimal totalLinea = producto.getPrecio().multiply(BigDecimal.valueOf(cantidad));
             VentaProductoDetalle detalle = new VentaProductoDetalle();
@@ -131,6 +165,18 @@ public class VentaProductoService {
             detalle.setTotalLinea(totalLinea);
             venta.getDetalles().add(detalle);
             subtotal = subtotal.add(totalLinea);
+        }
+
+        for (Map.Entry<UUID, Long> salida : consumo.entrySet()) {
+            ProductoInventario fila = productos.get(salida.getKey());
+            long existencia = fila.getStock() == null ? 0 : fila.getStock();
+            if (existencia < salida.getValue()) {
+                String para = usadoEn.containsKey(fila.getId()) ? " para preparar " + usadoEn.get(fila.getId()) : "";
+                throw new ReglaNegocioException("Stock insuficiente de " + fila.getNombre() + para
+                        + ": hay " + existencia + " " + unidadDe(fila) + " y se necesitan " + salida.getValue());
+            }
+            fila.setStock((int) (existencia - salida.getValue()));
+            productoRepository.save(fila);
         }
 
         BigDecimal impuesto = subtotal.multiply(obtenerTasaImpuesto())
@@ -176,20 +222,31 @@ public class VentaProductoService {
         return vender(request, auth);
     }
 
-    private Map<UUID, ProductoInventario> bloquearProductos(List<VentaProductoDetalleRequest> detalles) {
+    private List<UUID> idsDeLaVenta(List<VentaProductoDetalleRequest> detalles) {
+        List<UUID> ids = new ArrayList<>();
+        for (VentaProductoDetalleRequest detalle : detalles) {
+            if (detalle.getProductoId() == null) {
+                throw new ReglaNegocioException("Selecciona un producto para cada linea de la venta");
+            }
+            if (!ids.contains(detalle.getProductoId())) {
+                ids.add(detalle.getProductoId());
+            }
+        }
+        return ids;
+    }
+
+    private Map<UUID, ProductoInventario> bloquearProductos(Set<UUID> idsOrdenados) {
         Map<UUID, ProductoInventario> productos = new LinkedHashMap<>();
-        detalles.stream()
-                .map(detalle -> {
-                    if (detalle.getProductoId() == null) {
-                        throw new ReglaNegocioException("Selecciona un producto para cada linea de la venta");
-                    }
-                    return detalle.getProductoId();
-                })
-                .distinct()
-                .sorted()
-                .forEach(id -> productos.put(id, productoRepository.findByIdForUpdate(id)
-                        .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"))));
+        for (UUID id : idsOrdenados) {
+            productos.put(id, productoRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado")));
+        }
         return productos;
+    }
+
+    private static String unidadDe(ProductoInventario producto) {
+        String unidad = producto.getUnidad();
+        return unidad == null || unidad.isBlank() || "unidad".equals(unidad) ? "unid." : unidad;
     }
 
     private Usuario obtenerVendedor(Authentication auth) {

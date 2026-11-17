@@ -1553,6 +1553,22 @@ input,select,textarea{
   box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .15);
 }
 .inventory-editor-input option { background: #111; color: #fff; }
+.inventory-editor-wide { grid-column: 1 / -1; }
+.inventory-editor-check { display: flex; align-items: flex-start; gap: .65rem; align-self: end; border-radius: .65rem; padding: .7rem .8rem; cursor: pointer; }
+.inventory-editor-check input { margin-top: .15rem; width: 1rem; height: 1rem; flex: none; accent-color: rgb(var(--accent-rgb)); }
+.inventory-editor-check strong,
+.inventory-recipe-head strong { display: block; font-size: .82rem; }
+.inventory-editor-check small,
+.inventory-recipe-head small { display: block; margin-top: .15rem; font-size: .72rem; line-height: 1.35; }
+.inventory-recipe { border-radius: .8rem; padding: .85rem; }
+.inventory-recipe-head { display: flex; align-items: center; gap: .75rem; }
+.inventory-recipe-row { display: grid; grid-template-columns: minmax(0, 1fr) 7.5rem auto; gap: .5rem; align-items: center; }
+.inventory-recipe-qty { position: relative; display: block; }
+.inventory-recipe-qty input { padding-right: 2.6rem; }
+.inventory-recipe-qty span { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); color: #8b8b94; font-size: .72rem; pointer-events: none; }
+@media (max-width: 30rem) {
+  .inventory-recipe-row { grid-template-columns: minmax(0, 1fr) 6rem auto; }
+}
 .inventory-editor-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2083,6 +2099,7 @@ input,select,textarea{
 .sales-product-copy { min-width: 0; }
 .sales-product-copy h3 { overflow: hidden; color: #f4f4f5; font-size: .77rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .sales-product-copy p { overflow: hidden; margin-top: .13rem; color: #85858e; font-size: .64rem; text-overflow: ellipsis; white-space: nowrap; }
+.sales-product-copy .sales-product-recipe { color: #a1a1aa; }
 .sales-product-details { display: flex; min-width: 0; flex-direction: column; align-items: flex-end; gap: .18rem; }
 .sales-product-details > strong { color: white; font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sales-stock { border-radius: 999px; padding: .13rem .38rem; font-size: .58rem; font-weight: 700; white-space: nowrap; }
@@ -2190,3 +2207,7 @@ input,select,textarea{
   .sales-checkout-heading { flex-wrap: wrap; }
   .sales-back-button { display: inline-flex; }
 }
+
+/* La cabecera de ventas va sobre el fondo de la página, no sobre un panel oscuro. */
+:root[data-theme="light"] .sales-title { color: #111114; }
+:root[data-theme="light"] .sales-refresh-button { color: #3f3f46; }

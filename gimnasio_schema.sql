@@ -319,6 +319,24 @@ ALTER TABLE productos_inventario
 ALTER TABLE productos_inventario
     ADD COLUMN IF NOT EXISTS imagen_url TEXT;
 
+-- Unidad en que se cuenta el stock (g, ml...), si se vende al público o es solo insumo,
+-- y recetas: un batido descuenta de la proteína y la leche que lleva.
+ALTER TABLE productos_inventario
+    ADD COLUMN IF NOT EXISTS descripcion TEXT,
+    ADD COLUMN IF NOT EXISTS unidad VARCHAR(20) NOT NULL DEFAULT 'unidad',
+    ADD COLUMN IF NOT EXISTS vendible BOOLEAN NOT NULL DEFAULT TRUE;
+
+CREATE TABLE IF NOT EXISTS producto_componentes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    producto_id UUID NOT NULL REFERENCES productos_inventario(id) ON DELETE CASCADE,
+    insumo_id UUID NOT NULL REFERENCES productos_inventario(id),
+    cantidad INT NOT NULL CHECK (cantidad > 0),
+    CONSTRAINT ux_producto_componente UNIQUE (producto_id, insumo_id),
+    CONSTRAINT ck_producto_componente_distinto CHECK (producto_id <> insumo_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_producto_componentes_insumo ON producto_componentes (insumo_id);
+
 CREATE TABLE IF NOT EXISTS movimientos_financieros (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     concepto VARCHAR(150) NOT NULL,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle, ArrowLeft, CheckCircle2, DollarSign, Edit, Image as ImageIcon,
-  Layers, Package, Plus, Save, Search, Tag, Trash2, X,
+  CookingPot, Layers, Package, Plus, Save, Search, Tag, Trash2, X,
 } from 'lucide-react';
 import TarjetaMetrica from '../../../components/TarjetaMetrica';
 import {
@@ -14,7 +14,24 @@ import { prepararImagen } from '../../../utils/imagen';
 
 const crearProductoInicial = (sucursalId = '') => ({
   nombre: '', categoria: 'Suplementos', precio: '', stock: '', sucursalId, imagenUrl: '',
+  descripcion: '', unidad: 'unidad', vendible: true, preparado: false, componentes: [],
 });
+
+const UNIDADES = [
+  { valor: 'unidad', etiqueta: 'Unidades' },
+  { valor: 'g', etiqueta: 'Gramos (g)' },
+  { valor: 'ml', etiqueta: 'Mililitros (ml)' },
+  { valor: 'servicio', etiqueta: 'Servicios' },
+];
+
+const abreviarUnidad = (unidad) => (!unidad || unidad === 'unidad' ? 'unid.' : unidad);
+
+// Existencia que se puede vender: en un preparado la calcula la API según sus insumos.
+const existenciaDe = (producto) => Number(producto?.disponible ?? producto?.stock ?? 0);
+
+const resumenReceta = (producto) => (producto?.componentes || [])
+  .map((componente) => `${componente.cantidad} ${abreviarUnidad(componente.insumo?.unidad)} ${componente.insumo?.nombre || ''}`.trim())
+  .join(' · ');
 
 const obtenerIdCorto = (id = '') => {
   const texto = String(id || '').trim();
@@ -72,6 +89,14 @@ const Inventario = () => {
       stock: producto.stock ?? '',
       sucursalId: producto.sucursal?.id || producto.sucursalId || '',
       imagenUrl: producto.imagenUrl || '',
+      descripcion: producto.descripcion || '',
+      unidad: producto.unidad || 'unidad',
+      vendible: producto.vendible !== false,
+      preparado: Boolean(producto.componentes?.length),
+      componentes: (producto.componentes || []).map((componente) => ({
+        insumoId: componente.insumo?.id || '',
+        cantidad: componente.cantidad ?? '',
+      })),
     });
     setVista('editor');
   };
@@ -85,8 +110,36 @@ const Inventario = () => {
   };
 
   const handleChange = (evento) => {
-    const { name, value } = evento.target;
-    setNuevoProducto((actual) => ({ ...actual, [name]: value }));
+    const { name, value, type, checked } = evento.target;
+    setNuevoProducto((actual) => ({
+      ...actual,
+      [name]: type === 'checkbox' ? checked : value,
+      // Al cambiar de sucursal la receta deja de valer: sus insumos son de la sucursal anterior.
+      ...(name === 'sucursalId' && value !== actual.sucursalId ? { componentes: actual.preparado ? [{ insumoId: '', cantidad: '' }] : [] } : {}),
+    }));
+  };
+
+  const cambiarPreparado = (preparado) => {
+    setNuevoProducto((actual) => ({
+      ...actual,
+      preparado,
+      componentes: preparado && !actual.componentes.length ? [{ insumoId: '', cantidad: '' }] : actual.componentes,
+    }));
+  };
+
+  const cambiarComponente = (indice, campo, valor) => {
+    setNuevoProducto((actual) => ({
+      ...actual,
+      componentes: actual.componentes.map((componente, i) => (i === indice ? { ...componente, [campo]: valor } : componente)),
+    }));
+  };
+
+  const agregarComponente = () => {
+    setNuevoProducto((actual) => ({ ...actual, componentes: [...actual.componentes, { insumoId: '', cantidad: '' }] }));
+  };
+
+  const quitarComponente = (indice) => {
+    setNuevoProducto((actual) => ({ ...actual, componentes: actual.componentes.filter((_, i) => i !== indice) }));
   };
 
   const handleImagenChange = async (evento) => {
@@ -108,13 +161,20 @@ const Inventario = () => {
     setIsSubmitting(true);
     setErrorApi('');
     try {
+      const componentes = nuevoProducto.preparado
+        ? nuevoProducto.componentes.map((componente) => ({ insumoId: componente.insumoId, cantidad: Number(componente.cantidad) }))
+        : [];
       const payload = {
         nombre: nuevoProducto.nombre.trim(),
         categoria: nuevoProducto.categoria,
         precio: Number(nuevoProducto.precio),
-        stock: Number(nuevoProducto.stock),
+        stock: componentes.length ? 0 : Number(nuevoProducto.stock),
         imagenUrl: nuevoProducto.imagenUrl,
         sucursalId: nuevoProducto.sucursalId || null,
+        descripcion: nuevoProducto.descripcion.trim(),
+        unidad: nuevoProducto.unidad,
+        vendible: nuevoProducto.vendible,
+        componentes,
       };
       await (productoEditandoId
         ? inventarioApi.actualizar(productoEditandoId, payload)
@@ -127,8 +187,8 @@ const Inventario = () => {
         setNuevoProducto(crearProductoInicial(sucursales[0]?.id || ''));
         setIsSaved(false);
       }, 900);
-    } catch {
-      setErrorApi(productoEditandoId ? 'No se pudo actualizar el producto en la API.' : 'No se pudo guardar el producto en la API.');
+    } catch (error) {
+      setErrorApi(error?.message || (productoEditandoId ? 'No se pudo actualizar el producto.' : 'No se pudo guardar el producto.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -139,14 +199,20 @@ const Inventario = () => {
     try {
       await inventarioApi.eliminar(id);
       await cargarDatos();
-    } catch {
-      setErrorApi('No se pudo eliminar el producto desde la API.');
+    } catch (error) {
+      setErrorApi(error?.message || 'No se pudo eliminar el producto.');
     }
+  };
+
+  // Un insumo en gramos o mililitros no está "bajo" con 5: se avisa cuando queda poco en su unidad.
+  const enAlerta = (producto) => {
+    const umbral = producto.unidad === 'g' || producto.unidad === 'ml' ? 500 : 5;
+    return existenciaDe(producto) <= umbral;
   };
 
   const productosFiltrados = productos.filter((producto) => {
     const coincideCategoria = filtro === 'todos'
-      || (filtro === 'alertas' ? producto.stock <= 5 : producto.categoria?.toLowerCase() === filtro);
+      || (filtro === 'alertas' ? enAlerta(producto) : producto.categoria?.toLowerCase() === filtro);
     const texto = busqueda.toLowerCase().trim();
     const coincideBusqueda = `${producto.nombre || ''} ${producto.id || ''} ${obtenerIdCorto(producto.id)}`.toLowerCase().includes(texto);
     return coincideCategoria && coincideBusqueda;
@@ -154,8 +220,23 @@ const Inventario = () => {
 
   const totalProductos = productos.length;
   const valorInventario = productos.reduce((total, producto) => total + (Number(producto.precio) * Number(producto.stock)), 0);
-  const alertasStock = productos.filter((producto) => producto.stock <= 5).length;
+  const alertasStock = productos.filter(enAlerta).length;
   const totalCategorias = new Set(productos.map((producto) => producto.categoria).filter(Boolean)).size;
+
+  // Insumos que puede llevar la receta: de la misma sucursal, sin receta propia y distintos del producto.
+  const insumosDisponibles = productos.filter((producto) => {
+    const sucursalProducto = producto.sucursal?.id || producto.sucursalId || '';
+    return producto.id !== productoEditandoId
+      && !producto.componentes?.length
+      && (!nuevoProducto.sucursalId || !sucursalProducto || sucursalProducto === nuevoProducto.sucursalId);
+  });
+
+  const lineasReceta = nuevoProducto.componentes
+    .map((componente) => ({ insumo: insumosDisponibles.find((item) => item.id === componente.insumoId), cantidad: Number(componente.cantidad) }))
+    .filter((linea) => linea.insumo && linea.cantidad > 0);
+  const disponiblePreparado = lineasReceta.length && lineasReceta.length === nuevoProducto.componentes.length
+    ? Math.min(...lineasReceta.map((linea) => Math.floor(Number(linea.insumo.stock || 0) / linea.cantidad)))
+    : null;
 
   if (vista === 'editor') {
     return (
@@ -209,6 +290,7 @@ const Inventario = () => {
                 <option value="Mercancía">Mercancía (Ropa)</option>
                 <option value="Accesorios">Accesorios (Shakers, Cintos)</option>
                 <option value="Bebidas">Bebidas / Snacks</option>
+                <option value="Insumos">Insumos (para preparar)</option>
               </select>
             </span>
           </label>
@@ -226,10 +308,88 @@ const Inventario = () => {
             <input type="number" name="precio" min="0" step="0.01" required value={nuevoProducto.precio} onChange={handleChange} placeholder="0.00" className="inventory-editor-input" />
           </label>
 
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-gray-400">Stock inicial</span>
-            <input type="number" name="stock" min="0" step="1" required value={nuevoProducto.stock} onChange={handleChange} placeholder="Ej. 10" className="inventory-editor-input" />
+          {nuevoProducto.preparado ? (
+            <div className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-gray-400">Existencias</span>
+              <p className="flex min-h-11 items-center rounded-[.65rem] border border-white/10 px-3 text-sm font-semibold text-gray-300">
+                {disponiblePreparado === null ? 'Completa la receta' : `Alcanza para ${disponiblePreparado}`}
+              </p>
+            </div>
+          ) : (
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-gray-400">{productoEditandoId ? 'Stock' : 'Stock inicial'} ({abreviarUnidad(nuevoProducto.unidad)})</span>
+              <input type="number" name="stock" min="0" step="1" required value={nuevoProducto.stock} onChange={handleChange} placeholder={nuevoProducto.unidad === 'g' ? 'Ej. 2270' : 'Ej. 10'} className="inventory-editor-input" />
+            </label>
+          )}
+
+          {!nuevoProducto.preparado && (
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-gray-400">Se cuenta en</span>
+              <select name="unidad" value={nuevoProducto.unidad} onChange={handleChange} className="inventory-editor-input">
+                {UNIDADES.map((unidad) => <option key={unidad.valor} value={unidad.valor}>{unidad.etiqueta}</option>)}
+              </select>
+            </label>
+          )}
+
+          <label className="inventory-editor-check border border-white/10">
+            <input type="checkbox" name="vendible" checked={nuevoProducto.vendible} onChange={handleChange} />
+            <span>
+              <strong className="text-white">Se vende al público</strong>
+              <small className="text-gray-500">Desmárcalo en insumos como leche o proteína a granel: no aparecen en ventas ni en la app.</small>
+            </span>
           </label>
+
+          <label className="inventory-editor-wide block">
+            <span className="mb-1.5 block text-xs font-semibold text-gray-400">Descripción · opcional</span>
+            <textarea name="descripcion" rows={2} value={nuevoProducto.descripcion} onChange={handleChange} placeholder="Ej. 30 g de proteína con 300 ml de leche" className="inventory-editor-input resize-y" />
+          </label>
+
+          <fieldset className="inventory-editor-wide inventory-recipe border border-white/10">
+            <legend className="sr-only">Receta</legend>
+            <div className="inventory-recipe-head">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-gray-300"><CookingPot size={17} /></span>
+              <span className="min-w-0 flex-1">
+                <strong className="text-white">Se prepara con otros productos</strong>
+                <small className="text-gray-500">Al venderlo se descuenta cada insumo de la receta. Ej. un batido descuenta proteína y leche.</small>
+              </span>
+              <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+                <input type="checkbox" aria-label="Se prepara con otros productos" checked={nuevoProducto.preparado} onChange={(evento) => cambiarPreparado(evento.target.checked)} className="toggle-switch-input peer sr-only" />
+                <span className="toggle-switch-track h-6 w-11 rounded-full bg-gray-700 transition-all after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2" />
+              </label>
+            </div>
+
+            {nuevoProducto.preparado && (
+              <div className="mt-3 space-y-2">
+                {!insumosDisponibles.length && (
+                  <p className="rounded-lg bg-orange-500/10 px-3 py-2 text-xs text-orange-200">
+                    Esta sucursal no tiene insumos todavía. Crea primero productos como «Leche» o «Proteína a granel» y vuelve aquí.
+                  </p>
+                )}
+                {nuevoProducto.componentes.map((componente, indice) => {
+                  const insumo = insumosDisponibles.find((item) => item.id === componente.insumoId);
+                  const usados = new Set(nuevoProducto.componentes.filter((_, i) => i !== indice).map((item) => item.insumoId));
+                  return (
+                    <div key={indice} className="inventory-recipe-row">
+                      <select aria-label={`Insumo ${indice + 1}`} required value={componente.insumoId} onChange={(evento) => cambiarComponente(indice, 'insumoId', evento.target.value)} className="inventory-editor-input">
+                        <option value="">Elige un insumo</option>
+                        {insumosDisponibles.filter((item) => !usados.has(item.id)).map((item) => (
+                          <option key={item.id} value={item.id}>{item.nombre} · {item.stock} {abreviarUnidad(item.unidad)}</option>
+                        ))}
+                      </select>
+                      <label className="inventory-recipe-qty">
+                        <input type="number" aria-label={`Cantidad de insumo ${indice + 1}`} min="1" step="1" required value={componente.cantidad} onChange={(evento) => cambiarComponente(indice, 'cantidad', evento.target.value)} placeholder="0" className="inventory-editor-input" />
+                        <span>{abreviarUnidad(insumo?.unidad)}</span>
+                      </label>
+                      <button type="button" onClick={() => quitarComponente(indice)} aria-label={`Quitar insumo ${indice + 1}`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-300"><Trash2 size={15} /></button>
+                    </div>
+                  );
+                })}
+                <button type="button" onClick={agregarComponente} disabled={nuevoProducto.componentes.length >= insumosDisponibles.length} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-40">
+                  <Plus size={14} /> Agregar insumo
+                </button>
+              </div>
+            )}
+          </fieldset>
 
           <div className="inventory-editor-actions">
             <button type="button" onClick={volverAlCatalogo} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white">
@@ -261,7 +421,7 @@ const Inventario = () => {
       <div className="workspace-grid--metrics">
         <TarjetaMetrica titulo="Total de Productos" valor={totalProductos} icono={Package} color="text-blue-500" detalle="Artículos en catálogo" />
         <TarjetaMetrica titulo="Valor del Inventario" valor={formatearMonto(valorInventario)} icono={DollarSign} color="text-green-500" detalle="Capital invertido" />
-        <TarjetaMetrica titulo="Alertas de Stock" valor={alertasStock} icono={AlertTriangle} color="text-orange-500" detalle="Cinco unidades o menos" />
+        <TarjetaMetrica titulo="Alertas de Stock" valor={alertasStock} icono={AlertTriangle} color="text-orange-500" detalle="Existencias por agotarse" />
         <TarjetaMetrica titulo="Categorías" valor={totalCategorias} icono={Layers} color="text-gray-400" detalle="En el catálogo" />
       </div>
 
@@ -283,6 +443,7 @@ const Inventario = () => {
           <FilterBtn label="Bebidas / Snacks" value="bebidas" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Accesorios" value="accesorios" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Mercancía" value="mercancía" current={filtro} setFiltro={setFiltro} />
+          <FilterBtn label="Insumos" value="insumos" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Alertas de stock" value="alertas" current={filtro} setFiltro={setFiltro} />
         </div>
 
@@ -301,13 +462,27 @@ const Inventario = () => {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.04] text-gray-500">
                         {producto.imagenUrl ? <img src={producto.imagenUrl} alt="" className="h-full w-full object-cover" /> : <Package size={16} />}
                       </span>
-                      <span className="min-w-0"><span className="block truncate font-semibold text-white">{producto.nombre}</span><span className="mt-0.5 block font-mono text-[10px] text-gray-500" title={producto.id}>ID {obtenerIdCorto(producto.id)}</span></span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2">
+                          <span className="block truncate font-semibold text-white">{producto.nombre}</span>
+                          {producto.vendible === false && <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">Insumo</span>}
+                        </span>
+                        {producto.componentes?.length
+                          ? <span className="mt-0.5 block truncate text-[11px] text-gray-500" title={resumenReceta(producto)}>Lleva {resumenReceta(producto)}</span>
+                          : <span className="mt-0.5 block font-mono text-[10px] text-gray-500" title={producto.id}>ID {obtenerIdCorto(producto.id)}</span>}
+                      </span>
                     </div>
                   </td>
                   <td className="px-3 py-3 text-gray-400">{producto.categoria}</td>
                   <td className="px-3 py-3 text-gray-400">{producto.sucursal?.nombre || producto.sucursal || 'Sin sucursal'}</td>
                   <td className="px-3 py-3 text-center">
-                    <span className={`text-xs font-semibold ${producto.stock <= 5 ? 'text-orange-300' : 'text-gray-200'}`}>{producto.stock === 0 ? 'Agotado' : `${producto.stock} unid.`}</span>
+                    <span className={`text-xs font-semibold ${enAlerta(producto) ? 'text-orange-300' : 'text-gray-200'}`}>
+                      {existenciaDe(producto) === 0
+                        ? (producto.componentes?.length ? 'Sin insumos' : 'Agotado')
+                        : producto.componentes?.length
+                          ? `Alcanza para ${existenciaDe(producto)}`
+                          : `${producto.stock} ${abreviarUnidad(producto.unidad)}`}
+                    </span>
                   </td>
                   <td className="px-3 py-3 text-right font-semibold tabular-nums text-emerald-400">{formatearMonto(producto.precio)}</td>
                   <td className="px-3 py-3">

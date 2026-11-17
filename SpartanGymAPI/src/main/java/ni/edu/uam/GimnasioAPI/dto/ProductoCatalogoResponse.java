@@ -17,4 +17,5 @@ public class ProductoCatalogoResponse {
     private String imagenUrl;
     private UUID sucursalId;
     private String sucursal;
+    private String descripcion;
 }

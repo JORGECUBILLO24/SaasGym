@@ -1,6 +1,5 @@
 package ni.edu.uam.GimnasioAPI.controllers;
 
-import ni.edu.uam.GimnasioAPI.exceptions.*;
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.dto.ProductoCatalogoResponse;
 import ni.edu.uam.GimnasioAPI.dto.ProductoInventarioRequest;
@@ -9,11 +8,12 @@ import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
-import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.services.InventarioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,23 +24,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class InventarioController {
     private final ProductoInventarioRepository repository;
-    private final SucursalRepository sucursalRepository;
+    private final InventarioService inventarioService;
     private final UsuarioRepository usuarioRepository;
     private final SocioRepository socioRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<ProductoInventario>> listar() {
         return ResponseEntity.ok(repository.findAll());
     }
 
-    // Catalogo visible para el socio (app): productos de su misma sucursal.
+    // Catalogo visible para el socio (app): productos de su misma sucursal que se venden al publico.
     // Si el socio no tiene sucursal asignada, ve todos los productos.
     @GetMapping("/catalogo")
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<ProductoCatalogoResponse>> catalogo(Authentication auth) {
         UUID sucursalId = sucursalDelSocio(auth);
         return ResponseEntity.ok(repository.findAll().stream()
+                .filter(producto -> !Boolean.FALSE.equals(producto.getVendible()))
                 .filter(producto -> sucursalId == null
                         || (producto.getSucursal() != null && sucursalId.equals(producto.getSucursal().getId())))
                 .map(this::toCatalogo)
@@ -64,7 +67,8 @@ public class InventarioController {
                 .nombre(producto.getNombre())
                 .categoria(producto.getCategoria())
                 .precio(producto.getPrecio())
-                .stock(producto.getStock())
+                .stock(producto.getDisponible())
+                .descripcion(producto.getDescripcion())
                 .imagenUrl(producto.getImagenUrl())
                 .sucursalId(producto.getSucursal() != null ? producto.getSucursal().getId() : null)
                 .sucursal(producto.getSucursal() != null ? producto.getSucursal().getNombre() : null)
@@ -74,43 +78,19 @@ public class InventarioController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<ProductoInventario> crear(@RequestBody ProductoInventarioRequest request) {
-        ProductoInventario producto = new ProductoInventario();
-        producto.setNombre(request.getNombre());
-        producto.setCategoria(request.getCategoria());
-        producto.setPrecio(request.getPrecio());
-        producto.setStock(request.getStock());
-        producto.setImagenUrl(request.getImagenUrl());
-        producto.setSucursal(obtenerSucursal(request));
-        return ResponseEntity.ok(repository.save(producto));
+        return ResponseEntity.ok(inventarioService.crear(request));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<ProductoInventario> actualizar(@PathVariable UUID id, @RequestBody ProductoInventarioRequest request) {
-        ProductoInventario producto = repository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
-        producto.setNombre(request.getNombre());
-        producto.setCategoria(request.getCategoria());
-        producto.setPrecio(request.getPrecio());
-        producto.setStock(request.getStock());
-        producto.setImagenUrl(request.getImagenUrl());
-        producto.setSucursal(obtenerSucursal(request));
-        return ResponseEntity.ok(repository.save(producto));
+        return ResponseEntity.ok(inventarioService.actualizar(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Void> eliminar(@PathVariable UUID id) {
-        repository.deleteById(id);
+        inventarioService.eliminar(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private Sucursal obtenerSucursal(ProductoInventarioRequest request) {
-        if (request.getSucursalId() == null) {
-            return null;
-        }
-
-        return sucursalRepository.findById(request.getSucursalId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("Sucursal no encontrada"));
     }
 }
