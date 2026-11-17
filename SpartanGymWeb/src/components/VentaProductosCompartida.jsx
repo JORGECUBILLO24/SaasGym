@@ -21,6 +21,8 @@ import {
 import { formatearMoneda, obtenerNombreGimnasio, useConfiguracionApp } from '../utils/configuracionApp';
 import { obtenerLogosApp } from '../utils/logosApp';
 import { inventarioApi, sociosApi, sucursalesApi, ventasApi } from '../services/api';
+import BuscadorSocio from './BuscadorSocio';
+import { normalizar, terminos } from '../utils/busquedaEjercicios';
 
 const ventaInicial = {
   clienteEventual: false,
@@ -95,7 +97,8 @@ const VentaProductosCompartida = ({
       .catch(() => setMensaje({ tipo: 'error', texto: 'No se pudieron cargar productos, socios o sucursales desde la API.' }));
   }, [cargarDatos]);
 
-  const [categoria, setCategoria] = useState('Todas');
+  // Sin búsqueda ni categoría elegida no se lista nada: el catálogo completo ocupa toda la pantalla.
+  const [categoria, setCategoria] = useState('');
   const idSucursalDe = (producto) => producto.sucursal?.id || producto.sucursalId || null;
   // Solo se puede facturar lo que pertenece a la sucursal elegida (la API rechaza el resto).
   // Los insumos (leche, proteína a granel) no se venden sueltos: los consume la receta.
@@ -105,10 +108,13 @@ const VentaProductosCompartida = ({
       && (!sucursalProducto || !formulario.sucursalId || sucursalProducto === formulario.sucursalId);
   });
   const categorias = ['Todas', ...Array.from(new Set(productosSucursal.map((producto) => producto.categoria).filter(Boolean))).sort()];
-  const productosFiltrados = productosSucursal.filter((producto) => {
-    const texto = `${producto.nombre || ''} ${producto.categoria || ''}`.toLowerCase();
-    return (categoria === 'Todas' || producto.categoria === categoria)
-      && texto.includes(busqueda.toLowerCase().trim());
+  const buscandoProductos = Boolean(busqueda.trim()) || Boolean(categoria);
+  const terminosProducto = terminos(busqueda);
+  const productosFiltrados = !buscandoProductos ? [] : productosSucursal.filter((producto) => {
+    // Busca por nombre o algo relacionado: categoría, descripción o insumos de la receta.
+    const texto = normalizar([producto.nombre, producto.categoria, producto.descripcion, recetaLegible(producto)].filter(Boolean).join(' '));
+    return (!categoria || categoria === 'Todas' || producto.categoria === categoria)
+      && terminosProducto.every((termino) => texto.includes(termino));
   });
 
   const totalCarrito = useMemo(
@@ -266,7 +272,7 @@ const VentaProductosCompartida = ({
         <div className="sales-summary-item">
           <span>Productos</span>
           <strong>{productosSucursal.length}</strong>
-          <small>{productosFiltrados.length} en catálogo</small>
+          <small>{buscandoProductos ? `${productosFiltrados.length} encontrados` : 'En esta sucursal'}</small>
         </div>
         <div className="sales-summary-item">
           <span>Artículos</span>
@@ -310,11 +316,11 @@ const VentaProductosCompartida = ({
               </label>
             </div>
 
-            {categorias.length > 2 && (
-              <div className="sales-category-chips" role="group" aria-label="Filtrar por categoría">
+            {categorias.length > 1 && (
+              <div className="sales-category-chips" role="group" aria-label="Ver por categoría">
                 {categorias.map((nombre) => (
-                  <button key={nombre} type="button" onClick={() => setCategoria(nombre)} aria-pressed={categoria === nombre}>
-                    {nombre}
+                  <button key={nombre} type="button" onClick={() => setCategoria((actual) => (actual === nombre ? '' : nombre))} aria-pressed={categoria === nombre}>
+                    {nombre === 'Todas' ? 'Ver todo' : nombre}
                   </button>
                 ))}
               </div>
@@ -358,9 +364,11 @@ const VentaProductosCompartida = ({
               {!productosFiltrados.length && (
                 <div className="sales-empty-state">
                   <Package size={18} />
-                  <p>{productosSucursal.length
-                    ? 'No hay productos que coincidan con la búsqueda.'
-                    : 'Esta sucursal aún no tiene productos. Agrégalos en Inventario para poder venderlos.'}</p>
+                  <p>{!productosSucursal.length
+                    ? 'Esta sucursal aún no tiene productos. Agrégalos en Inventario para poder venderlos.'
+                    : buscandoProductos
+                      ? 'Ningún producto coincide. Prueba con otra palabra o una categoría.'
+                      : `Busca un producto por nombre o elige una categoría. Hay ${productosSucursal.length} disponibles.`}</p>
                 </div>
               )}
             </div>
@@ -437,10 +445,14 @@ const VentaProductosCompartida = ({
                 <CampoTexto etiqueta="Documento / referencia" name="clienteDocumento" value={formulario.clienteDocumento} onChange={actualizarCampo} placeholder="Opcional" />
               </div>
             ) : (
-              <CampoSelect etiqueta="Socio registrado" name="socioId" value={formulario.socioId} onChange={actualizarCampo} required>
-                <option value="">Selecciona socio</option>
-                {socios.map((socio) => <option key={socio.id} value={socio.id}>{socio.nombres} {socio.apellidos}</option>)}
-              </CampoSelect>
+              <BuscadorSocio
+                socios={socios}
+                valorId={formulario.socioId}
+                onSeleccionar={(socio) => { setFormulario((actual) => ({ ...actual, socioId: socio ? String(socio.id) : '' })); setMensaje(null); }}
+                etiqueta="Socio registrado"
+                claseEtiqueta="sales-field-label"
+                claseCampo="sales-field"
+              />
             )}
 
             {esEfectivo && (

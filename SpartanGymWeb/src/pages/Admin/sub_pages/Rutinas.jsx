@@ -16,6 +16,7 @@ import {
 import { prepararImagen } from '../../../utils/imagen';
 import { catalogoApi, personalApi, rutinasApi, sociosApi } from '../../../services/api';
 import SelectorEjercicio from '../../../components/SelectorEjercicio';
+import BuscadorSocio from '../../../components/BuscadorSocio';
 
 const tiposRutina = ['Hipertrofia', 'Fuerza', 'Definicion', 'Resistencia', 'Salud'];
 const tiposEjercicio = ['Fuerza', 'Cardio', 'Movilidad', 'Funcional', 'Estiramiento'];
@@ -443,18 +444,11 @@ const Rutinas = () => {
 
             <div className="workspace-grid--cards">
               {formulario.alcance === 'personal' && (
-                <CampoSelect
-                  label="Socio"
-                  icono={UserRound}
-                  value={formulario.idSocio}
-                  onChange={(valor) => actualizarCampo('idSocio', valor)}
-                  disabled={cargando}
-                >
-                  <option value="">Selecciona socio</option>
-                  {socios.map((socio) => (
-                    <option key={socio.id} value={socio.id}>{socio.nombres} {socio.apellidos}</option>
-                  ))}
-                </CampoSelect>
+                <BuscadorSocio
+                  socios={socios}
+                  valorId={formulario.idSocio}
+                  onSeleccionar={(socio) => actualizarCampo('idSocio', socio ? String(socio.id) : '')}
+                />
               )}
 
               <CampoSelect

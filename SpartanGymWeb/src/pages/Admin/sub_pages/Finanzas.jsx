@@ -8,7 +8,6 @@ import {
   FileText,
   RefreshCw,
   Save,
-  Search,
   Wallet,
 } from 'lucide-react';
 import {
@@ -23,6 +22,7 @@ import {
   useConfiguracionApp,
 } from '../../../utils/configuracionApp';
 import { finanzasApi, membresiasApi, pagosApi, sociosApi } from '../../../services/api';
+import BuscadorSocio from '../../../components/BuscadorSocio';
 
 const renovacionInicial = { idSocio: '', idTipoMembresia: '', metodoPago: 'Efectivo' };
 const metodosPagoMembresia = ['Efectivo', 'Tarjeta', 'Transferencia'];
@@ -40,7 +40,6 @@ const Finanzas = () => {
   const [transacciones, setTransacciones] = useState([]);
   const [socios, setSocios] = useState([]);
   const [tiposMembresia, setTiposMembresia] = useState([]);
-  const [busquedaSocio, setBusquedaSocio] = useState('');
   const [operacionActiva, setOperacionActiva] = useState('movimiento');
   const [filtro, setFiltro] = useState('todos');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,10 +87,6 @@ const Finanzas = () => {
     setActualizando(false);
   };
 
-  const sociosFiltrados = socios.filter((socio) =>
-    `${socio.nombres || ''} ${socio.apellidos || ''}`.toLowerCase().includes(busquedaSocio.toLowerCase().trim())
-  );
-
   const transaccionesFiltradas = transacciones.filter((transaccion) =>
     filtro === 'todos' || transaccion.tipo === filtro
   );
@@ -120,7 +115,6 @@ const Finanzas = () => {
       setFacturaMembresia(factura);
       setFacturaModalAbierta(true);
       setRenovacion(renovacionInicial);
-      setBusquedaSocio('');
       setMensajeRenovacion({ tipo: 'exito', texto: `Membresía renovada. Factura ${factura.numeroFactura} generada.` });
       await cargarTransacciones();
     } catch (error) {
@@ -328,34 +322,15 @@ const Finanzas = () => {
             </form>
           ) : (
             <form key="renovacion" onSubmit={renovarMembresia} className="finance-operation-form">
-              <label className="finance-field-wrap">
-                <span>Buscar socio</span>
-                <span className="finance-search-field">
-                  <Search size={15} aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={busquedaSocio}
-                    onChange={(evento) => setBusquedaSocio(evento.target.value)}
-                    placeholder="Nombre o apellido"
-                    aria-label="Buscar socio por nombre"
-                  />
-                </span>
-              </label>
-
-              <label className="finance-field-wrap">
-                <span>Socio</span>
-                <select
-                  required
-                  value={renovacion.idSocio}
-                  onChange={(evento) => setRenovacion((actual) => ({ ...actual, idSocio: evento.target.value }))}
-                  className="finance-field"
-                >
-                  <option value="">{sociosFiltrados.length ? 'Selecciona socio' : 'No hay socios que coincidan'}</option>
-                  {sociosFiltrados.map((socio) => (
-                    <option key={socio.id} value={socio.id}>{socio.nombres} {socio.apellidos}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="finance-field-wrap">
+                <BuscadorSocio
+                  socios={socios}
+                  valorId={renovacion.idSocio}
+                  onSeleccionar={(socio) => setRenovacion((actual) => ({ ...actual, idSocio: socio ? String(socio.id) : '' }))}
+                  claseEtiqueta="finance-picker-label"
+                  claseCampo="finance-field"
+                />
+              </div>
 
               <label className="finance-field-wrap">
                 <span>Plan de membresía</span>

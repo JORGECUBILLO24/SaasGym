@@ -11,6 +11,7 @@ import {
 } from '../../../utils/configuracionApp';
 import { inventarioApi, sucursalesApi } from '../../../services/api';
 import { prepararImagen } from '../../../utils/imagen';
+import { normalizar, terminos } from '../../../utils/busquedaEjercicios';
 
 const crearProductoInicial = (sucursalId = '') => ({
   nombre: '', categoria: 'Suplementos', precio: '', stock: '', sucursalId, imagenUrl: '',
@@ -51,7 +52,8 @@ const Inventario = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [errorApi, setErrorApi] = useState('');
   const [busqueda, setBusqueda] = useState('');
-  const [filtro, setFiltro] = useState('todos');
+  // Sin búsqueda ni filtro no se lista nada: el catálogo completo ocupa toda la pantalla.
+  const [filtro, setFiltro] = useState('');
 
   const cargarDatos = async () => {
     const [productosApi, sucursalesApiData] = await Promise.all([
@@ -210,11 +212,13 @@ const Inventario = () => {
     return existenciaDe(producto) <= umbral;
   };
 
-  const productosFiltrados = productos.filter((producto) => {
-    const coincideCategoria = filtro === 'todos'
+  const listando = Boolean(busqueda.trim()) || Boolean(filtro);
+  const productosFiltrados = !listando ? [] : productos.filter((producto) => {
+    const coincideCategoria = !filtro || filtro === 'todos'
       || (filtro === 'alertas' ? enAlerta(producto) : producto.categoria?.toLowerCase() === filtro);
-    const texto = busqueda.toLowerCase().trim();
-    const coincideBusqueda = `${producto.nombre || ''} ${producto.id || ''} ${obtenerIdCorto(producto.id)}`.toLowerCase().includes(texto);
+    // Sin tildes y en cualquier orden; también por categoría, descripción, insumos o ID.
+    const texto = normalizar([producto.nombre, producto.categoria, producto.descripcion, resumenReceta(producto), producto.id, obtenerIdCorto(producto.id)].filter(Boolean).join(' '));
+    const coincideBusqueda = terminos(busqueda).every((termino) => texto.includes(termino));
     return coincideCategoria && coincideBusqueda;
   });
 
@@ -429,7 +433,7 @@ const Inventario = () => {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold">Catálogo de productos</h2>
-            <p className="mt-1 text-xs text-gray-400">{productosFiltrados.length} resultados</p>
+            <p className="mt-1 text-xs text-gray-400">{listando ? `${productosFiltrados.length} resultados` : `${productos.length} productos · busca o elige un filtro`}</p>
           </div>
           <label className="relative w-full sm:max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -493,7 +497,7 @@ const Inventario = () => {
                   </td>
                 </tr>
               ))}
-              {!productosFiltrados.length && <tr><td colSpan="6" className="px-4 py-10 text-center text-sm text-gray-500">No se encontraron productos para esos filtros.</td></tr>}
+              {!productosFiltrados.length && <tr><td colSpan="6" className="px-4 py-10 text-center text-sm text-gray-500">{listando ? 'No se encontraron productos para esos filtros.' : 'Busca un producto por nombre o ID, o elige un filtro. «Todos» muestra el catálogo completo.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -503,7 +507,7 @@ const Inventario = () => {
 };
 
 const FilterBtn = ({ label, value, current, setFiltro }) => (
-  <button type="button" onClick={() => setFiltro(value)} aria-pressed={current === value} className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors ${current === value ? 'bg-red-600/15 text-red-300' : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'}`}>
+  <button type="button" onClick={() => setFiltro((actual) => (actual === value ? '' : value))} aria-pressed={current === value} className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition-colors ${current === value ? 'bg-red-600/15 text-red-300' : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'}`}>
     {label}
   </button>
 );

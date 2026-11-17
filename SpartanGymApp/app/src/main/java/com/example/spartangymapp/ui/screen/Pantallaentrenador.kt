@@ -177,8 +177,9 @@ fun PantallaEntrenador(
                             onCrearRutina = { subPantalla = "crear_rutina" }
                         )
                         1 -> TabClientes(clientes, ap, appConfig)
-                        2 -> TabRutinas(dash?.rutinasRecientes.orEmpty(), ap) { subPantalla = "crear_rutina" }
-                        3 -> TabPerfil(perfil, appConfig, ap, onCerrarSesion)
+                        2 -> TabVenderEntrenador(appConfig, ap.accent)
+                        3 -> TabRutinas(dash?.rutinasRecientes.orEmpty(), ap) { subPantalla = "crear_rutina" }
+                        4 -> TabPerfil(perfil, appConfig, ap, onCerrarSesion)
                     }
                 }
             }
@@ -192,6 +193,7 @@ private fun EntBarraNav(sel: Int, accent: Color, onSelect: (Int) -> Unit) {
     val tabs = listOf(
         EntNavItem("Inicio",   Icons.Rounded.Home),
         EntNavItem("Clientes", Icons.Rounded.People),
+        EntNavItem("Vender",   Icons.Rounded.ShoppingCart),
         EntNavItem("Rutinas",  Icons.Rounded.FitnessCenter),
         EntNavItem("Perfil",   Icons.Rounded.Person)
     )
@@ -493,7 +495,6 @@ private fun PantallaCrearRutina(
     var fFin       by remember { mutableStateOf(calMas(28)) }
     val listaEj    = remember { mutableStateListOf<EjEd>() }
 
-    var openSocio  by remember { mutableStateOf(false) }
     var openTipo   by remember { mutableStateOf(false) }
     var openGenero by remember { mutableStateOf(false) }
     var guardando  by remember { mutableStateOf(false) }
@@ -598,24 +599,18 @@ private fun PantallaCrearRutina(
             if (!esGlobal) {
                 EntL("SOCIO DEL GYM")
                 Spacer(Modifier.height(6.dp))
-                val cSel = clientes.find { it.id == clienteId }
-                Box {
-                    EntDrop(if (cSel != null) "${cSel.nombres} ${cSel.apellidos}" else "Selecciona socio", Icons.Rounded.Person, ap, cSel == null) { openSocio = true }
-                    DropdownMenu(openSocio, { openSocio = false }, Modifier.background(Color(0xFF111111)).heightIn(max = 250.dp)) {
-                        if (clientes.isEmpty()) {
-                            DropdownMenuItem(text = { Text("Sin socios asignados", color = ENT_GRIS, fontSize = 13.sp) }, onClick = { openSocio = false })
-                        } else {
-                            clientes.forEach { c ->
-                                DropdownMenuItem(
-                                    text = { Column {
-                                        Text("${c.nombres} ${c.apellidos}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                        if (!c.email.isNullOrBlank()) Text(c.email, color = ENT_GRIS, fontSize = 11.sp)
-                                    }},
-                                    onClick = { clienteId = c.id ?: ""; openSocio = false }
-                                )
-                            }
-                        }
-                    }
+                if (clientes.isEmpty()) {
+                    Text("Aún no tienes socios asignados.", color = ENT_GRIS, fontSize = 13.sp)
+                } else {
+                    // La lista aparece solo al escribir: con muchos socios el menú ocupaba la pantalla.
+                    BuscadorPersona(
+                        personas = clientes.mapNotNull { c ->
+                            c.id?.let { PersonaBuscable(it, listOfNotNull(c.nombres, c.apellidos).joinToString(" "), c.email ?: c.telefono) }
+                        },
+                        seleccionadoId = clienteId.ifBlank { null },
+                        acento = ap.accent,
+                        onElegir = { clienteId = it?.id ?: "" }
+                    )
                 }
                 Spacer(Modifier.height(14.dp))
             }

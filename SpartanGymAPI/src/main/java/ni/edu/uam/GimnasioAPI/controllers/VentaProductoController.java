@@ -42,6 +42,13 @@ public class VentaProductoController {
         return ResponseEntity.ok(service.vender(request, auth));
     }
 
+    // El entrenador vende desde la app; la sucursal sale de su perfil.
+    @PostMapping("/entrenador")
+    @PreAuthorize("hasRole('ENTRENADOR')")
+    public ResponseEntity<VentaProductoResponse> venderComoEntrenador(@RequestBody VentaProductoRequest request, Authentication auth) {
+        return ResponseEntity.ok(service.venderComoEntrenador(request, auth));
+    }
+
     // El socio compra/reserva un producto desde la app para retirarlo en recepcion.
     @PostMapping("/mi-compra")
     @PreAuthorize("hasAuthority('ROLE_SOCIO')")

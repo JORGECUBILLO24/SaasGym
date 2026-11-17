@@ -58,6 +58,11 @@ interface SpartanGymApi {
         @Body request: CompraProductoAppRequest
     ): Response<FacturaVentaAppResponse>
 
+    @POST("api/ventas/productos/entrenador")
+    suspend fun venderComoEntrenador(
+        @Body request: VentaEntrenadorRequest
+    ): Response<FacturaVentaAppResponse>
+
     @GET("api/configuracion")
     suspend fun obtenerConfiguracion(): Response<AppConfigResponse>
 

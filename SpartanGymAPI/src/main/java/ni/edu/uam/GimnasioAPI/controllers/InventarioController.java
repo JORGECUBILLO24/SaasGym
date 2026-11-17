@@ -6,6 +6,7 @@ import ni.edu.uam.GimnasioAPI.dto.ProductoInventarioRequest;
 import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
 import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
@@ -27,6 +28,7 @@ public class InventarioController {
     private final InventarioService inventarioService;
     private final UsuarioRepository usuarioRepository;
     private final SocioRepository socioRepository;
+    private final PersonalRepository personalRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
@@ -35,8 +37,8 @@ public class InventarioController {
         return ResponseEntity.ok(repository.findAll());
     }
 
-    // Catalogo visible para el socio (app): productos de su misma sucursal que se venden al publico.
-    // Si el socio no tiene sucursal asignada, ve todos los productos.
+    // Catalogo de la app (socio o entrenador): productos de su misma sucursal que se venden al
+    // publico. Si no tiene sucursal asignada, ve todos los productos.
     @GetMapping("/catalogo")
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
@@ -55,9 +57,11 @@ public class InventarioController {
             return null;
         }
         return usuarioRepository.findByEmail(auth.getName())
-                .flatMap(usuario -> socioRepository.findById(usuario.getId()))
-                .map(Socio::getSucursal)
-                .map(Sucursal::getId)
+                .map(usuario -> socioRepository.findById(usuario.getId())
+                        .map(Socio::getSucursal)
+                        .or(() -> personalRepository.findById(usuario.getId()).map(personal -> personal.getSucursal()))
+                        .map(Sucursal::getId)
+                        .orElse(null))
                 .orElse(null);
     }
 

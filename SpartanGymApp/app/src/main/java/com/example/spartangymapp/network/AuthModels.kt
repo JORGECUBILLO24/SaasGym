@@ -150,7 +150,8 @@ data class ProductoCatalogoResponse(
     val stock: Int? = null,
     val imagenUrl: String? = null,
     val sucursalId: String? = null,
-    val sucursal: String? = null
+    val sucursal: String? = null,
+    val descripcion: String? = null
 )
 
 data class ControlBiometricoResponse(
@@ -192,7 +193,18 @@ data class FacturaVentaAppResponse(
     val numeroFactura: String? = null,
     val total: Double? = null,
     val sucursal: String? = null,
-    val metodoPago: String? = null
+    val metodoPago: String? = null,
+    val cambio: Double? = null
+)
+
+/** Venta que registra el entrenador; la API la factura en la sucursal de su perfil. */
+data class VentaEntrenadorRequest(
+    val clienteEventual: Boolean,
+    val socioId: String? = null,
+    val clienteNombre: String? = null,
+    val metodoPago: String,
+    val montoRecibido: Double? = null,
+    val detalles: List<CompraProductoAppRequest>
 )
 
 data class NotificacionResponse(

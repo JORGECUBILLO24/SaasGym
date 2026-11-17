@@ -15,6 +15,7 @@ import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.models.VentaProducto;
 import ni.edu.uam.GimnasioAPI.models.VentaProductoDetalle;
 import ni.edu.uam.GimnasioAPI.repositories.MovimientoFinancieroRepository;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoComponenteRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
@@ -49,6 +50,7 @@ public class VentaProductoService {
     private final ProductoInventarioRepository productoRepository;
     private final ProductoComponenteRepository componenteRepository;
     private final SocioRepository socioRepository;
+    private final PersonalRepository personalRepository;
     private final SucursalRepository sucursalRepository;
     private final UsuarioRepository usuarioRepository;
     private final MovimientoFinancieroRepository movimientoRepository;
@@ -191,6 +193,25 @@ public class VentaProductoService {
             registrarMovimiento(ventaGuardada, auth);
         }
         return toResponse(ventaGuardada);
+    }
+
+    // Venta desde la app del entrenador: siempre se factura en SU sucursal, aunque la app mande
+    // otra, para que no descuente inventario de un gimnasio que no es el suyo.
+    @Transactional
+    public VentaProductoResponse venderComoEntrenador(VentaProductoRequest request, Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            throw new NoAutenticadoException("Usuario no autenticado");
+        }
+        Usuario usuario = usuarioRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
+        Sucursal sucursal = personalRepository.findById(usuario.getId())
+                .map(personal -> personal.getSucursal())
+                .orElse(null);
+        if (sucursal == null) {
+            throw new ReglaNegocioException("Tu perfil no tiene una sucursal asignada. Pide a administración que te la asigne.");
+        }
+        request.setSucursalId(sucursal.getId());
+        return vender(request, auth);
     }
 
     // Compra desde la app: el socio (del token) reserva un producto de su sucursal para

@@ -1386,7 +1386,7 @@ private fun ProductosBanner(productosCount: Int, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ProductoImagen(imagenUrl: String?, modifier: Modifier = Modifier) {
+internal fun ProductoImagen(imagenUrl: String?, modifier: Modifier = Modifier) {
     var bitmap by remember(imagenUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     LaunchedEffect(imagenUrl) {
         bitmap = withContext(Dispatchers.IO) { cargarImagenConfiguracion(imagenUrl)?.asImageBitmap() }
@@ -1421,6 +1421,7 @@ private fun ProductosUsuario(
     val scope = rememberCoroutineScope()
     var comprandoId by remember { mutableStateOf<String?>(null) }
     var mensaje by remember { mutableStateOf<String?>(null) }
+    var consulta by rememberSaveable { mutableStateOf("") }
     var esError by remember { mutableStateOf(false) }
 
     fun comprar(producto: ProductoCatalogoResponse) {
@@ -1477,88 +1478,21 @@ private fun ProductosUsuario(
         if (productos.isEmpty()) {
             EstadoVacioAPI("Sin productos", "Aún no hay productos disponibles en tu sucursal.")
         } else {
-            productos.forEach { producto ->
-                ItemProducto(
-                    producto = producto,
-                    appConfig = appConfig,
-                    comprando = comprandoId == producto.id,
-                    onComprar = { comprar(producto) }
-                )
-                Spacer(Modifier.height(10.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ItemProducto(
-    producto: ProductoCatalogoResponse,
-    appConfig: AppConfigResponse,
-    comprando: Boolean,
-    onComprar: () -> Unit
-) {
-    val agotado = (producto.stock ?: 0) <= 0
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Superficie,
-        border = BorderStroke(1.dp, BordeSutil)
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ProductoImagen(
-                    imagenUrl = producto.imagenUrl,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF1A1A1A))
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        producto.nombre.apiValor(),
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(producto.categoria.apiValor(), color = GrisTexto, fontSize = 12.sp)
-                    Text(
-                        if (agotado) "Agotado" else "Stock: ${producto.stock}",
-                        color = if (agotado) MaterialTheme.colorScheme.primary else VerdeEstado,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Text(
-                    "${simboloMoneda(appConfig.currency)}${"%.2f".format(producto.precio ?: 0.0)}",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black
-                )
-            }
+            CampoBusqueda(consulta, { consulta = it }, "Busca: proteína, agua, shaker…", MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onComprar,
-                enabled = !agotado && !comprando,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = BordeSutil
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                if (comprando) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    if (agotado) "Agotado" else "Comprar (retiro en recepción)",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
+            val visibles = filtrarProductos(productos, consulta)
+            if (visibles.isEmpty()) {
+                Text("Ningún producto coincide con «$consulta».", color = GrisTexto, fontSize = 13.sp)
+            } else {
+                CuadriculaProductos(
+                    productos = visibles,
+                    moneda = appConfig.currency,
+                    acento = MaterialTheme.colorScheme.primary,
+                    textoAccion = { "Comprar" },
+                    ocupadoId = comprandoId
+                ) { comprar(it) }
+                Spacer(Modifier.height(8.dp))
+                Text("Pagas y retiras en recepción.", color = GrisTexto, fontSize = 12.sp)
             }
         }
     }
