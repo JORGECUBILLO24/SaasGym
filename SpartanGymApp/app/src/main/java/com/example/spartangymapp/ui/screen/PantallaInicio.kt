@@ -41,7 +41,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.spartangymapp.R
-import com.example.spartangymapp.ui.components.applePressScale
+import com.example.spartangymapp.ui.components.escalaAlPresionar
 import com.example.spartangymapp.util.CredencialesBiometricasStore
 import com.example.spartangymapp.network.AppConfigResponse
 import com.example.spartangymapp.viewmodel.LoginViewModel
@@ -227,7 +227,7 @@ fun PantallaInicio(
                             completarAcceso()
                         }
                     },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
                 ) { Text("Activar") }
             },
@@ -238,7 +238,7 @@ fun PantallaInicio(
                 }) { Text("Ahora no", color = textPlaceholder) }
             },
             containerColor = Color(0xFF1B1B1F),
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(16.dp)
         )
     }
 
@@ -306,7 +306,7 @@ fun PantallaInicio(
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = darkCardBg,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
             ) {
@@ -452,7 +452,7 @@ fun PantallaInicio(
                                     Surface(
                                         color = Color(0xFF0B2A17),
                                         border = BorderStroke(1.dp, Color(0xFF22C55E).copy(alpha = 0.35f)),
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
@@ -478,10 +478,10 @@ fun PantallaInicio(
                                     enabled = !loginViewModel.isLoading,
                                     modifier = Modifier.fillMaxWidth(),
                                     border = BorderStroke(1.dp, spartanRed),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
-                                        text = if (loginViewModel.isLoading) "ENVIANDO..." else "ENVIAR ENLACE SEGURO",
+                                        text = if (loginViewModel.isLoading) "ENVIANDO..." else "ENVIAR ENLACE",
                                         color = Color.White,
                                         fontWeight = FontWeight.Black
                                     )
@@ -502,7 +502,7 @@ fun PantallaInicio(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp)
-                            .applePressScale(loginInteractionSource),
+                            .escalaAlPresionar(loginInteractionSource),
                         interactionSource = loginInteractionSource,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
@@ -556,7 +556,7 @@ fun PantallaInicio(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .applePressScale(huellaInteractionSource),
+                                .escalaAlPresionar(huellaInteractionSource),
                             interactionSource = huellaInteractionSource,
                             shape = RoundedCornerShape(16.dp),
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
@@ -617,7 +617,7 @@ private fun CampoInicio(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = fieldBackground,
                 unfocusedContainerColor = fieldBackground,

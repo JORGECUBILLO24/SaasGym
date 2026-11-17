@@ -4,7 +4,6 @@ import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,7 +25,7 @@ internal fun movimientoReducido(): Boolean {
     }
 }
 
-/** The image moves behind a clipped surface while the text stays attached to the card. */
+/** La imagen se desplaza dentro de la tarjeta recortada mientras el texto queda fijo. */
 @Composable
 internal fun PortadaMovil(
     imagen: String?,
@@ -37,8 +36,7 @@ internal fun PortadaMovil(
     content: @Composable BoxScope.() -> Unit
 ) {
     val reducir = movimientoReducido()
-    val acento = MaterialTheme.colorScheme.primary
-    Box(modifier.clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(Color(0xFF321316), Color(0xFF1B1B20), Color(0xFF0C0C0F))))) {
+    Box(modifier.clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFF321316), Color(0xFF1B1B20), Color(0xFF0C0C0F))))) {
         if (!imagen.isNullOrBlank() || mostrarImagenFallback) {
             ImagenMarca(
                 source = imagen,
@@ -52,7 +50,6 @@ internal fun PortadaMovil(
             )
         }
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.06f), Color.Black.copy(alpha = 0.28f), Color(0xF20D0D12)))))
-        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(acento.copy(alpha = 0.12f), Color.Transparent))))
         content()
     }
 }

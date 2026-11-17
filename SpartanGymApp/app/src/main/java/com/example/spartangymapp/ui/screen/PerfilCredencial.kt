@@ -12,7 +12,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.example.spartangymapp.ui.components.applePressScale
+import com.example.spartangymapp.ui.components.escalaAlPresionar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -112,7 +112,7 @@ internal fun CredencialSistemaCard(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = if (integradaPantalla) RoundedCornerShape(0.dp) else RoundedCornerShape(24.dp),
+            shape = if (integradaPantalla) RoundedCornerShape(0.dp) else RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
             border = if (integradaPantalla) null else BorderStroke(1.dp, Color(0xFF1D1D1D))
         ) {
@@ -153,7 +153,7 @@ internal fun CredencialSistemaCard(
                         modifier = Modifier
                             .size(if (integradaPantalla) 66.dp else 76.dp)
                             .graphicsLayer(rotationZ = 3f),
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color(0xFF0C141B),
                         border = BorderStroke(1.dp, Color(0xFF00AEEF))
                     ) {
@@ -279,7 +279,7 @@ private fun CredencialPantallaIntegrada(
                 }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(
-                        Modifier.size(108.dp).applePressScale(press)
+                        Modifier.size(108.dp).escalaAlPresionar(press)
                             .then(if (onCambiarFoto != null) Modifier.clickable(enabled = !subiendoFoto, interactionSource = press, indication = null, role = Role.Button, onClickLabel = "Cambiar foto de perfil", onClick = onCambiarFoto) else Modifier),
                         contentAlignment = Alignment.Center
                     ) {
@@ -307,7 +307,7 @@ private fun CredencialPantallaIntegrada(
             CredencialDatoPrincipal(if (vencimiento != null) "Vencimiento" else "Sucursal", if (vencimiento != null) fechaMovil(vencimiento) else sucursal.ifBlank { "Sin asignar" }, Modifier.weight(1f))
         }
         Text("Tu información", color = Color(0xFFAEAEB8), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, top = 2.dp))
-        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 val otrasFilas = listOf("Sucursal" to sucursal) + filas.filterNot { it.first.equals("Vencimiento", true) || it.first.equals("Sucursal", true) || it.first.equals("Estado", true) }
                 otrasFilas.forEachIndexed { i, (titulo, valor) ->
@@ -713,9 +713,9 @@ private fun oscurecer(color: Color, pesoNegro: Float): Color {
 internal fun sucursalPrincipalTexto(appConfig: AppConfigResponse): String {
     val nombre = appConfig.nombreVisibleApp()
     return when {
-        nombre.isBlank() -> "Spartan Gym, Centro de Mando"
+        nombre.isBlank() -> "Spartan Gym, Sede principal"
         nombre.contains(",") -> nombre
-        else -> "$nombre, Centro de Mando"
+        else -> "$nombre, Sede principal"
     }
 }
 

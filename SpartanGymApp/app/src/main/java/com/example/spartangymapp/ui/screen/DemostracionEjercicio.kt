@@ -146,7 +146,7 @@ internal fun DemostracionEjercicio(
 
             Box(
                 modifier = Modifier.fillMaxWidth().height(190.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(Brush.verticalGradient(listOf(Color(0xFF25252B), Color(0xFF17171B))))
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
@@ -167,7 +167,7 @@ internal fun DemostracionEjercicio(
                 if (cargando) {
                     Surface(
                         modifier = Modifier.align(Alignment.BottomCenter),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color.Black.copy(alpha = 0.62f)
                     ) {
                         Text("Cargando demostración…", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))

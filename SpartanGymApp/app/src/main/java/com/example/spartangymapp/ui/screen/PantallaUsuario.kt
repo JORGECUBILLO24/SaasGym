@@ -1,6 +1,7 @@
 // FILE: PantallaUsuario.kt (VERSIÓN PROFESIONAL - solo datos API)
 package com.example.spartangymapp.ui.screen
 
+import com.example.spartangymapp.ui.theme.FuenteTitulo
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -65,7 +66,7 @@ import androidx.compose.ui.unit.sp
 import com.example.spartangymapp.R
 import com.example.spartangymapp.network.ActualizarFotoRequest
 import com.example.spartangymapp.network.AppConfigResponse
-import com.example.spartangymapp.ui.components.applePressScale
+import com.example.spartangymapp.ui.components.escalaAlPresionar
 import com.example.spartangymapp.network.AsistenciaQrRequest
 import com.example.spartangymapp.network.AsistenciaQrValidationResponse
 import com.example.spartangymapp.network.CompraMembresiaAppRequest
@@ -493,7 +494,7 @@ private fun PantallaError(mensaje: String) {
             Column {
                 Text("Sin conexión", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text("No se pudo conectar con el servidor", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("No se pudo conectar con el servidor", color = Color.White, fontSize = 22.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(mensaje, color = GrisTexto, fontSize = 12.sp)
             }
@@ -537,7 +538,7 @@ private fun TabInicio(
                 Text(rutina?.nombre ?: "Todo empieza contigo", color = Color.White, fontSize = 25.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold, maxLines = 2)
                 Text(if (rutina == null) "Tu plan aparecerá aquí cuando te lo asignen." else "${rutina.ejercicios.size} ejercicios · ${rutina.dificultad}", color = Color(0xFFDEDEE3), fontSize = 13.sp)
                 val press = remember { MutableInteractionSource() }
-                Button(onClick = onRutina, interactionSource = press, modifier = Modifier.heightIn(min = 48.dp).applePressScale(press), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF17171B))) {
+                Button(onClick = onRutina, interactionSource = press, modifier = Modifier.heightIn(min = 48.dp).escalaAlPresionar(press), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF17171B))) {
                     Icon(Icons.Rounded.FitnessCenter, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(if (rutina == null) "Mis rutinas" else "Ver entrenamiento", fontWeight = FontWeight.SemiBold)
@@ -562,7 +563,7 @@ private fun TabInicio(
 private fun ResumenMembresia(tipo: String, vencimiento: String, entrenador: String, onClick: () -> Unit) {
     val interaccion = remember { MutableInteractionSource() }
     Surface(
-        modifier = Modifier.fillMaxWidth().applePressScale(interaccion)
+        modifier = Modifier.fillMaxWidth().escalaAlPresionar(interaccion)
             .clickable(interactionSource = interaccion, indication = null, role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         color = SuperficieOscura,
@@ -608,7 +609,7 @@ private fun RutinaDestacada(rutina: RutinaSocio?, onClick: () -> Unit) {
                 spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
             )
             .clickable(enabled = rutina != null, role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = SuperficieOscura,
         border = BorderStroke(1.dp, BordeSutil)
     ) {
@@ -698,12 +699,12 @@ private fun TabRutinas(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(Superficie)
                 .padding(20.dp)
         ) {
             Column {
-                Text(rutina.nombre, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text(rutina.nombre, color = Color.White, fontSize = 28.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                 Text(rutina.objetivo, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Text("${rutina.dias} ejercicios · ${rutina.foco}", color = GrisTexto, fontSize = 13.sp)
@@ -762,11 +763,11 @@ private fun TabPagos(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val press = remember { MutableInteractionSource() }
-            Button(onClick = onRenovar, interactionSource = press, modifier = Modifier.weight(1f).heightIn(min = 50.dp).applePressScale(press), shape = RoundedCornerShape(16.dp)) { Text("Renovar plan", fontWeight = FontWeight.SemiBold) }
+            Button(onClick = onRenovar, interactionSource = press, modifier = Modifier.weight(1f).heightIn(min = 50.dp).escalaAlPresionar(press), shape = RoundedCornerShape(16.dp)) { Text("Renovar plan", fontWeight = FontWeight.SemiBold) }
             OutlinedButton(onClick = onDetalles, modifier = Modifier.weight(1f).heightIn(min = 50.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFF38383D))) { Text("Ver detalles", color = Color.White) }
         }
         if (plan != null) {
-            Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Tu plan incluye", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
@@ -787,7 +788,7 @@ private fun TabPagos(
             Text("Movimientos", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Text("${pagos.size} pagos", color = GrisTexto, fontSize = 12.sp)
         }
-        Surface(shape = RoundedCornerShape(22.dp), color = Color(0xFF1B1B20)) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20)) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 if (pagos.isEmpty()) Text("Tus pagos aparecerán aquí.", color = GrisTexto, modifier = Modifier.padding(vertical = 22.dp))
                 pagos.forEachIndexed { index, pago ->
@@ -834,7 +835,7 @@ private fun TabPerfil(
             }
             Spacer(Modifier.width(16.dp))
             Column {
-                Text(nombre, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text(nombre, color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                 Text(correo, color = GrisTexto, fontSize = 13.sp)
                 Spacer(Modifier.height(4.dp))
                 EstadoBadge(estado)
@@ -881,13 +882,13 @@ private fun DetalleMembresiaUsuario(dashboard: DashboardResponse?, plan: TipoMem
         Spacer(Modifier.height(16.dp))
         if (plan != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Surface(Modifier.weight(1f), shape = RoundedCornerShape(17.dp), color = Color(0xFF1B1B20)) {
+                Surface(Modifier.weight(1f), shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20)) {
                     Column(Modifier.padding(16.dp)) {
                         Text("DURACIÓN", color = GrisTexto, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Text("${plan.duracionDias ?: 0} días", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                Surface(Modifier.weight(1f), shape = RoundedCornerShape(17.dp), color = Color(0xFF1B1B20)) {
+                Surface(Modifier.weight(1f), shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20)) {
                     Column(Modifier.padding(16.dp)) {
                         Text("PRECIO", color = GrisTexto, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Text("${plan.precio?.let { String.format(java.util.Locale.US, "%,.2f", it) } ?: "—"}", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
@@ -898,7 +899,7 @@ private fun DetalleMembresiaUsuario(dashboard: DashboardResponse?, plan: TipoMem
         }
         Text("Beneficios", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(10.dp))
-        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1B20), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (beneficios.isEmpty()) Text("Este plan todavía no tiene beneficios descritos.", color = GrisTexto, fontSize = 13.sp)
                 beneficios.forEach { beneficio ->
@@ -937,7 +938,7 @@ private fun DetalleRutinaUsuario(
             RingProgreso(rutina.progreso, Modifier.size(80.dp))
             Spacer(Modifier.width(16.dp))
             Column {
-                Text("${rutina.ejercicios.size} ejercicios", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text("${rutina.ejercicios.size} ejercicios", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                 Text(rutina.foco, color = GrisTexto, fontSize = 13.sp)
                 Text(rutina.dificultad, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
@@ -1043,7 +1044,7 @@ private fun ProgresoUsuario(
         // Formulario para que el socio registre su propio progreso
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(16.dp),
             color = Superficie,
             border = BorderStroke(1.dp, BordeSutil)
         ) {
@@ -1111,14 +1112,14 @@ private fun ProgresoUsuario(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(Superficie)
                     .padding(20.dp)
             ) {
                 Column {
                     Text("Peso actual", color = GrisTexto, fontSize = 12.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text(ultimo.pesoKg.apiValor("kg"), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                    Text(ultimo.pesoKg.apiValor("kg"), color = Color.White, fontSize = 36.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                     if (delta != null) {
                         val signo = if (delta > 0) "+" else ""
                         Text(
@@ -1203,13 +1204,13 @@ private fun RenovarMembresiaUsuario(
         val fac = factura
         if (fac != null) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = Color(0xFF0D2B18),
                 border = BorderStroke(1.dp, VerdeEstado.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("Pago registrado", color = VerdeEstado, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                    Text("Pago registrado", color = VerdeEstado, fontSize = 22.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
                     FilaDatoAPI("Factura", fac.numeroFactura.apiValor(), "MEM")
                     FilaDatoAPI("Plan", fac.tipoMembresia.apiValor(), "Membresía")
@@ -1235,7 +1236,7 @@ private fun RenovarMembresiaUsuario(
                 val sel = seleccionId == tipo.id
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { seleccionId = tipo.id },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = if (sel) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Superficie,
                     border = BorderStroke(1.dp, if (sel) MaterialTheme.colorScheme.primary else BordeSutil)
                 ) {
@@ -1274,7 +1275,7 @@ private fun RenovarMembresiaUsuario(
                     val activo = metodo == m
                     Surface(
                         modifier = Modifier.weight(1f).clickable { metodo = m },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (activo) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Superficie,
                         border = BorderStroke(1.dp, if (activo) MaterialTheme.colorScheme.primary else BordeSutil)
                     ) {
@@ -1437,7 +1438,7 @@ private fun ProductosUsuario(
 
         mensaje?.let {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = if (esError) Color(0xFF1A0608) else Color(0xFF0D2B18),
                 border = BorderStroke(1.dp, if (esError) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else VerdeEstado.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
@@ -1609,7 +1610,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(16.dp),
             color = Superficie,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.34f))
         ) {
@@ -1664,7 +1665,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 mensajeQr?.let { mensaje ->
                     Spacer(Modifier.height(12.dp))
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = if (validacion != null) Color(0xFF0D2B18) else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         border = BorderStroke(1.dp, if (validacion != null) VerdeEstado.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                     ) {
@@ -1681,7 +1682,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 errorQr?.let { error ->
                     Spacer(Modifier.height(12.dp))
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color(0xFF1A0608),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                     ) {
@@ -1840,7 +1841,7 @@ private fun QrScannerCamera(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(320.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(Color.Black)
         )
     }
@@ -1889,7 +1890,7 @@ private fun BarraNavegacion(seleccionado: Int, onSeleccionar: (Int) -> Unit) {
     )
     Surface(
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color(0xF21B1B20),
         tonalElevation = 0.dp,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
@@ -1930,7 +1931,7 @@ private fun BarraNavegacion(seleccionado: Int, onSeleccionar: (Int) -> Unit) {
 // ─── Componentes reutilizables ─────────────────────────────────────────────
 @Composable
 private fun SeccionHeader(titulo: String, subtitulo: String) {
-    Text(titulo, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Black)
+    Text(titulo, color = Color.White, fontSize = 30.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
     Text(subtitulo, color = GrisTexto, fontSize = 13.sp)
 }
 
@@ -1945,7 +1946,7 @@ private fun BotonVolver(onVolver: () -> Unit) {
 private fun EstadoBadge(texto: String) {
     val esActivo = texto.lowercase().contains("activ") || texto.lowercase().contains("access")
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (esActivo) Color(0xFF0D2B18) else Color(0xFF1A0608)
     ) {
         Text(
@@ -1995,7 +1996,7 @@ private fun AccionRapida(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        modifier.heightIn(min = 58.dp).applePressScale(interactionSource).clip(RoundedCornerShape(18.dp))
+        modifier.heightIn(min = 58.dp).escalaAlPresionar(interactionSource).clip(RoundedCornerShape(16.dp))
             .background(Color(0xFF1B1B20)).clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2098,7 +2099,7 @@ private fun ItemEjercicio(
 private fun Chip(texto: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.height(36.dp).clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (selected) MaterialTheme.colorScheme.primary else Superficie,
         border = if (!selected) BorderStroke(1.dp, BordeSutil) else null
     ) {

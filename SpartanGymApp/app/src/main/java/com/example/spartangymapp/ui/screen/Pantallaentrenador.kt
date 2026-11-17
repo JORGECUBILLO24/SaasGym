@@ -1,5 +1,6 @@
 package com.example.spartangymapp.ui.screen
 
+import com.example.spartangymapp.ui.theme.FuenteTitulo
 import android.app.DatePickerDialog
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -47,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.spartangymapp.R
 import com.example.spartangymapp.network.*
-import com.example.spartangymapp.ui.components.applePressScale
+import com.example.spartangymapp.ui.components.escalaAlPresionar
 import java.util.Calendar
 
 // ─── Paleta ─────────────────────────────────────────────────────────────────
@@ -224,7 +225,7 @@ private fun EntCargando(accent: Color, nombreGimnasio: String) {
 @Composable
 private fun EntError(msg: String, ap: EntAp) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Surface(shape = RoundedCornerShape(18.dp), color = ENT_CARD, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
+        Surface(shape = RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
             Column(Modifier.padding(20.dp)) {
                 Text("Error de conexión", color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Black)
                 Spacer(Modifier.height(6.dp))
@@ -281,8 +282,8 @@ private fun TabInicio(
             Button(
                 onClick = onCrearRutina,
                 interactionSource = rutinaInteractionSource,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).applePressScale(rutinaInteractionSource),
-                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).escalaAlPresionar(rutinaInteractionSource),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ap.accent)
             ) {
                 Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -330,7 +331,7 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
             )
             Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.7f), ENT_BG))))
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                Text("Mis Clientes", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text("Mis Clientes", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                 Text("${clientes.size} socios del gym asignados", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -347,7 +348,7 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
                 items(clientes) { c ->
                     val ini = "${c.nombres?.firstOrNull() ?: ""}${c.apellidos?.firstOrNull() ?: ""}".uppercase().ifBlank { "?" }
                     val activo = c.estadoAcceso?.lowercase()?.contains("activ") == true
-                    Surface(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+                    Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(44.dp).background(ap.soft, CircleShape), contentAlignment = Alignment.Center) {
                                 FotoPerfilCredencial(
@@ -387,7 +388,7 @@ private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear:
             Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.65f), ENT_BG))))
             Row(Modifier.fillMaxWidth().align(Alignment.BottomStart).padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                 Column {
-                    Text("Rutinas", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                    Text("Rutinas", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                     Text("${rutinas.size} asignadas", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 Button(onClick = onCrear, colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)) {
@@ -443,7 +444,7 @@ private fun TabPerfil(perfil: EntrenadorPerfilResponse?, appConfig: AppConfigRes
         )
         Column(Modifier.padding(20.dp)) {
             Button(onClick = onCerrarSesion, modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(14.dp)) {
+                colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(16.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.Logout, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Cerrar Sesión", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
@@ -702,7 +703,7 @@ private fun PantallaCrearRutina(
                     },
                     enabled = ejercicios.isNotEmpty(),
                     border  = BorderStroke(1.dp, ap.accent.copy(.5f)),
-                    shape   = RoundedCornerShape(10.dp),
+                    shape   = RoundedCornerShape(12.dp),
                     colors  = ButtonDefaults.outlinedButtonColors(contentColor = ap.accent)
                 ) {
                     Icon(Icons.Rounded.Add, null, modifier = Modifier.size(14.dp))
@@ -736,7 +737,7 @@ private fun PantallaCrearRutina(
                 enabled  = valido && !guardando,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors   = ButtonDefaults.buttonColors(containerColor = ap.accent, disabledContainerColor = ap.soft),
-                shape    = RoundedCornerShape(14.dp)
+                shape    = RoundedCornerShape(16.dp)
             ) {
                 if (guardando) { CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
                 else { Icon(Icons.Rounded.FitnessCenter, null, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(7.dp)) }
@@ -816,7 +817,7 @@ private fun EjBloque(idx: Int, ej: EjEd, ejercicios: List<EjercicioCatalogoRespo
                     focusedBorderColor = ENT_GRIS.copy(.4f), unfocusedBorderColor = ENT_BORDE,
                     focusedContainerColor = ENT_CARD2, unfocusedContainerColor = ENT_CARD2
                 ),
-                shape = RoundedCornerShape(10.dp), textStyle = TextStyle(fontSize = 13.sp),
+                shape = RoundedCornerShape(12.dp), textStyle = TextStyle(fontSize = 13.sp),
                 modifier = Modifier.fillMaxWidth(), singleLine = true
             )
         }
@@ -884,7 +885,7 @@ private fun EjBloque(idx: Int, ej: EjEd, ejercicios: List<EjercicioCatalogoRespo
 }
 
 @Composable private fun EntNum(label: String, value: String, hint: String, onChange: (String) -> Unit) {
-    Surface(Modifier.width(82.dp), RoundedCornerShape(10.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+    Surface(Modifier.width(82.dp), RoundedCornerShape(12.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
         Column(Modifier.padding(10.dp)) {
             Text(label, color = ENT_GRIS, fontSize = 9.sp, fontWeight = FontWeight.Black, maxLines = 1)
             Spacer(Modifier.height(4.dp))

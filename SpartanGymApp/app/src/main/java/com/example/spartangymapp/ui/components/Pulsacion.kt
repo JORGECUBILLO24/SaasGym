@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
-fun Modifier.applePressScale(interactionSource: InteractionSource): Modifier {
+fun Modifier.escalaAlPresionar(interactionSource: InteractionSource): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.975f else 1f,
@@ -19,7 +19,7 @@ fun Modifier.applePressScale(interactionSource: InteractionSource): Modifier {
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium
         ),
-        label = "Apple button press"
+        label = "Escala al presionar"
     )
     return graphicsLayer {
         scaleX = scale
