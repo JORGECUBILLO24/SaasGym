@@ -137,6 +137,21 @@ CREATE TABLE IF NOT EXISTS ejercicios (
     instrucciones JSONB,
     gif_url VARCHAR(255)
 );
+-- Bases creadas antes de la biblioteca: CREATE TABLE IF NOT EXISTS no agrega columnas.
+ALTER TABLE ejercicios ALTER COLUMN nombre TYPE VARCHAR(150);
+ALTER TABLE ejercicios
+    ADD COLUMN IF NOT EXISTS codigo VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS nombre_original VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS alias JSONB,
+    ADD COLUMN IF NOT EXISTS zona VARCHAR(40),
+    ADD COLUMN IF NOT EXISTS musculo_principal VARCHAR(60),
+    ADD COLUMN IF NOT EXISTS musculos_secundarios JSONB,
+    ADD COLUMN IF NOT EXISTS equipo VARCHAR(40),
+    ADD COLUMN IF NOT EXISTS dificultad VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS categoria VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS descripcion TEXT,
+    ADD COLUMN IF NOT EXISTS instrucciones JSONB,
+    ADD COLUMN IF NOT EXISTS gif_url VARCHAR(255);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_ejercicios_codigo ON ejercicios (codigo);
 
 INSERT INTO ejercicios (nombre, grupo_muscular_id)
