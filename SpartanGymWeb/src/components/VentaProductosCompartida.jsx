@@ -85,9 +85,18 @@ const VentaProductosCompartida = ({
       .catch(() => setMensaje({ tipo: 'error', texto: 'No se pudieron cargar productos, socios o sucursales desde la API.' }));
   }, [cargarDatos]);
 
-  const productosFiltrados = productos.filter((producto) => {
+  const [categoria, setCategoria] = useState('Todas');
+  const idSucursalDe = (producto) => producto.sucursal?.id || producto.sucursalId || null;
+  // Solo se puede facturar lo que pertenece a la sucursal elegida (la API rechaza el resto).
+  const productosSucursal = productos.filter((producto) => {
+    const sucursalProducto = idSucursalDe(producto);
+    return !sucursalProducto || !formulario.sucursalId || sucursalProducto === formulario.sucursalId;
+  });
+  const categorias = ['Todas', ...Array.from(new Set(productosSucursal.map((producto) => producto.categoria).filter(Boolean))).sort()];
+  const productosFiltrados = productosSucursal.filter((producto) => {
     const texto = `${producto.nombre || ''} ${producto.categoria || ''}`.toLowerCase();
-    return texto.includes(busqueda.toLowerCase().trim());
+    return (categoria === 'Todas' || producto.categoria === categoria)
+      && texto.includes(busqueda.toLowerCase().trim());
   });
 
   const totalCarrito = useMemo(
@@ -130,6 +139,12 @@ const VentaProductosCompartida = ({
       ...(name === 'metodoPago' && value === 'Efectivo' ? { monedaPago: actual.monedaPago || monedaVenta } : {}),
       ...(name === 'monedaPago' && value === monedaVenta ? { tipoCambio: '' } : {}),
     }));
+    if (name === 'sucursalId') {
+      setCarrito((actual) => actual.filter((item) => {
+        const sucursalProducto = idSucursalDe(item.producto);
+        return !sucursalProducto || sucursalProducto === value;
+      }));
+    }
     setMensaje(null);
   };
 
@@ -233,7 +248,7 @@ const VentaProductosCompartida = ({
       <section className="sales-summary" aria-label="Resumen de ventas">
         <div className="sales-summary-item">
           <span>Productos</span>
-          <strong>{productos.length}</strong>
+          <strong>{productosSucursal.length}</strong>
           <small>{productosFiltrados.length} en catálogo</small>
         </div>
         <div className="sales-summary-item">
@@ -278,6 +293,16 @@ const VentaProductosCompartida = ({
               </label>
             </div>
 
+            {categorias.length > 2 && (
+              <div className="sales-category-chips" role="group" aria-label="Filtrar por categoría">
+                {categorias.map((nombre) => (
+                  <button key={nombre} type="button" onClick={() => setCategoria(nombre)} aria-pressed={categoria === nombre}>
+                    {nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="sales-product-grid">
               {productosFiltrados.map((producto) => (
                 <article key={producto.id} className="sales-product-card">
@@ -311,7 +336,9 @@ const VentaProductosCompartida = ({
               {!productosFiltrados.length && (
                 <div className="sales-empty-state">
                   <Package size={18} />
-                  <p>{productos.length ? 'No hay productos que coincidan con la búsqueda.' : 'No hay productos cargados desde la API.'}</p>
+                  <p>{productosSucursal.length
+                    ? 'No hay productos que coincidan con la búsqueda.'
+                    : 'Esta sucursal aún no tiene productos. Agrégalos en Inventario para poder venderlos.'}</p>
                 </div>
               )}
             </div>

@@ -280,7 +280,9 @@ const Inventario = () => {
         <div className="mb-4 flex flex-wrap gap-2">
           <FilterBtn label="Todos" value="todos" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Suplementos" value="suplementos" current={filtro} setFiltro={setFiltro} />
+          <FilterBtn label="Bebidas / Snacks" value="bebidas" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Accesorios" value="accesorios" current={filtro} setFiltro={setFiltro} />
+          <FilterBtn label="Mercancía" value="mercancía" current={filtro} setFiltro={setFiltro} />
           <FilterBtn label="Alertas de stock" value="alertas" current={filtro} setFiltro={setFiltro} />
         </div>
 
