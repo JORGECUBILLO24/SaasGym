@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/sucursales/disponibles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/configuracion").permitAll()
+                        // GIFs de demostración de ejercicios: contenido público y sin datos de usuarios.
+                        .requestMatchers(HttpMethod.GET, "/gifs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/asistencia/estado/**", "/api/asistencias/estado/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/asistencia/qr-validacion/estado", "/api/asistencias/qr-validacion/estado").permitAll()
                         .anyRequest().authenticated()

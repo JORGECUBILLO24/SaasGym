@@ -39,4 +39,15 @@ public class CatalogoController {
     public ResponseEntity<List<Ejercicio>> listarEjercicios() {
         return ResponseEntity.ok(catalogoService.obtenerTodosLosEjercicios());
     }
+
+    // Ejemplos: ?q=press banca, ?q=biceps&equipo=Mancuerna, ?grupoMuscularId=1&dificultad=Principiante
+    @GetMapping("/ejercicios/buscar")
+    public ResponseEntity<List<Ejercicio>> buscarEjercicios(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Integer grupoMuscularId,
+            @RequestParam(required = false) String equipo,
+            @RequestParam(required = false) String dificultad,
+            @RequestParam(defaultValue = "30") int limite) {
+        return ResponseEntity.ok(catalogoService.buscarEjercicios(q, grupoMuscularId, equipo, dificultad, limite));
+    }
 }

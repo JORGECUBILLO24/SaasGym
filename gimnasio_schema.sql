@@ -57,7 +57,9 @@ INSERT INTO grupos_musculares (nombre) VALUES
     ('Bíceps'),
     ('Glúteos'),
     ('Abdomen'),
-    ('Cardio')
+    ('Cardio'),
+    ('Antebrazos'),
+    ('Pantorrillas')
 ON CONFLICT (nombre) DO NOTHING;
 
 -- ==========================================
@@ -119,9 +121,23 @@ ALTER TABLE personal
 -- ==========================================
 CREATE TABLE IF NOT EXISTS ejercicios (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    grupo_muscular_id INT NOT NULL REFERENCES grupos_musculares(id)
+    nombre VARCHAR(150) NOT NULL,
+    grupo_muscular_id INT NOT NULL REFERENCES grupos_musculares(id),
+    -- Biblioteca con GIF (migrations/20261116_biblioteca_ejercicios.sql carga los datos)
+    codigo VARCHAR(10),
+    nombre_original VARCHAR(150),
+    alias JSONB,
+    zona VARCHAR(40),
+    musculo_principal VARCHAR(60),
+    musculos_secundarios JSONB,
+    equipo VARCHAR(40),
+    dificultad VARCHAR(20),
+    categoria VARCHAR(30),
+    descripcion TEXT,
+    instrucciones JSONB,
+    gif_url VARCHAR(255)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ejercicios_codigo ON ejercicios (codigo);
 
 INSERT INTO ejercicios (nombre, grupo_muscular_id)
 SELECT 'Press banca', id FROM grupos_musculares WHERE nombre = 'Pecho'

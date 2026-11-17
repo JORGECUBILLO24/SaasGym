@@ -48,6 +48,8 @@ public class RutinaResponseMapper {
         ejercicio.put("ejercicioId", detalle.getEjercicio().getId());
         ejercicio.put("ejercicio", detalle.getEjercicio().getNombre());
         ejercicio.put("grupoMuscular", detalle.getEjercicio().getGrupoMuscular().getNombre());
+        ejercicio.put("gifUrl", detalle.getEjercicio().getGifUrl());
+        ejercicio.put("instrucciones", detalle.getEjercicio().getInstrucciones());
         ejercicio.put("grupoMuscularId", detalle.getEjercicio().getGrupoMuscular().getId());
         ejercicio.put("tipoEjercicio", detalle.getTipoEjercicio());
         ejercicio.put("diaProgramado", detalle.getDiaProgramado());
