@@ -527,7 +527,7 @@ private fun PantallaCrearRutina(
         guardando = true; errMsg = null
         scope.launch {
             try {
-                RetrofitClient.apiService.crearRutina(RutinaRequest(
+                val respuesta = RetrofitClient.apiService.crearRutina(RutinaRequest(
                     idSocio = if (esGlobal) null else clienteId.ifBlank { null },
                     idEntrenador = perfil?.id ?: "",
                     esGlobal = esGlobal, nombre = nombre.trim(),
@@ -536,7 +536,14 @@ private fun PantallaCrearRutina(
                     objetivo = objetivo.trim(), notas = notasRut.ifBlank { null },
                     detalles = listaEj.map { it.toReq() }
                 ))
-                onGuardado()
+                if (respuesta.isSuccessful) {
+                    onGuardado()
+                } else {
+                    // Se queda en el formulario para no perder lo escrito.
+                    errMsg = mensajeDeError(respuesta.errorBody()?.string())
+                        ?: "No se pudo guardar la rutina (${respuesta.code()})"
+                    guardando = false
+                }
             } catch (e: Exception) { errMsg = e.message ?: "Error al guardar"; guardando = false }
         }
     }

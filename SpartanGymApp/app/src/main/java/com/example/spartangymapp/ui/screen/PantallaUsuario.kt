@@ -997,26 +997,35 @@ private fun ProgresoUsuario(
     var notas by remember { mutableStateOf("") }
     var guardando by remember { mutableStateOf(false) }
     var mensaje by remember { mutableStateOf<String?>(null) }
+    var registroExitoso by remember { mutableStateOf(false) }
 
     fun registrar() {
         val pesoNum = peso.trim().replace(',', '.').toDoubleOrNull()
         if (pesoNum == null || pesoNum <= 0) {
+            registroExitoso = false
             mensaje = "Ingresa un peso válido en kg."
             return
         }
         if (guardando) return
         guardando = true
         mensaje = null
+        registroExitoso = false
         scope.launch {
             try {
-                RetrofitClient.apiService.registrarProgreso(
+                val respuesta = RetrofitClient.apiService.registrarProgreso(
                     RegistroProgresoRequest(idSocio = socioId, pesoKg = pesoNum, medidasNotas = notas.trim().ifBlank { null })
                 )
+                if (!respuesta.isSuccessful) {
+                    mensaje = mensajeDeError(respuesta.errorBody()?.string())
+                        ?: "No se pudo registrar el progreso (${respuesta.code()})."
+                    return@launch
+                }
                 val actualizado = RetrofitClient.apiService.obtenerProgresoSocio(socioId).body().orEmpty()
                 onActualizado(actualizado)
                 peso = ""
                 notas = ""
-                mensaje = "✅ Progreso registrado"
+                registroExitoso = true
+                mensaje = "Progreso registrado"
             } catch (e: Exception) {
                 mensaje = e.message ?: "No se pudo registrar el progreso."
             } finally {
@@ -1070,7 +1079,7 @@ private fun ProgresoUsuario(
                 )
                 mensaje?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = if (it.startsWith("✅")) VerdeEstado else MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(it, color = if (registroExitoso) VerdeEstado else MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
@@ -1200,7 +1209,7 @@ private fun RenovarMembresiaUsuario(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("✅ Pago registrado", color = VerdeEstado, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                    Text("Pago registrado", color = VerdeEstado, fontSize = 18.sp, fontWeight = FontWeight.Black)
                     Spacer(Modifier.height(10.dp))
                     FilaDatoAPI("Factura", fac.numeroFactura.apiValor(), "MEM")
                     FilaDatoAPI("Plan", fac.tipoMembresia.apiValor(), "Membresía")
@@ -1408,7 +1417,7 @@ private fun ProductosUsuario(
                     mensaje = detalle ?: "No se pudo completar la compra (${resp.code()})."
                 } else {
                     esError = false
-                    mensaje = "✅ Compra registrada. Factura ${cuerpo.numeroFactura ?: ""}. Retírala en recepción."
+                    mensaje = "Compra registrada. Factura ${cuerpo.numeroFactura ?: ""}. Retírala en recepción."
                     onActualizado(RetrofitClient.apiService.listarProductosCatalogo().body().orEmpty())
                 }
             } catch (e: Exception) {
@@ -1582,7 +1591,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 } else {
                     validacion = cuerpo
                     errorQr = null
-                    mensajeQr = "✅ Asistencia validada"
+                    mensajeQr = "Asistencia validada"
                 }
             } catch (e: Exception) {
                 errorQr = e.message ?: "No se pudo conectar con la API."
