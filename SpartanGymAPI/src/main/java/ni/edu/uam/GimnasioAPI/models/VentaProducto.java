@@ -84,6 +84,23 @@ public class VentaProducto {
     @Column(name = "fecha_creacion", updatable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
+    /** Completada, Pendiente (pedido de la app sin pagar) o Cancelada. */
+    @Column(nullable = false, length = 20)
+    private String estado = "Completada";
+
+    /** Código que el socio muestra en recepción para pagar y retirar su pedido. */
+    @Column(name = "codigo_pedido", unique = true, length = 12)
+    private String codigoPedido;
+
+    @Column(name = "referencia_pago", length = 80)
+    private String referenciaPago;
+
+    @Column(name = "fecha_validacion")
+    private LocalDateTime fechaValidacion;
+
+    @Column(name = "validado_por", length = 150)
+    private String validadoPor;
+
     @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<VentaProductoDetalle> detalles = new ArrayList<>();
 }

@@ -405,6 +405,16 @@ CREATE TABLE IF NOT EXISTS detalle_ventas_productos (
 CREATE INDEX IF NOT EXISTS idx_ventas_productos_fecha
 ON ventas_productos (fecha_creacion DESC);
 
+-- Pedidos de la app: estado y código que el socio presenta en recepción.
+ALTER TABLE ventas_productos
+    ADD COLUMN IF NOT EXISTS estado VARCHAR(20) NOT NULL DEFAULT 'Completada',
+    ADD COLUMN IF NOT EXISTS codigo_pedido VARCHAR(12),
+    ADD COLUMN IF NOT EXISTS referencia_pago VARCHAR(80),
+    ADD COLUMN IF NOT EXISTS fecha_validacion TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS validado_por VARCHAR(150);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ventas_productos_codigo_pedido ON ventas_productos (codigo_pedido);
+
 CREATE INDEX IF NOT EXISTS idx_ventas_productos_sucursal_fecha
 ON ventas_productos (sucursal_id, fecha_creacion DESC);
 

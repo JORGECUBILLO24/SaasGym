@@ -58,6 +58,21 @@ interface SpartanGymApi {
         @Body request: CompraProductoAppRequest
     ): Response<FacturaVentaAppResponse>
 
+    @POST("api/ventas/productos/pedido")
+    suspend fun crearPedido(@Body request: PedidoSocioRequest): Response<PedidoResponse>
+
+    @GET("api/ventas/productos/mis-pedidos")
+    suspend fun misPedidos(): Response<List<PedidoResponse>>
+
+    @GET("api/ventas/productos/pedido/{codigo}")
+    suspend fun buscarPedido(@Path("codigo") codigo: String): Response<PedidoResponse>
+
+    @POST("api/ventas/productos/pedido/{codigo}/confirmar")
+    suspend fun confirmarPedido(@Path("codigo") codigo: String, @Body request: ConfirmarPedidoRequest): Response<PedidoResponse>
+
+    @POST("api/ventas/productos/pedido/{codigo}/cancelar")
+    suspend fun cancelarPedido(@Path("codigo") codigo: String): Response<PedidoResponse>
+
     @POST("api/ventas/productos/entrenador")
     suspend fun venderComoEntrenador(
         @Body request: VentaEntrenadorRequest

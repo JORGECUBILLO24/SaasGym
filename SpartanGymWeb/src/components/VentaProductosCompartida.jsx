@@ -22,6 +22,7 @@ import { formatearMoneda, obtenerNombreGimnasio, useConfiguracionApp } from '../
 import { obtenerLogosApp } from '../utils/logosApp';
 import { inventarioApi, sociosApi, sucursalesApi, ventasApi } from '../services/api';
 import BuscadorSocio from './BuscadorSocio';
+import ValidarPedido from './ValidarPedido';
 import { normalizar, terminos } from '../utils/busquedaEjercicios';
 
 const ventaInicial = {
@@ -267,6 +268,8 @@ const VentaProductosCompartida = ({
             Actualizar
         </button>
       </header>
+
+      <ValidarPedido formatearMonto={formatearMonto} onCambio={() => cargarDatos().catch(() => {})} />
 
       <section className="sales-summary" aria-label="Resumen de ventas">
         <div className="sales-summary-item">
@@ -540,7 +543,7 @@ const VentaProductosCompartida = ({
           {ventas.map((venta) => (
             <li key={venta.id} className="sales-invoice-row">
               <div className="sales-invoice-main">
-                <strong>{venta.numeroFactura || 'Factura'}</strong>
+                <strong>{venta.numeroFactura || 'Factura'}{venta.codigoPedido ? ` · ${venta.codigoPedido}` : ''}{venta.estado && venta.estado !== 'Completada' ? ` · ${venta.estado}` : ''}</strong>
                 <span>{venta.clienteNombre || 'Cliente'}{venta.clienteEventual ? ' · Eventual' : ''}</span>
               </div>
               <div className="sales-invoice-meta">

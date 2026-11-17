@@ -4,6 +4,8 @@ import ni.edu.uam.GimnasioAPI.exceptions.*;
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.dto.FacturaDetalleResponse;
 import ni.edu.uam.GimnasioAPI.dto.LineaReceta;
+import ni.edu.uam.GimnasioAPI.dto.ConfirmarPedidoRequest;
+import ni.edu.uam.GimnasioAPI.dto.PedidoSocioRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoDetalleRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoResponse;
@@ -45,6 +47,9 @@ import java.util.UUID;
 public class VentaProductoService {
 
     private static final BigDecimal CIEN = BigDecimal.valueOf(100);
+    static final String ESTADO_PENDIENTE = "Pendiente";
+    static final String ESTADO_COMPLETADA = "Completada";
+    static final String ESTADO_CANCELADA = "Cancelada";
 
     private final VentaProductoRepository ventaRepository;
     private final ProductoInventarioRepository productoRepository;
@@ -72,6 +77,14 @@ public class VentaProductoService {
 
     @Transactional
     public VentaProductoResponse vender(VentaProductoRequest request, Authentication auth) {
+        return toResponse(registrar(request, auth, false));
+    }
+
+    /**
+     * Registra la venta. Un pedido de la app queda "Pendiente": el stock se aparta ya (para no
+     * vender lo mismo dos veces), pero el cobro y el ingreso en caja se registran al validarlo.
+     */
+    private VentaProducto registrar(VentaProductoRequest request, Authentication auth, boolean pedido) {
         if (request.getDetalles() == null || request.getDetalles().isEmpty()) {
             throw new ReglaNegocioException("Agrega al menos un producto a la venta");
         }
@@ -186,13 +199,20 @@ public class VentaProductoService {
         venta.setSubtotal(subtotal.setScale(2, RoundingMode.HALF_UP));
         venta.setImpuesto(impuesto);
         venta.setTotal(subtotal.add(impuesto).setScale(2, RoundingMode.HALF_UP));
-        aplicarPagoEfectivo(venta, request);
+        if (pedido) {
+            venta.setEstado(ESTADO_PENDIENTE);
+            venta.setCodigoPedido(generarCodigoPedido());
+            venta.setReferenciaPago(limpiarTexto(request.getReferenciaPago()));
+            venta.setVendedor(null);
+        } else {
+            aplicarPagoEfectivo(venta, request);
+        }
 
         VentaProducto ventaGuardada = ventaRepository.save(venta);
-        if (!"Pendiente en recepción".equalsIgnoreCase(ventaGuardada.getMetodoPago())) {
+        if (!pedido) {
             registrarMovimiento(ventaGuardada, auth);
         }
-        return toResponse(ventaGuardada);
+        return ventaGuardada;
     }
 
     // Venta desde la app del entrenador: siempre se factura en SU sucursal, aunque la app mande
@@ -214,33 +234,182 @@ public class VentaProductoService {
         return vender(request, auth);
     }
 
-    // Compra desde la app: el socio (del token) reserva un producto de su sucursal para
-    // retirarlo en recepcion. Reutiliza toda la logica de venta (stock, impuesto, factura).
+    // Compra de un solo producto (versiones anteriores de la app): se convierte en pedido en efectivo.
     @Transactional
     public VentaProductoResponse comprarComoSocio(VentaProductoDetalleRequest detalle, Authentication auth) {
-        if (auth == null || auth.getName() == null) {
-            throw new NoAutenticadoException("Usuario no autenticado");
-        }
-        Usuario usuario = usuarioRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
-        Socio socio = socioRepository.findById(usuario.getId())
-                .orElseThrow(() -> new AccesoDenegadoException("Perfil de socio no encontrado"));
+        PedidoSocioRequest pedido = new PedidoSocioRequest();
+        pedido.setMetodoPago("Efectivo");
+        pedido.setDetalles(detalle == null ? List.of() : List.of(detalle));
+        return crearPedidoSocio(pedido, auth);
+    }
+
+    /**
+     * El socio arma su carrito en la app y elige pagar en efectivo o por transferencia. Se genera
+     * un código que muestra en recepción; ahí lo validan y se completa la compra.
+     */
+    @Transactional
+    public VentaProductoResponse crearPedidoSocio(PedidoSocioRequest pedido, Authentication auth) {
+        Socio socio = socioAutenticado(auth);
         if (socio.getSucursal() == null) {
             throw new ReglaNegocioException("Tu perfil no tiene una sucursal asignada. Acércate a recepción.");
         }
-        if (detalle == null || detalle.getProductoId() == null) {
-            throw new ReglaNegocioException("Selecciona un producto para comprar");
+        if (pedido == null || pedido.getDetalles() == null || pedido.getDetalles().isEmpty()) {
+            throw new ReglaNegocioException("Agrega al menos un producto al carrito");
+        }
+        String metodo = textoOpcional(pedido.getMetodoPago(), "");
+        if (!"Efectivo".equalsIgnoreCase(metodo) && !"Transferencia".equalsIgnoreCase(metodo)) {
+            throw new ReglaNegocioException("Elige pagar en efectivo o por transferencia");
         }
 
         VentaProductoRequest request = new VentaProductoRequest();
         request.setClienteEventual(false);
         request.setSocioId(socio.getUsuarioId());
         request.setSucursalId(socio.getSucursal().getId());
-        request.setMetodoPago("Pendiente en recepción");
-        request.setObservaciones("Compra desde la app - retiro en recepción");
-        request.setDetalles(List.of(detalle));
+        request.setMetodoPago("Efectivo".equalsIgnoreCase(metodo) ? "Efectivo" : "Transferencia");
+        request.setReferenciaPago(pedido.getReferenciaPago());
+        request.setObservaciones("Pedido desde la app - paga y retira en recepción");
+        request.setDetalles(pedido.getDetalles());
+        return toResponse(registrar(request, auth, true));
+    }
 
-        return vender(request, auth);
+    @Transactional(readOnly = true)
+    public List<VentaProductoResponse> misPedidos(Authentication auth) {
+        Socio socio = socioAutenticado(auth);
+        return ventaRepository.findBySocio_UsuarioIdAndCodigoPedidoIsNotNullOrderByFechaCreacionDesc(socio.getUsuarioId())
+                .stream().map(this::toResponse).toList();
+    }
+
+    /** Recepción, administración o el entrenador buscan el pedido por el código del socio. */
+    @Transactional(readOnly = true)
+    public VentaProductoResponse buscarPedido(String codigo, Authentication auth) {
+        return toResponse(pedidoVisible(codigo, auth));
+    }
+
+    @Transactional
+    public VentaProductoResponse confirmarPedido(String codigo, ConfirmarPedidoRequest datos, Authentication auth) {
+        VentaProducto venta = pedidoVisible(codigo, auth);
+        exigirPendiente(venta);
+        Usuario quien = obtenerVendedor(auth);
+
+        if ("Efectivo".equalsIgnoreCase(venta.getMetodoPago()) && datos != null && datos.getMontoRecibido() != null) {
+            if (datos.getMontoRecibido().compareTo(venta.getTotal()) < 0) {
+                throw new ReglaNegocioException("El efectivo recibido no cubre el total del pedido");
+            }
+            venta.setMonedaPago(obtenerMonedaVenta(new VentaProductoRequest()));
+            venta.setTipoCambio(BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP));
+            venta.setMontoRecibido(datos.getMontoRecibido().setScale(2, RoundingMode.HALF_UP));
+            venta.setMontoRecibidoConvertido(venta.getMontoRecibido());
+            venta.setCambio(venta.getMontoRecibido().subtract(venta.getTotal()).setScale(2, RoundingMode.HALF_UP));
+        }
+        if (datos != null && limpiarTexto(datos.getReferenciaPago()) != null) {
+            venta.setReferenciaPago(limpiarTexto(datos.getReferenciaPago()));
+        }
+
+        venta.setEstado(ESTADO_COMPLETADA);
+        venta.setVendedor(quien);
+        venta.setFechaValidacion(LocalDateTime.now());
+        venta.setValidadoPor(quien != null ? quien.getEmail() : auth.getName());
+        VentaProducto guardada = ventaRepository.save(venta);
+        registrarMovimiento(guardada, auth);
+        return toResponse(guardada);
+    }
+
+    /** Cancela un pedido sin pagar y devuelve al inventario lo que tenía apartado. */
+    @Transactional
+    public VentaProductoResponse cancelarPedido(String codigo, Authentication auth) {
+        VentaProducto venta = pedidoVisible(codigo, auth);
+        exigirPendiente(venta);
+
+        List<UUID> ids = venta.getDetalles().stream().map(d -> d.getProducto().getId()).distinct().toList();
+        Map<UUID, List<LineaReceta>> recetas = componenteRepository.recetasDe(ids).stream()
+                .collect(Collectors.groupingBy(LineaReceta::productoId));
+        Set<UUID> sinReceta = new TreeSet<>();
+        Set<UUID> preparados = new TreeSet<>();
+        for (UUID id : ids) {
+            (recetas.containsKey(id) ? preparados : sinReceta).add(id);
+        }
+        recetas.values().forEach(lineas -> lineas.forEach(linea -> sinReceta.add(linea.insumoId())));
+        Set<UUID> aBloquear = new java.util.LinkedHashSet<>(sinReceta);
+        aBloquear.addAll(preparados);
+        Map<UUID, ProductoInventario> filas = bloquearProductos(aBloquear);
+
+        for (VentaProductoDetalle detalle : venta.getDetalles()) {
+            List<LineaReceta> receta = recetas.getOrDefault(detalle.getProducto().getId(), List.of());
+            if (receta.isEmpty()) {
+                devolver(filas.get(detalle.getProducto().getId()), detalle.getCantidad());
+            } else {
+                receta.forEach(linea -> devolver(filas.get(linea.insumoId()), detalle.getCantidad() * linea.cantidad()));
+            }
+        }
+        filas.values().forEach(productoRepository::save);
+
+        Usuario quien = obtenerVendedor(auth);
+        venta.setEstado(ESTADO_CANCELADA);
+        venta.setFechaValidacion(LocalDateTime.now());
+        venta.setValidadoPor(quien != null ? quien.getEmail() : auth.getName());
+        return toResponse(ventaRepository.save(venta));
+    }
+
+    private static void devolver(ProductoInventario fila, int cantidad) {
+        fila.setStock((fila.getStock() == null ? 0 : fila.getStock()) + cantidad);
+    }
+
+    private static void exigirPendiente(VentaProducto venta) {
+        if (!ESTADO_PENDIENTE.equalsIgnoreCase(venta.getEstado())) {
+            throw new ReglaNegocioException("Este pedido ya está " + venta.getEstado().toLowerCase(Locale.ROOT));
+        }
+    }
+
+    // El personal de una sucursal (recepción, entrenador) solo ve los pedidos de la suya.
+    private VentaProducto pedidoVisible(String codigo, Authentication auth) {
+        String limpio = normalizarCodigoPedido(codigo);
+        VentaProducto venta = ventaRepository.findByCodigoPedidoIgnoreCase(limpio)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No hay ningún pedido con el código " + limpio));
+        Usuario usuario = obtenerVendedor(auth);
+        String rol = usuario != null && usuario.getRol() != null ? usuario.getRol().getNombre() : "";
+        if (usuario != null && (rol.endsWith("ENTRENADOR") || rol.endsWith("RECEPCIONISTA"))) {
+            Sucursal suya = personalRepository.findById(usuario.getId()).map(personal -> personal.getSucursal()).orElse(null);
+            if (suya != null && !suya.getId().equals(venta.getSucursal().getId())) {
+                throw new AccesoDenegadoException("Ese pedido es de otra sucursal (" + venta.getSucursal().getNombre() + ")");
+            }
+        }
+        return venta;
+    }
+
+    /** Acepta el código como lo dicten o escriban: "p 98gyw7", "P98GYW7" o "P-98GYW7". */
+    static String normalizarCodigoPedido(String codigo) {
+        String letras = codigo == null ? "" : codigo.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (letras.length() == 7 && letras.startsWith("P")) {
+            return "P-" + letras.substring(1);
+        }
+        return letras.length() == 6 ? "P-" + letras : letras;
+    }
+
+    private Socio socioAutenticado(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            throw new NoAutenticadoException("Usuario no autenticado");
+        }
+        Usuario usuario = usuarioRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
+        return socioRepository.findById(usuario.getId())
+                .orElseThrow(() -> new AccesoDenegadoException("Perfil de socio no encontrado"));
+    }
+
+    // Sin 0/O ni 1/I/L para que se pueda dictar y escribir sin confusiones.
+    private static final String ALFABETO_CODIGO = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    private static final java.security.SecureRandom AZAR = new java.security.SecureRandom();
+
+    private String generarCodigoPedido() {
+        for (int intento = 0; intento < 20; intento++) {
+            StringBuilder codigo = new StringBuilder("P-");
+            for (int i = 0; i < 6; i++) {
+                codigo.append(ALFABETO_CODIGO.charAt(AZAR.nextInt(ALFABETO_CODIGO.length())));
+            }
+            if (!ventaRepository.existsByCodigoPedido(codigo.toString())) {
+                return codigo.toString();
+            }
+        }
+        throw new IllegalStateException("No se pudo generar un código de pedido único");
     }
 
     private List<UUID> idsDeLaVenta(List<VentaProductoDetalleRequest> detalles) {
@@ -397,6 +566,11 @@ public class VentaProductoService {
                 .total(venta.getTotal())
                 .observaciones(venta.getObservaciones())
                 .fechaCreacion(venta.getFechaCreacion())
+                .estado(venta.getEstado())
+                .codigoPedido(venta.getCodigoPedido())
+                .referenciaPago(venta.getReferenciaPago())
+                .fechaValidacion(venta.getFechaValidacion())
+                .validadoPor(venta.getValidadoPor())
                 .detalles(venta.getDetalles().stream().map(this::detalleResponse).toList())
                 .build();
     }

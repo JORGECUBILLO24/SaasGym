@@ -18,5 +18,6 @@ public class VentaProductoRequest {
     private java.math.BigDecimal tipoCambio;
     private java.math.BigDecimal montoRecibido;
     private String observaciones;
+    private String referenciaPago;
     private List<VentaProductoDetalleRequest> detalles;
 }

@@ -33,5 +33,10 @@ public class VentaProductoResponse {
     private BigDecimal total;
     private String observaciones;
     private LocalDateTime fechaCreacion;
+    private String estado;
+    private String codigoPedido;
+    private String referenciaPago;
+    private LocalDateTime fechaValidacion;
+    private String validadoPor;
     private List<FacturaDetalleResponse> detalles;
 }

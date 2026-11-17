@@ -197,6 +197,42 @@ data class FacturaVentaAppResponse(
     val cambio: Double? = null
 )
 
+/** Carrito del socio: paga en recepción en efectivo o por transferencia con el código generado. */
+data class PedidoSocioRequest(
+    val metodoPago: String,
+    val referenciaPago: String? = null,
+    val detalles: List<CompraProductoAppRequest>
+)
+
+data class ConfirmarPedidoRequest(
+    val montoRecibido: Double? = null,
+    val referenciaPago: String? = null
+)
+
+data class DetallePedidoResponse(
+    val productoNombre: String? = null,
+    val cantidad: Int? = null,
+    val precioUnitario: Double? = null,
+    val totalLinea: Double? = null
+)
+
+data class PedidoResponse(
+    val numeroFactura: String? = null,
+    val codigoPedido: String? = null,
+    val estado: String? = null,
+    val metodoPago: String? = null,
+    val referenciaPago: String? = null,
+    val clienteNombre: String? = null,
+    val sucursal: String? = null,
+    val subtotal: Double? = null,
+    val impuesto: Double? = null,
+    val total: Double? = null,
+    val cambio: Double? = null,
+    val fechaCreacion: String? = null,
+    val validadoPor: String? = null,
+    val detalles: List<DetallePedidoResponse>? = null
+)
+
 /** Venta que registra el entrenador; la API la factura en la sucursal de su perfil. */
 data class VentaEntrenadorRequest(
     val clienteEventual: Boolean,

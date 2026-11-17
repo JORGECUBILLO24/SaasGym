@@ -378,6 +378,11 @@ internal fun TabVenderEntrenador(appConfig: AppConfigResponse, acento: Color) {
         Text("Se factura en tu sucursal y descuenta el inventario.", color = T_GRIS, fontSize = 13.sp)
         Spacer(Modifier.height(14.dp))
 
+        ValidarPedidoApp(appConfig.currency, acento)
+        Spacer(Modifier.height(18.dp))
+        Text("Venta directa", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+
         mensaje?.let {
             Surface(shape = RoundedCornerShape(14.dp), color = if (esError) Color(0xFF1A0608) else Color(0xFF0D2B18),
                 border = BorderStroke(1.dp, (if (esError) acento else T_VERDE).copy(alpha = .4f)), modifier = Modifier.fillMaxWidth()) {

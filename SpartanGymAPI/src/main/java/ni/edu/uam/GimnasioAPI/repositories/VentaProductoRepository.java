@@ -8,4 +8,10 @@ import java.util.UUID;
 
 public interface VentaProductoRepository extends JpaRepository<VentaProducto, UUID> {
     List<VentaProducto> findAllByOrderByFechaCreacionDesc();
+
+    java.util.Optional<VentaProducto> findByCodigoPedidoIgnoreCase(String codigoPedido);
+
+    boolean existsByCodigoPedido(String codigoPedido);
+
+    List<VentaProducto> findBySocio_UsuarioIdAndCodigoPedidoIsNotNullOrderByFechaCreacionDesc(UUID socioId);
 }

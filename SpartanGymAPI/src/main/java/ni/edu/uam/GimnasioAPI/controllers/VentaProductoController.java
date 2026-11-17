@@ -1,6 +1,8 @@
 package ni.edu.uam.GimnasioAPI.controllers;
 
 import lombok.RequiredArgsConstructor;
+import ni.edu.uam.GimnasioAPI.dto.ConfirmarPedidoRequest;
+import ni.edu.uam.GimnasioAPI.dto.PedidoSocioRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoDetalleRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoRequest;
 import ni.edu.uam.GimnasioAPI.dto.VentaProductoResponse;
@@ -47,6 +49,39 @@ public class VentaProductoController {
     @PreAuthorize("hasRole('ENTRENADOR')")
     public ResponseEntity<VentaProductoResponse> venderComoEntrenador(@RequestBody VentaProductoRequest request, Authentication auth) {
         return ResponseEntity.ok(service.venderComoEntrenador(request, auth));
+    }
+
+    // Pedido del socio desde la app (carrito): genera el código para pagar en recepción.
+    @PostMapping("/pedido")
+    @PreAuthorize("hasAuthority('ROLE_SOCIO')")
+    public ResponseEntity<VentaProductoResponse> crearPedido(@RequestBody PedidoSocioRequest request, Authentication auth) {
+        return ResponseEntity.ok(service.crearPedidoSocio(request, auth));
+    }
+
+    @GetMapping("/mis-pedidos")
+    @PreAuthorize("hasAuthority('ROLE_SOCIO')")
+    public ResponseEntity<List<VentaProductoResponse>> misPedidos(Authentication auth) {
+        return ResponseEntity.ok(service.misPedidos(auth));
+    }
+
+    @GetMapping("/pedido/{codigo}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR')")
+    public ResponseEntity<VentaProductoResponse> buscarPedido(@PathVariable String codigo, Authentication auth) {
+        return ResponseEntity.ok(service.buscarPedido(codigo, auth));
+    }
+
+    @PostMapping("/pedido/{codigo}/confirmar")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR')")
+    public ResponseEntity<VentaProductoResponse> confirmarPedido(@PathVariable String codigo,
+                                                                 @RequestBody(required = false) ConfirmarPedidoRequest request,
+                                                                 Authentication auth) {
+        return ResponseEntity.ok(service.confirmarPedido(codigo, request, auth));
+    }
+
+    @PostMapping("/pedido/{codigo}/cancelar")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR')")
+    public ResponseEntity<VentaProductoResponse> cancelarPedido(@PathVariable String codigo, Authentication auth) {
+        return ResponseEntity.ok(service.cancelarPedido(codigo, auth));
     }
 
     // El socio compra/reserva un producto desde la app para retirarlo en recepcion.

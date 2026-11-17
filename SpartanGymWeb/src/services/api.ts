@@ -308,6 +308,15 @@ export const ventasApi = {
     body: JSON.stringify(venta),
   }),
   facturaProducto: (id: string) => apiRequest(`/ventas/productos/${id}`),
+  buscarPedido: (codigo: string) => apiRequest(`/ventas/productos/pedido/${encodeURIComponent(codigo.trim())}`),
+  confirmarPedido: (codigo: string, datos: { montoRecibido?: number | null; referenciaPago?: string | null } = {}) =>
+    apiRequest(`/ventas/productos/pedido/${encodeURIComponent(codigo.trim())}/confirmar`, {
+      method: 'POST',
+      body: JSON.stringify(datos),
+    }),
+  cancelarPedido: (codigo: string) => apiRequest(`/ventas/productos/pedido/${encodeURIComponent(codigo.trim())}/cancelar`, {
+    method: 'POST',
+  }),
 };
 
 export const sucursalesApi = {

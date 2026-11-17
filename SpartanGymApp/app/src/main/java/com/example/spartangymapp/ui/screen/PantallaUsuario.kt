@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.sp
 import com.example.spartangymapp.R
 import com.example.spartangymapp.network.ActualizarFotoRequest
 import com.example.spartangymapp.network.AppConfigResponse
+import com.example.spartangymapp.network.PedidoResponse
+import com.example.spartangymapp.network.PedidoSocioRequest
 import com.example.spartangymapp.ui.components.escalaAlPresionar
 import com.example.spartangymapp.network.AsistenciaQrRequest
 import com.example.spartangymapp.network.AsistenciaQrValidationResponse
@@ -1419,66 +1421,77 @@ private fun ProductosUsuario(
     onVolver: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var comprandoId by remember { mutableStateOf<String?>(null) }
+    val acento = MaterialTheme.colorScheme.primary
     var mensaje by remember { mutableStateOf<String?>(null) }
     var consulta by rememberSaveable { mutableStateOf("") }
-    var esError by remember { mutableStateOf(false) }
+    val carrito = remember { mutableStateListOf<Pair<ProductoCatalogoResponse, Int>>() }
+    var enviando by remember { mutableStateOf(false) }
+    var pedidoNuevo by remember { mutableStateOf<PedidoResponse?>(null) }
+    var pedidos by remember { mutableStateOf<List<PedidoResponse>>(emptyList()) }
+    val tasa = (appConfig.taxRate?.toDoubleOrNull() ?: 0.0) / 100.0
 
-    fun comprar(producto: ProductoCatalogoResponse) {
-        val id = producto.id ?: return
-        if (comprandoId != null) return
-        comprandoId = id
+    suspend fun cargarPedidos() {
+        pedidos = runCatching { RetrofitClient.apiService.misPedidos().body().orEmpty() }.getOrDefault(pedidos)
+    }
+    LaunchedEffect(Unit) { cargarPedidos() }
+
+    fun cantidadEn(p: ProductoCatalogoResponse) = carrito.firstOrNull { it.first.id == p.id }?.second ?: 0
+    fun cambiar(p: ProductoCatalogoResponse, delta: Int) {
+        val i = carrito.indexOfFirst { it.first.id == p.id }
+        val nueva = ((if (i >= 0) carrito[i].second else 0) + delta).coerceIn(0, p.stock ?: 0)
+        when {
+            i < 0 && nueva > 0 -> carrito.add(p to nueva)
+            i >= 0 && nueva == 0 -> carrito.removeAt(i)
+            i >= 0 -> carrito[i] = p to nueva
+        }
         mensaje = null
+    }
+
+    fun generarCodigo(metodo: String, referencia: String?) {
+        enviando = true; mensaje = null
         scope.launch {
             try {
-                val resp = RetrofitClient.apiService.comprarProducto(CompraProductoAppRequest(productoId = id, cantidad = 1))
+                val resp = RetrofitClient.apiService.crearPedido(
+                    PedidoSocioRequest(
+                        metodoPago = metodo,
+                        referenciaPago = referencia,
+                        detalles = carrito.mapNotNull { (p, n) -> p.id?.let { CompraProductoAppRequest(it, n) } }
+                    )
+                )
                 val cuerpo = resp.body()
                 if (!resp.isSuccessful || cuerpo == null) {
-                    val detalle = mensajeDeError(resp.errorBody()?.string())
-                    esError = true
-                    mensaje = detalle ?: "No se pudo completar la compra (${resp.code()})."
+                    mensaje = mensajeDeError(resp.errorBody()?.string()) ?: "No se pudo generar el pedido (${resp.code()})."
                 } else {
-                    esError = false
-                    mensaje = "Compra registrada. Factura ${cuerpo.numeroFactura ?: ""}. Retírala en recepción."
+                    pedidoNuevo = cuerpo
+                    carrito.clear()
                     onActualizado(RetrofitClient.apiService.listarProductosCatalogo().body().orEmpty())
+                    cargarPedidos()
                 }
             } catch (e: Exception) {
-                esError = true
-                mensaje = e.message ?: "No se pudo completar la compra."
-            } finally {
-                comprandoId = null
-            }
+                mensaje = e.message ?: "No se pudo generar el pedido."
+            } finally { enviando = false }
         }
     }
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
         BotonVolver(onVolver)
         Spacer(Modifier.height(16.dp))
-        SeccionHeader("Productos del gym", "Compra y retira en recepción")
+        SeccionHeader("Productos del gym", "Arma tu carrito y paga en recepción")
         Spacer(Modifier.height(16.dp))
 
+        pedidoNuevo?.let {
+            TarjetaPedido(it, appConfig.currency, acento, destacado = true)
+            Spacer(Modifier.height(16.dp))
+        }
         mensaje?.let {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (esError) Color(0xFF1A0608) else Color(0xFF0D2B18),
-                border = BorderStroke(1.dp, if (esError) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else VerdeEstado.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    it,
-                    color = if (esError) MaterialTheme.colorScheme.primary else VerdeEstado,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(14.dp)
-                )
-            }
-            Spacer(Modifier.height(14.dp))
+            Text(it, color = acento, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
         }
 
         if (productos.isEmpty()) {
             EstadoVacioAPI("Sin productos", "Aún no hay productos disponibles en tu sucursal.")
         } else {
-            CampoBusqueda(consulta, { consulta = it }, "Busca: proteína, agua, shaker…", MaterialTheme.colorScheme.primary)
+            CampoBusqueda(consulta, { consulta = it }, "Busca: proteína, agua, shaker…", acento)
             Spacer(Modifier.height(12.dp))
             val visibles = filtrarProductos(productos, consulta)
             if (visibles.isEmpty()) {
@@ -1487,12 +1500,27 @@ private fun ProductosUsuario(
                 CuadriculaProductos(
                     productos = visibles,
                     moneda = appConfig.currency,
-                    acento = MaterialTheme.colorScheme.primary,
-                    textoAccion = { "Comprar" },
-                    ocupadoId = comprandoId
-                ) { comprar(it) }
-                Spacer(Modifier.height(8.dp))
-                Text("Pagas y retiras en recepción.", color = GrisTexto, fontSize = 12.sp)
+                    acento = acento,
+                    textoAccion = { if (cantidadEn(it) > 0) "Agregar otro" else "Al carrito" },
+                    cantidadEn = ::cantidadEn
+                ) { cambiar(it, 1) }
+            }
+        }
+
+        // El carrito va debajo de los productos: arriba los empujaba justo al tocar "Al carrito".
+        if (carrito.isNotEmpty()) {
+            Spacer(Modifier.height(18.dp))
+            CarritoSocio(carrito.toList(), appConfig.currency, tasa, acento, enviando, ::cambiar, ::generarCodigo)
+        }
+
+        val anteriores = pedidos.filter { it.codigoPedido != pedidoNuevo?.codigoPedido }
+        if (anteriores.isNotEmpty()) {
+            Spacer(Modifier.height(22.dp))
+            Text("Mis pedidos", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            anteriores.take(10).forEach {
+                TarjetaPedido(it, appConfig.currency, acento)
+                Spacer(Modifier.height(10.dp))
             }
         }
     }
