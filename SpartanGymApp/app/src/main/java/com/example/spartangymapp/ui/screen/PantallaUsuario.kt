@@ -109,7 +109,7 @@ private val SuperficieOscura = Color(0xFF111111)
 private val Superficie = Color(0xFF181818)
 private val BordeSutil = Color(0xFF242424)
 private val GrisTexto = Color(0xFF8A8A8A)
-private val VerdeEstado = Color(0xFF22C55E)
+internal val VerdeEstado = Color(0xFF22C55E)
 
 // ─── Modelos internos ──────────────────────────────────────────────────────
 private data class EjercicioSocio(
@@ -117,7 +117,10 @@ private data class EjercicioSocio(
     val nombre: String,
     val detalle: String,
     val zona: String,
-    val completado: Boolean = false
+    val completado: Boolean = false,
+    val gifUrl: String? = null,
+    val datos: List<DatoEjercicio> = emptyList(),
+    val instrucciones: List<String> = emptyList()
 )
 
 private data class RutinaSocio(
@@ -140,7 +143,7 @@ private data class SocioNavItem(
 private fun EjercicioRutinaResponse.detalleTexto(): String {
     val partes = if (tipoEjercicio == "Cardio") {
         listOfNotNull(
-            duracionSegundos?.let { "${it / 60} min" },
+            duracionSegundos?.let { formatoTiempo(it) },
             velocidadNivel?.let { "${it} vel/nivel" },
             inclinacion?.let { "${it}% incl" },
             distanciaMetros?.let { "${it}m" },
@@ -151,7 +154,7 @@ private fun EjercicioRutinaResponse.detalleTexto(): String {
             series?.let { "$it series" },
             repeticiones?.let { "$it reps" },
             pesoSugeridoKg?.let { "${it}kg" },
-            duracionSegundos?.let { "${it / 60} min" },
+            duracionSegundos?.let { formatoTiempo(it) },
             tiempoDescansoSegundos?.let { "${it}s descanso" }
         )
     }
@@ -166,7 +169,10 @@ private fun RutinaResumenResponse.toRutinaSocio(index: Int): RutinaSocio {
             nombre = e.ejercicio ?: "Ejercicio ${index + 1}",
             detalle = e.detalleTexto(),
             zona = e.grupoMuscular ?: "General",
-            completado = e.completadoEstaSemana ?: false
+            completado = e.completadoEstaSemana ?: false,
+            gifUrl = e.gifUrl,
+            datos = datosEjercicio(e.tipoEjercicio, e.series, e.repeticiones, e.pesoSugeridoKg, e.duracionSegundos, e.tiempoDescansoSegundos),
+            instrucciones = e.instrucciones.orEmpty()
         )
     }
     val zonas = ejerciciosMapeados.map { it.zona }.distinct().take(3).joinToString(" · ")
@@ -731,7 +737,12 @@ private fun TabRutinas(
         }
     }
     ejercicioActivo?.let { ejercicio ->
-        DemostracionEjercicio(ejercicio.nombre, ejercicio.detalle) { ejercicioActivo = null }
+        DemostracionEjercicio(
+            nombre = ejercicio.nombre,
+            gifUrl = ejercicio.gifUrl,
+            datos = ejercicio.datos,
+            instrucciones = ejercicio.instrucciones
+        ) { ejercicioActivo = null }
     }
 }
 
@@ -922,7 +933,8 @@ private fun DetalleRutinaUsuario(
     onToggleEjercicio: (Int) -> Unit,
     onVolver: () -> Unit
 ) {
-    var ejercicioActivo by remember { mutableStateOf<EjercicioSocio?>(null) }
+    // Índice y no copia del ejercicio: así el check de la hoja refleja el estado actualizado.
+    var indiceActivo by remember { mutableStateOf<Int?>(null) }
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
         BotonVolver(onVolver)
         Spacer(Modifier.height(16.dp))
@@ -951,13 +963,21 @@ private fun DetalleRutinaUsuario(
         rutina.ejercicios.forEachIndexed { i, e ->
             ItemEjercicio(
                 ejercicio = e,
-                onOpen = { ejercicioActivo = e },
+                onOpen = { indiceActivo = i },
                 onToggleCompletion = { onToggleEjercicio(i) }
             )
         }
     }
-    ejercicioActivo?.let { ejercicio ->
-        DemostracionEjercicio(ejercicio.nombre, ejercicio.detalle) { ejercicioActivo = null }
+    indiceActivo?.let { i ->
+        val ejercicio = rutina.ejercicios.getOrNull(i) ?: return@let
+        DemostracionEjercicio(
+            nombre = ejercicio.nombre,
+            gifUrl = ejercicio.gifUrl,
+            datos = ejercicio.datos,
+            instrucciones = ejercicio.instrucciones,
+            completado = ejercicio.completado,
+            onToggleCompletado = { onToggleEjercicio(i) }
+        ) { indiceActivo = null }
     }
 }
 

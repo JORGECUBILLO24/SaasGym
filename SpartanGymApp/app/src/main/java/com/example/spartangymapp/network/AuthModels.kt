@@ -209,6 +209,8 @@ data class EjercicioRutinaResponse(
     val ejercicio: String? = null,
     val grupoMuscular: String? = null,
     val grupoMuscularId: Int? = null,
+    val gifUrl: String? = null,
+    val instrucciones: List<String>? = null,
     val tipoEjercicio: String? = null,
     val diaProgramado: String? = null,
     val diaSemana: Int? = null,
