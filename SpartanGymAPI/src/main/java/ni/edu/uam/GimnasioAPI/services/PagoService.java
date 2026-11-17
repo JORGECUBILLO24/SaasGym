@@ -62,11 +62,17 @@ public class PagoService {
         TipoMembresia tipoMembresia = tipoMembresiaRepository.findById(tipoMembresiaId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de membresía no encontrado"));
 
-        // Apagamos la membresía activa anterior. saveAndFlush garantiza que el UPDATE
+        // Se cierra la membresía activa anterior. saveAndFlush garantiza que el UPDATE
         // (Activa -> Renovada) ocurra antes del INSERT de la nueva, respetando el índice único.
+        // Si se renueva antes de tiempo, los días que quedaban se suman al nuevo periodo.
+        LocalDate hoy = LocalDate.now();
+        LocalDate baseVencimiento = hoy;
         Optional<MembresiaSocio> membresiaActiva = membresiaSocioRepository.findBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Activa");
         if (membresiaActiva.isPresent()) {
             MembresiaSocio vieja = membresiaActiva.get();
+            if (vieja.getFechaVencimiento() != null && vieja.getFechaVencimiento().isAfter(hoy)) {
+                baseVencimiento = vieja.getFechaVencimiento();
+            }
             vieja.setEstado("Renovada");
             membresiaSocioRepository.saveAndFlush(vieja);
         }
@@ -91,12 +97,11 @@ public class PagoService {
         nuevaMembresia.setSocio(socio);
         nuevaMembresia.setTipoMembresia(tipoMembresia);
         nuevaMembresia.setPago(pago);
-        nuevaMembresia.setFechaInicio(LocalDate.now());
-        nuevaMembresia.setFechaVencimiento(LocalDate.now().plusDays(tipoMembresia.getDuracionDias()));
+        nuevaMembresia.setFechaInicio(hoy);
+        nuevaMembresia.setFechaVencimiento(baseVencimiento.plusDays(tipoMembresia.getDuracionDias()));
         nuevaMembresia.setEstado("Activa");
         MembresiaSocio guardada = membresiaSocioRepository.save(nuevaMembresia);
 
-        // Reabrimos el acceso del socio
         socio.setEstadoAcceso("Activo");
         socioRepository.save(socio);
 

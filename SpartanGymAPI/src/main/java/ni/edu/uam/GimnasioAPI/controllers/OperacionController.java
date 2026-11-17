@@ -130,8 +130,10 @@ public class OperacionController {
 
     @PatchMapping("/notificaciones/{id}/leer")
     @Transactional
-    public ResponseEntity<Map<String, Object>> marcarLeida(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> marcarLeida(@PathVariable UUID id, Authentication auth) {
+        Usuario usuario = usuarioAutenticado(auth);
         Notificacion notificacion = notificacionRepository.findById(id)
+                .filter(n -> n.getUsuario() == null || n.getUsuario().getId().equals(usuario.getId()))
                 .orElseThrow(() -> new RecursoNoEncontradoException("Notificación no encontrada"));
         notificacion.setLeida(true);
         return ResponseEntity.ok(notificacionMap(notificacionRepository.save(notificacion)));

@@ -16,10 +16,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-@RequiredArgsConstructor // Lombok crea el constructor automáticamente para inyectar dependencias
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    // Al poner 'final', Spring sabe que debe inyectarlos por el constructor
+    private static final String PREFIJO_BEARER = "Bearer ";
+
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
@@ -30,56 +31,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // 1. Extraemos el header "Authorization"
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
-
-        // Si no hay header o no empieza con "Bearer ", lo dejamos pasar al siguiente filtro
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith(PREFIJO_BEARER)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2. Recortamos la palabra "Bearer " (7 caracteres) para quedarnos solo con el token
-        jwt = authHeader.substring(7);
-
-        // --- ESCUDO 1: Token Vacío ---
-        // Previene el error de Postman cuando envía "Bearer " con un espacio en blanco al final
-        if (jwt.trim().isEmpty()) {
+        String jwt = authHeader.substring(PREFIJO_BEARER.length()).trim();
+        if (jwt.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // --- ESCUDO 2: Manejo de errores de JWT ---
         try {
-            userEmail = jwtService.extractUsername(jwt);
-
-            // 3. Si extrajimos un correo y el usuario aún no está autenticado en el contexto actual
+            String userEmail = jwtService.extractUsername(jwt);
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-                // 4. Validamos que el token sea correcto y no haya expirado
-                if (jwtService.isTokenValid(jwt, userDetails)) {
+                // Una cuenta desactivada no debe seguir operando con un token emitido antes.
+                if (userDetails.isEnabled() && jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
                             userDetails.getAuthorities()
                     );
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-                    // Registramos al usuario como autenticado
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            // Si el token es inválido, está corrupto o mal formado, no hacemos crashear el servidor.
-            // Limpiamos la sesión temporalmente y dejamos que Spring Security rechace la petición si es privada.
+            // Token corrupto o expirado: se sigue sin autenticación y Spring Security
+            // rechaza la petición si el endpoint es privado.
             SecurityContextHolder.clearContext();
         }
 
-        // Continuamos con el flujo normal de la petición
         filterChain.doFilter(request, response);
     }
 }

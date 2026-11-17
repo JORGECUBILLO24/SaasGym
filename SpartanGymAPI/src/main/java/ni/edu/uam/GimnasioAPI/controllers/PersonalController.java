@@ -17,8 +17,9 @@ import java.util.UUID;
 public class PersonalController {
     private final PersonalService personalService;
 
+    // Recepción lo usa en solo lectura para mostrar su equipo en el perfil.
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     public ResponseEntity<List<PersonalResponse>> listar() {
         return ResponseEntity.ok(personalService.listarPersonal());
     }

@@ -114,10 +114,14 @@ public class MembresiaService {
         nuevaMembresia.setPago(pago);
         nuevaMembresia.setFechaInicio(LocalDate.now());
 
-        // Las fechas en Java se calculan fácilmente sumando los días que indica el tipo de membresía
         nuevaMembresia.setFechaVencimiento(LocalDate.now().plusDays(tipo.getDuracionDias()));
         nuevaMembresia.setEstado("Activa");
+        MembresiaSocio guardada = membresiaSocioRepository.save(nuevaMembresia);
 
-        return membresiaSocioRepository.save(nuevaMembresia);
+        // Igual que en la renovación: un socio que estaba inactivo por vencimiento recupera el acceso.
+        socio.setEstadoAcceso("Activo");
+        socioRepository.save(socio);
+
+        return guardada;
     }
 }

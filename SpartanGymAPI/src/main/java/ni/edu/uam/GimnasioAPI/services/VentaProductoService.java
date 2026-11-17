@@ -100,8 +100,11 @@ public class VentaProductoService {
 
         BigDecimal subtotal = BigDecimal.ZERO;
         for (VentaProductoDetalleRequest detalleRequest : request.getDetalles()) {
-            ProductoInventario producto = productoRepository.findById(detalleRequest.getProductoId())
+            ProductoInventario producto = productoRepository.findByIdParaActualizar(detalleRequest.getProductoId())
                     .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
+            if (producto.getSucursal() != null && !producto.getSucursal().getId().equals(sucursal.getId())) {
+                throw new ReglaNegocioException(producto.getNombre() + " pertenece a otra sucursal");
+            }
             int cantidad = detalleRequest.getCantidad() == null ? 0 : detalleRequest.getCantidad();
             if (cantidad <= 0) {
                 throw new ReglaNegocioException("La cantidad debe ser mayor a cero");

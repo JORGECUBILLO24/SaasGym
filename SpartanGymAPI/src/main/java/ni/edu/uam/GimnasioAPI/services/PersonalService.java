@@ -57,6 +57,7 @@ public class PersonalService {
 
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+        protegerSuperadmin(usuario);
 
         usuario.setRol(nuevoRol);
         usuarioRepository.save(usuario);
@@ -74,6 +75,7 @@ public class PersonalService {
 
         Personal personal = personalRepository.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Personal no encontrado"));
+        protegerSuperadmin(usuario);
 
         usuario.setActivo(false);
         usuarioRepository.save(usuario);
@@ -147,6 +149,12 @@ public class PersonalService {
 
         usuarioRepository.save(usuario);
         return toResponse(personalRepository.save(personal));
+    }
+
+    private void protegerSuperadmin(Usuario usuario) {
+        if (usuario.getRol() != null && "ROLE_SUPERADMIN".equals(usuario.getRol().getNombre())) {
+            throw new AccesoDenegadoException("La cuenta de superadministrador no se puede modificar desde aquí");
+        }
     }
 
     private String normalizarRol(String rol) {

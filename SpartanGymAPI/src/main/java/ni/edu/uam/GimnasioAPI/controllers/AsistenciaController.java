@@ -69,6 +69,8 @@ public class AsistenciaController {
     }
 
     @GetMapping("/socio/{socioId}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+            + "or @accesoSocio.esElMismo(authentication, #socioId)")
     public ResponseEntity<List<Asistencia>> obtenerHistorialSocio(@PathVariable UUID socioId) {
         return ResponseEntity.ok(asistenciaService.obtenerHistorial(socioId));
     }

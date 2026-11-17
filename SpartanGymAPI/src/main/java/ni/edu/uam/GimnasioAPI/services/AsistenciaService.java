@@ -15,6 +15,7 @@ import ni.edu.uam.GimnasioAPI.repositories.MembresiaSocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,10 @@ public class AsistenciaService {
 
     private static final String QR_SOCIO_PREFIX = "GIMNASIO_ASISTENCIA";
     private static final String QR_WEB_PREFIX = "GIMNASIO_VALIDACION_WEB";
+    private static final String SECRETO_QR_EFIMERO = UUID.randomUUID() + "-" + UUID.randomUUID();
+
+    @Value("${ATTENDANCE_QR_SECRET:${jwt.secret:}}")
+    private String secretoQrConfigurado;
     private static final long QR_TTL_SECONDS = 180;
     private static final long QR_SESSION_RETENTION_SECONDS = 600;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
@@ -333,14 +338,25 @@ public class AsistenciaService {
 
     private String firmar(String datos) {
         try {
-            String secreto = System.getenv().getOrDefault("ATTENDANCE_QR_SECRET", "gimnasio-attendance-secret");
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            mac.init(new SecretKeySpec(secreto.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+            mac.init(new SecretKeySpec(secretoQr().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
             byte[] firma = mac.doFinal(datos.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(firma);
         } catch (Exception e) {
             throw new RuntimeException("No se pudo firmar el QR de asistencia.", e);
         }
+    }
+
+    /**
+     * ATTENDANCE_QR_SECRET, o el secreto JWT si no está definido. Si ninguno existe se usa
+     * una clave aleatoria por proceso: los QR caducan en minutos, así que reiniciar el
+     * servidor solo invalida los que estén en pantalla en ese momento.
+     */
+    private String secretoQr() {
+        if (secretoQrConfigurado != null && !secretoQrConfigurado.isBlank()) {
+            return secretoQrConfigurado;
+        }
+        return SECRETO_QR_EFIMERO;
     }
 
     private String hashToken(String token) {
