@@ -141,10 +141,6 @@ const Login = () => {
           >
             <span>← Volver al inicio</span>
           </Link>
-
-          <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 border border-white/10 px-3 py-1 rounded-full bg-white/[0.02]">
-            Plataforma Pro
-          </span>
         </header>
 
         <div className="w-full max-w-md mx-auto my-auto py-4">

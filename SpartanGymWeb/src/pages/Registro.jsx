@@ -91,7 +91,7 @@ const Registro = () => {
             <span>← Volver al inicio</span>
           </Link>
 
-          <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500 border border-white/10 px-3 py-1 rounded-full bg-white/[0.02]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
             Registro de Socios
           </span>
         </header>
