@@ -35,14 +35,14 @@ import {
   personalCreadoPorCuentaActual,
 } from '../../../utils/personalCompartido';
 import { formatearMoneda, useConfiguracionApp } from '../../../utils/configuracionApp';
-import { operacionApi, sociosApi, sucursalesApi, asistenciasApi } from '../../../services/api';
+import { asistenciasApi, authStorage, operacionApi, personalApi, sociosApi, sucursalesApi } from '../../../services/api';
 import { useSucursalGlobal } from '../../../context/SucursalContext';
 import QRCode from 'qrcode';
 
 const CLAVE_PERFIL_ADMIN = 'spartanGym.adminProfile';
 
 const perfilPorDefecto = {
-  nombre: 'Administrador Spartan',
+  nombre: 'Administrador',
   correo: 'admin@spartangym.com',
   telefono: '+505 0000 0000',
   cargo: 'Administrador General',
@@ -74,10 +74,19 @@ const cargarPerfilInicial = () => {
   };
 };
 
+// El formulario tiene un solo campo de nombre; la API guarda nombres y apellidos aparte.
+const separarNombre = (nombreCompleto) => {
+  const partes = nombreCompleto.split(/\s+/).filter(Boolean);
+  if (partes.length <= 1) return { nombres: partes[0] || undefined };
+  const corte = partes.length >= 4 ? 2 : 1;
+  return { nombres: partes.slice(0, corte).join(' '), apellidos: partes.slice(corte).join(' ') };
+};
+
 const PerfilAdmin = () => {
   const [perfil, setPerfil] = useState(cargarPerfilInicial);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [errorPerfil, setErrorPerfil] = useState('');
   const [mensajePersonal, setMensajePersonal] = useState(null);
   const [cuentaActual, setCuentaActual] = useState(() => leerCuentaActual());
   const [gimnasiosAdministrados, setGimnasiosAdministrados] = useState([]);
@@ -242,38 +251,60 @@ const PerfilAdmin = () => {
     });
   };
 
-  const guardarPerfil = (evento) => {
+  const guardarPerfil = async (evento) => {
     evento.preventDefault();
+    if (guardando) return;
     setGuardando(true);
+    setErrorPerfil('');
 
-    setTimeout(() => {
-      const perfilNormalizado = {
-        ...perfil,
-        nombre: perfil.nombre.trim(),
-        correo: perfil.correo.trim(),
-        telefono: perfil.telefono.trim(),
-        cargo: perfil.cargo.trim(),
-        sucursal: perfil.sucursal.trim(),
-        ubicacion: perfil.ubicacion.trim(),
-      };
-      const cuentaPrevia = leerCuentaActual();
+    const perfilNormalizado = {
+      ...perfil,
+      nombre: perfil.nombre.trim(),
+      correo: perfil.correo.trim(),
+      telefono: perfil.telefono.trim(),
+      cargo: perfil.cargo.trim(),
+      sucursal: perfil.sucursal.trim(),
+      ubicacion: perfil.ubicacion.trim(),
+    };
+    const cuentaPrevia = leerCuentaActual();
+    const correoAnterior = (cuentaPrevia.email || authStorage.getUser()?.email || '').trim().toLowerCase();
+    const cambiaCorreo = Boolean(perfilNormalizado.correo) && perfilNormalizado.correo.toLowerCase() !== correoAnterior;
 
-      guardarDatoLocal(CLAVE_PERFIL_ADMIN, perfilNormalizado);
-      const cuentaGuardada = guardarCuentaActual({
-        ...cuentaPrevia,
-        username: perfilNormalizado.correo,
-        email: perfilNormalizado.correo,
-        name: perfilNormalizado.nombre,
-        role: cuentaPrevia.role || 'Administrador',
-        updatedAt: new Date().toISOString(),
+    try {
+      await personalApi.actualizarPerfil({
+        ...separarNombre(perfilNormalizado.nombre),
+        email: perfilNormalizado.correo || undefined,
+        telefono: perfilNormalizado.telefono,
       });
-
-      setPerfil(perfilNormalizado);
-      setCuentaActual(cuentaGuardada);
+    } catch (error) {
+      setErrorPerfil(error.message || 'No se pudieron guardar los datos.');
       setGuardando(false);
-      setGuardado(true);
-      setTimeout(() => setGuardado(false), 2600);
-    }, 700);
+      return;
+    }
+
+    guardarDatoLocal(CLAVE_PERFIL_ADMIN, perfilNormalizado);
+
+    // El token está emitido para el correo anterior: tras cambiarlo hay que volver a entrar.
+    if (cambiaCorreo) {
+      authStorage.clear();
+      window.location.assign('/login');
+      return;
+    }
+
+    const cuentaGuardada = guardarCuentaActual({
+      ...cuentaPrevia,
+      username: perfilNormalizado.correo,
+      email: perfilNormalizado.correo,
+      name: perfilNormalizado.nombre,
+      role: cuentaPrevia.role || 'Administrador',
+      updatedAt: new Date().toISOString(),
+    });
+
+    setPerfil(perfilNormalizado);
+    setCuentaActual(cuentaGuardada);
+    setGuardando(false);
+    setGuardado(true);
+    setTimeout(() => setGuardado(false), 2600);
   };
 
   const persistirFotoLocal = (nueva) => {
@@ -383,6 +414,11 @@ const PerfilAdmin = () => {
             <h2 className="text-2xl font-black text-white">Datos del administrador</h2>
             <p className="mt-1 text-sm text-gray-400">Actualiza la informacion visible de la cuenta logueada.</p>
           </div>
+          {errorPerfil && (
+            <span role="alert" className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300">
+              {errorPerfil}
+            </span>
+          )}
           {guardado && (
             <span role="status" className="inline-flex w-fit items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-400">
               <CheckCircle2 size={14} />

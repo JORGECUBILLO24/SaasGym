@@ -24,15 +24,25 @@ const estadoInicialRecepcion = {
   proximosVencimientos: [],
 };
 
+// "YYYY-MM-DD" con new Date() se interpreta como medianoche UTC y en Managua
+// se muestra un día antes; se construye la fecha en hora local.
+const fechaLocal = (fecha) => {
+  const coincidencia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fecha));
+  if (!coincidencia) return new Date(fecha);
+  const [, anio, mes, dia] = coincidencia;
+  return new Date(Number(anio), Number(mes) - 1, Number(dia));
+};
+
 const formatearFecha = (fecha) => {
   if (!fecha) return 'N/A';
-  return new Date(fecha).toLocaleDateString('es-NI');
+  return fechaLocal(fecha).toLocaleDateString('es-NI');
 };
 
 const calcularDiasRestantes = (fecha) => {
   if (!fecha) return 'N/A';
   const hoy = new Date();
-  const vence = new Date(fecha);
+  hoy.setHours(0, 0, 0, 0);
+  const vence = fechaLocal(fecha);
   const dias = Math.ceil((vence.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
   if (dias <= 0) return 'Hoy';
   return `${dias} dias`;

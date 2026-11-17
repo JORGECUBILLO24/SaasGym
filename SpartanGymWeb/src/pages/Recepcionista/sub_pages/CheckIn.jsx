@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import {
   AlertCircle,
@@ -173,7 +173,12 @@ const CheckIn = () => {
         },
       });
 
-      setQrSesion(respuesta);
+      // La API envía la hora sin zona; el vencimiento se calcula con el reloj local y el TTL.
+      const ttl = Number(respuesta?.ttlSegundos);
+      setQrSesion({
+        ...respuesta,
+        expiraMs: Number.isFinite(ttl) && ttl > 0 ? Date.now() + ttl * 1000 : 0,
+      });
       setQrImagen(imagen);
       setEstadoQr('pendiente');
       setMensajeQr('QR listo. Pide al socio escanearlo desde su app movil.');
@@ -241,10 +246,7 @@ const CheckIn = () => {
     return () => window.clearInterval(intervalo);
   }, [consultarEstadoQr, estadoQr, qrSesion?.token]);
 
-  const expiraMs = useMemo(() => {
-    const valor = qrSesion?.expiraEn ? new Date(qrSesion.expiraEn).getTime() : 0;
-    return Number.isFinite(valor) ? valor : 0;
-  }, [qrSesion?.expiraEn]);
+  const expiraMs = qrSesion?.expiraMs ?? 0;
   const segundosRestantes = expiraMs ? Math.max(0, Math.ceil((expiraMs - ahora) / 1000)) : 0;
 
   useEffect(() => {
@@ -365,7 +367,7 @@ const CheckIn = () => {
                 <div className="space-y-3">
                   <EstadoQr estadoQr={estadoQr} segundosRestantes={segundosRestantes} />
                   <DatoQr icono={Smartphone} etiqueta="Flujo" valor="Web muestra QR, socio escanea y valida en Android" />
-                  <DatoQr icono={Clock} etiqueta="Expira" valor={qrSesion?.expiraEn ? formatearFecha(qrSesion.expiraEn) : 'N/A'} />
+                  <DatoQr icono={Clock} etiqueta="Expira" valor={expiraMs ? formatearFecha(expiraMs) : 'N/A'} />
                   <DatoQr icono={QrCode} etiqueta="Sesion" valor={qrSesion?.sessionId || 'Pendiente'} />
                 </div>
               </div>
