@@ -77,6 +77,13 @@ class AsistenciaQrConRedisIntegrationTest {
         when(usuarios.findByEmailIgnoreCase("recepcion@ejemplo.com")).thenReturn(Optional.of(recepcion));
         when(usuarios.findByEmailIgnoreCase("socio@ejemplo.com")).thenReturn(Optional.of(usuarioSocio));
         when(socios.findById(ID_SOCIO)).thenReturn(Optional.of(socio));
+        ni.edu.uam.GimnasioAPI.models.TipoMembresia tipo = new ni.edu.uam.GimnasioAPI.models.TipoMembresia();
+        tipo.setNombre("Mensual");
+        ni.edu.uam.GimnasioAPI.models.MembresiaSocio membresia = new ni.edu.uam.GimnasioAPI.models.MembresiaSocio();
+        membresia.setTipoMembresia(tipo);
+        membresia.setEstado("Activa");
+        membresia.setFechaVencimiento(java.time.LocalDate.now().plusDays(10));
+        when(membresias.findBySocioUsuarioIdAndEstado(ID_SOCIO, "Activa")).thenReturn(Optional.of(membresia));
         when(asistencias.save(any(Asistencia.class))).thenAnswer(i -> {
             Asistencia a = i.getArgument(0);
             a.setId(UUID.randomUUID());

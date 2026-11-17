@@ -110,6 +110,7 @@ private val Superficie = Color(0xFF181818)
 private val BordeSutil = Color(0xFF242424)
 private val GrisTexto = Color(0xFF8A8A8A)
 internal val VerdeEstado = Color(0xFF22C55E)
+private val AmbarEstado = Color(0xFFF5A524)
 
 // ─── Modelos internos ──────────────────────────────────────────────────────
 private data class EjercicioSocio(
@@ -868,7 +869,7 @@ private fun TabPerfil(
             "Ejercicios asignados" to ejercicios,
             "Sucursal" to sucursal
         )
-        campos.forEach { (k, v) -> FilaDatoAPI(k, v, "API") }
+        campos.forEach { (k, v) -> FilaDato(k, v) }
     }
 }
 
@@ -922,8 +923,8 @@ private fun DetalleMembresiaUsuario(dashboard: DashboardResponse?, plan: TipoMem
             }
         }
         Spacer(Modifier.height(16.dp))
-        FilaDatoAPI("Entrenador", dashboard?.nombreEntrenador.apiValor(), "API")
-        FilaDatoAPI("Rutina objetivo", dashboard?.objetivoRutina.apiValor(), "API")
+        FilaDato("Entrenador", dashboard?.nombreEntrenador.apiValor())
+        FilaDato("Rutina objetivo", dashboard?.objetivoRutina.apiValor())
     }
 }
 
@@ -989,9 +990,9 @@ private fun PagoUsuario(dashboard: DashboardResponse?, onVolver: () -> Unit) {
         SeccionHeader("Estado de pago", "Datos sincronizados con la API")
         Spacer(Modifier.height(16.dp))
 
-        FilaDatoAPI("Membresía", dashboard?.tipoMembresia.apiValor(), "API")
-        FilaDatoAPI("Vencimiento", dashboard?.fechaVencimiento.apiValor(), "Fecha")
-        FilaDatoAPI("Estado de acceso", dashboard?.estadoAcceso.apiValor(), "API")
+        FilaDato("Membresía", dashboard?.tipoMembresia.apiValor())
+        FilaDato("Vencimiento", fechaMovil(dashboard?.fechaVencimiento))
+        FilaDato("Estado de acceso", dashboard?.estadoAcceso.apiValor())
 
         Spacer(Modifier.height(16.dp))
 
@@ -1160,10 +1161,9 @@ private fun ProgresoUsuario(
 
             ordenado.forEach { registro ->
                 val notas = registro.medidasNotas?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""
-                FilaDatoAPI(
-                    titulo = (registro.fechaRegistro?.take(10)).apiValor(),
-                    valor = registro.pesoKg.apiValor("kg") + notas,
-                    etiqueta = "Peso"
+                FilaDato(
+                    titulo = fechaMovil(registro.fechaRegistro),
+                    valor = registro.pesoKg.apiValor(" kg") + notas
                 )
             }
         }
@@ -1232,10 +1232,10 @@ private fun RenovarMembresiaUsuario(
                 Column(Modifier.padding(20.dp)) {
                     Text("Pago registrado", color = VerdeEstado, fontSize = 22.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
-                    FilaDatoAPI("Factura", fac.numeroFactura.apiValor(), "MEM")
-                    FilaDatoAPI("Plan", fac.tipoMembresia.apiValor(), "Membresía")
-                    FilaDatoAPI("Total", "${simboloMoneda(appConfig.currency)}${"%.2f".format(fac.total ?: 0.0)}", "Pagado")
-                    FilaDatoAPI("Vence", fac.fechaVencimiento.apiValor(), "Fecha")
+                    FilaDato("Factura", fac.numeroFactura.apiValor())
+                    FilaDato("Plan", fac.tipoMembresia.apiValor())
+                    FilaDato("Total", "${simboloMoneda(appConfig.currency)}${"%.2f".format(fac.total ?: 0.0)}", "Pagado")
+                    FilaDato("Vence", fechaMovil(fac.fechaVencimiento))
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -1612,7 +1612,7 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 } else {
                     validacion = cuerpo
                     errorQr = null
-                    mensajeQr = "Asistencia validada"
+                    mensajeQr = cuerpo.mensaje?.takeIf { it.isNotBlank() } ?: "Asistencia validada"
                 }
             } catch (e: Exception) {
                 errorQr = e.message ?: "No se pudo conectar con la API."
@@ -1671,27 +1671,33 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 if (tokenEscaneado.isBlank()) {
                     EstadoVacioAPI("Sin QR detectado", "Coloca el codigo de la web dentro del visor.")
                 } else {
-                    FilaDatoAPI("Código leído", "QR de recepción", "Web")
+                    FilaDato("Código leído", "QR de recepción")
                 }
 
                 validacion?.let { respuesta ->
                     Spacer(Modifier.height(10.dp))
-                    FilaDatoAPI("Socio", respuesta.socio.apiValor(), "API")
-                    FilaDatoAPI("Membresia", (respuesta.tipoMembresia ?: respuesta.membresia).apiValor(), "API")
-                    FilaDatoAPI("Estado", respuesta.estado.apiValor(), "Check-in")
-                    FilaDatoAPI("Hora", respuesta.fechaHora.apiValor(), "BD")
+                    FilaDato("Socio", respuesta.socio.apiValor())
+                    FilaDato("Membresía", (respuesta.tipoMembresia ?: respuesta.membresia).apiValor())
+                    FilaDato("Hora de entrada", horaMovil(respuesta.fechaHora))
                 }
 
+                // Verde solo si la API confirma acceso permitido; ámbar si entró sin membresía activa.
+                val accesoPermitido = validacion?.estado.equals("Permitido", ignoreCase = true)
+                val colorResultado = when {
+                    validacion == null -> MaterialTheme.colorScheme.primary
+                    accesoPermitido -> VerdeEstado
+                    else -> AmbarEstado
+                }
                 mensajeQr?.let { mensaje ->
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = if (validacion != null) Color(0xFF0D2B18) else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, if (validacion != null) VerdeEstado.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        color = colorResultado.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, colorResultado.copy(alpha = 0.4f))
                     ) {
                         Text(
                             mensaje,
-                            color = if (validacion != null) VerdeEstado else MaterialTheme.colorScheme.primary,
+                            color = colorResultado,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth().padding(14.dp)
@@ -2027,7 +2033,7 @@ private fun AccionRapida(
 }
 
 @Composable
-private fun FilaDatoAPI(titulo: String, valor: String, etiqueta: String) {
+private fun FilaDato(titulo: String, valor: String, etiqueta: String? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2038,11 +2044,13 @@ private fun FilaDatoAPI(titulo: String, valor: String, etiqueta: String) {
             Text(titulo, color = GrisTexto, fontSize = 12.sp)
             Text(valor, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
-        Surface(
-            shape = RoundedCornerShape(6.dp),
-            color = Color(0xFF1A1A1A)
-        ) {
-            Text(etiqueta, color = GrisTexto, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+        etiqueta?.let {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color(0xFF1A1A1A)
+            ) {
+                Text(it, color = GrisTexto, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+            }
         }
     }
     Divider(color = BordeSutil, thickness = 0.5.dp)

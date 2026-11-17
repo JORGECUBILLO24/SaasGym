@@ -257,6 +257,15 @@ public class AsistenciaService {
         String tipoMembresia = membresiaActiva != null
                 ? membresiaActiva.getTipoMembresia().getNombre()
                 : "Sin membresia";
+        // La entrada se registra igual (recepción decide), pero el estado no puede decir
+        // "Permitido" si el socio no tiene una membresía activa y vigente.
+        boolean vigente = membresiaActiva != null
+                && (membresiaActiva.getFechaVencimiento() == null
+                || !membresiaActiva.getFechaVencimiento().isBefore(java.time.LocalDate.now()));
+        String estado = vigente ? "Permitido" : "Sin membresia";
+        String mensajeFinal = vigente
+                ? mensaje
+                : "Entrada registrada sin membresía activa. El socio debe renovarla en recepción.";
 
         return AsistenciaQrValidationResponse.builder()
                 .id(asistencia.getId())
@@ -267,9 +276,9 @@ public class AsistenciaService {
                 .tipoMembresia(tipoMembresia)
                 .estadoAcceso(socio.getEstadoAcceso())
                 .fechaVencimiento(membresiaActiva != null ? membresiaActiva.getFechaVencimiento() : null)
-                .estado("Permitido")
+                .estado(estado)
                 .fechaHora(asistencia.getFechaHora())
-                .mensaje(mensaje)
+                .mensaje(mensajeFinal)
                 .build();
     }
 

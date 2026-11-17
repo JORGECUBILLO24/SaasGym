@@ -132,7 +132,40 @@ class AsistenciaServiceSecretoQrTest {
         AsistenciaQrRequest request = new AsistenciaQrRequest();
         request.setToken(token);
 
+        when(membresiaRepository.findBySocioUsuarioIdAndEstado(ID_SOCIO, "Activa")).thenReturn(Optional.of(membresiaVigente()));
+
         assertThat(produccion.registrarEntradaQr(request, "recepcion@ejemplo.com").getEstado()).isEqualTo("Permitido");
+    }
+
+    @Test
+    void sinMembresiaActiva_laEntradaSeRegistraPeroNoDicePermitido() {
+        AsistenciaService produccion = servicio(SECRETO_FUERTE, "default");
+        produccion.validarSecreto();
+        Usuario usuarioSocio = new Usuario();
+        usuarioSocio.setId(ID_SOCIO);
+        when(usuarioRepository.findByEmailIgnoreCase("socio@ejemplo.com")).thenReturn(Optional.of(usuarioSocio));
+        when(usuarioRepository.findByEmailIgnoreCase("recepcion@ejemplo.com")).thenReturn(Optional.of(new Usuario()));
+        when(socioRepository.findById(ID_SOCIO)).thenReturn(Optional.of(socioConId()));
+        when(asistenciaRepository.save(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocacion -> invocacion.getArgument(0));
+        when(membresiaRepository.findBySocioUsuarioIdAndEstado(ID_SOCIO, "Activa")).thenReturn(Optional.empty());
+
+        AsistenciaQrRequest request = new AsistenciaQrRequest();
+        request.setToken(produccion.generarQrAsistencia("socio@ejemplo.com").getToken());
+        var resultado = produccion.registrarEntradaQr(request, "recepcion@ejemplo.com");
+
+        assertThat(resultado.getEstado()).isEqualTo("Sin membresia");
+        assertThat(resultado.getMensaje()).contains("sin membresía activa");
+    }
+
+    private static ni.edu.uam.GimnasioAPI.models.MembresiaSocio membresiaVigente() {
+        ni.edu.uam.GimnasioAPI.models.TipoMembresia tipo = new ni.edu.uam.GimnasioAPI.models.TipoMembresia();
+        tipo.setNombre("Mensual");
+        ni.edu.uam.GimnasioAPI.models.MembresiaSocio m = new ni.edu.uam.GimnasioAPI.models.MembresiaSocio();
+        m.setTipoMembresia(tipo);
+        m.setEstado("Activa");
+        m.setFechaVencimiento(java.time.LocalDate.now().plusDays(10));
+        return m;
     }
 
     private Socio socioConId() {

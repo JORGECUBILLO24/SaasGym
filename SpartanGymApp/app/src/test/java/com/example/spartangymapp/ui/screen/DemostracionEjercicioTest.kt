@@ -42,4 +42,26 @@ class DemostracionEjercicioTest {
             datosEjercicio("Cardio", 3, 10, null, 1200, 45)
         )
     }
+
+    @Test
+    fun ultimoPasoDeRelleno_seQuita() {
+        assertEquals(
+            listOf("Acuéstate en el banco.", "Baja la barra al pecho."),
+            pasosUtiles(listOf("Acuéstate en el banco.", "Baja la barra al pecho.", "Repite hasta completar las repeticiones."))
+        )
+    }
+
+    @Test
+    fun pasosUtiles_conservaUnUnicoPasoYDescartaVacios() {
+        assertEquals(listOf("Repite el movimiento."), pasosUtiles(listOf("Repite el movimiento.")))
+        assertEquals(listOf("Sujeta la barra."), pasosUtiles(listOf("  ", "Sujeta la barra.")))
+    }
+
+    @Test
+    fun ultimoPasoConInformacion_seConserva() {
+        val pasos = listOf("Sujeta la mancuerna.", "Completa la cantidad de repeticiones y luego cambia de brazo.")
+        assertEquals(pasos, pasosUtiles(pasos))
+        val alterno = listOf("Sube la rodilla.", "Repite con la otra pierna.")
+        assertEquals(alterno, pasosUtiles(alterno))
+    }
 }

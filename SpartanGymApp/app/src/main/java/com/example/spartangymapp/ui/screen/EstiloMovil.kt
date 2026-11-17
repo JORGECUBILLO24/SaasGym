@@ -57,3 +57,9 @@ internal fun PortadaMovil(
 internal fun fechaMovil(valor: String?): String = runCatching {
     LocalDate.parse(valor.orEmpty().take(10)).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es")))
 }.getOrElse { "Sin fecha" }
+
+/** "2026-11-16T19:37:53.08" -> "7:37 p. m." (hora local del registro). */
+internal fun horaMovil(valor: String?): String = runCatching {
+    java.time.LocalDateTime.parse(valor.orEmpty().take(19))
+        .format(DateTimeFormatter.ofPattern("h:mm a", Locale.forLanguageTag("es")))
+}.getOrElse { "—" }
