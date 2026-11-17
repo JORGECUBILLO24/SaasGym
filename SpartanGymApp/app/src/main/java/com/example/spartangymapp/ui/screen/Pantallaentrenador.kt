@@ -709,7 +709,7 @@ private fun PantallaCrearRutina(
                 ) {
                     Icon(Icons.Rounded.Add, null, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("+ Agregar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Agregar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
