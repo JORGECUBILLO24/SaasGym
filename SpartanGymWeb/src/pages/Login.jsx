@@ -6,10 +6,7 @@ import {
   EyeOff,
   Lock,
   Mail,
-  ShieldCheck,
-  Sparkles,
   User,
-  Zap,
 } from 'lucide-react';
 import { guardarCuentaActual } from '../utils/cuentaActual';
 import { useLogosApp } from '../utils/logosApp';
@@ -135,15 +132,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#070606] text-white flex flex-col lg:grid lg:grid-cols-2 overflow-x-hidden">
-      {/* ====================================================================
-          COLUMNA IZQUIERDA: Formulario ordenado, pulido y ergonomico
-          ==================================================================== */}
       <div className="w-full flex flex-col justify-between p-6 sm:p-8 lg:p-10 xl:p-12 min-h-screen z-10">
-        {/* Cabecera superior con navegación */}
         <header className="flex items-center justify-between gap-4">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 bg-white/[0.03] backdrop-blur-md"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 bg-white/[0.03]"
             aria-label="Volver al inicio"
           >
             <span>← Volver al inicio</span>
@@ -154,15 +147,12 @@ const Login = () => {
           </span>
         </header>
 
-        {/* Contenido Central del Formulario */}
         <div className="w-full max-w-md mx-auto my-auto py-4">
-          {/* Marca configurable del gimnasio */}
           <div className="flex flex-col items-center text-center mb-5">
             <Link to="/" className="group inline-block" aria-label={nombreGimnasio}>
               <div className="relative inline-flex items-center justify-center">
-                <div className="absolute -inset-3 rounded-full bg-red-600/20 blur-2xl opacity-75 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
                 {mostrarLogoMarca ? (
-                  <img src={logoMarca} alt={nombreGimnasio} width="180" height="90" className="relative h-20 sm:h-24 w-auto object-contain drop-shadow-[0_10px_25px_rgba(239,68,68,0.25)] transition-transform duration-300 group-hover:scale-105" />
+                  <img src={logoMarca} alt={nombreGimnasio} width="180" height="90" className="relative h-20 sm:h-24 w-auto object-contain" />
                 ) : <span className="relative max-w-[18rem] text-center text-2xl font-black uppercase tracking-wide text-white sm:text-3xl">{nombreGimnasio}</span>}
               </div>
             </Link>
@@ -175,8 +165,7 @@ const Login = () => {
             </p>
           </div>
 
-          {/* Selector Segmentado estilo iOS entre Iniciar sesión y Registrarse */}
-          <div className="flex p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-xl mb-5">
+          <div className="flex p-1 rounded-full bg-white/[0.06] border border-white/10 mb-5">
             <span className="flex-1 text-center py-2 text-xs font-bold rounded-full bg-white text-black shadow-lg">
               Iniciar sesión
             </span>
@@ -189,7 +178,6 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3.5" aria-busy={loading}>
-            {/* Campo Correo */}
             <div>
               <label htmlFor="login-email" className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
                 Correo electrónico
@@ -209,7 +197,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Campo Contraseña */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-neutral-400">
@@ -251,7 +238,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Campo Rol */}
             <div>
               <label htmlFor="login-role" className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
                 Rol <span className="font-normal text-neutral-500">(opcional)</span>
@@ -274,7 +260,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-white/15 bg-white/[0.05] p-3 text-xs text-neutral-200">
                 <AlertCircle className="h-4 w-4 shrink-0 text-white mt-0.5" />
@@ -282,7 +267,6 @@ const Login = () => {
               </div>
             )}
 
-            {/* Botón Principal en Negro Obsidiana */}
             <button
               disabled={loading}
               type="submit"
@@ -302,14 +286,12 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Google SSO */}
           {clienteGoogle && (
             <div className="mt-3.5">
               <AccesoGoogle cliente={clienteGoogle} recibirCredencial={handleGoogle} ocupado={loading} />
             </div>
           )}
 
-          {/* Formulario Desplegable de Recuperación */}
           {showRecovery && (
             <form
               id="recovery-form"
@@ -359,7 +341,6 @@ const Login = () => {
             </form>
           )}
 
-          {/* Pie de Enlace a Registro */}
           <div className="mt-4 text-center text-xs text-neutral-500">
             ¿Aún no tienes una cuenta?{' '}
             <Link to="/registro" className="font-bold text-white hover:underline ml-1">
@@ -368,60 +349,27 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Footer simple */}
         <footer className="text-center text-[11px] text-neutral-600 mt-4">
           © {new Date().getFullYear()} {nombreGimnasio} • Todos los derechos reservados.
         </footer>
       </div>
 
-      {/* ====================================================================
-          COLUMNA DERECHA: Vitrina Cinematográfica Gymshark / YoungLA (50% pantalla)
-          ==================================================================== */}
-      <div className="hidden lg:flex lg:flex-col lg:justify-between relative min-h-screen overflow-hidden bg-black p-10 xl:p-14">
-        {/* Imagen de fondo de alta estética YoungLA / Gymshark */}
+      <div className="hidden lg:flex lg:flex-col lg:justify-end relative min-h-screen overflow-hidden bg-black p-10 xl:p-14">
         <img
           src={showcaseImage}
           alt="Atleta entrenando en un gimnasio"
-          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-90 contrast-105 scale-100 hover:scale-105 transition-transform duration-1000 ease-out"
+          className="absolute inset-0 h-full w-full object-cover object-center brightness-90"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070606] via-[#070606]/50 to-transparent" />
 
-        {/* Gradiente y Viñeta Cinematográfica */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#070606] via-[#070606]/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070606] via-transparent to-transparent opacity-90" />
-
-        {/* Badge Superior */}
-        <div className="relative z-10 self-start">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-white/15 backdrop-blur-xl text-xs font-semibold text-neutral-300">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            <span>{nombreGimnasio.toUpperCase()} • ATHLETIC PERFORMANCE</span>
-          </div>
-        </div>
-
-        {/* Contenido Flotante estilo Campaña YoungLA / Gymshark */}
-        <div className="relative z-10 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/15 backdrop-blur-xl mb-4 text-xs font-bold text-neutral-300">
-            <Sparkles size={14} className="text-white" />
-            <span>DISCIPLINA & ALTO RENDIMIENTO</span>
-          </div>
-
-          <h2 className="text-4xl xl:text-5xl font-black uppercase tracking-tight text-white leading-tight">
-            Forja tu mejor versión<span>.</span>
+        <div className="relative z-10 max-w-lg border-l-2 border-[var(--accent-color,#e50914)] pl-6">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-neutral-400">{nombreGimnasio}</p>
+          <h2 className="auth-display text-5xl xl:text-6xl uppercase text-white">
+            Tu entrenamiento,<br />en un solo sitio<span className="text-[var(--accent-color,#e50914)]">.</span>
           </h2>
-
-          <p className="mt-3 text-sm text-neutral-300 leading-relaxed">
-            Equipamiento biomecánico de última generación, comunidad inquebrantable y seguimiento profesional en cada repetición.
+          <p className="mt-4 text-sm leading-relaxed text-neutral-300">
+            Consulta tu rutina, registra tu asistencia con QR y revisa el estado de tu membresía.
           </p>
-
-          <div className="flex items-center gap-3 mt-6">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/[0.08] border border-white/15 backdrop-blur-md text-xs font-semibold text-white">
-              <Zap size={14} />
-              <span>+100 Estaciones Pro</span>
-            </div>
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/[0.08] border border-white/15 backdrop-blur-md text-xs font-semibold text-white">
-              <ShieldCheck size={14} />
-              <span>Coaching Certificado</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

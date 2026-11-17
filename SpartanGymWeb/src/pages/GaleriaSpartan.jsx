@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import VideoSpartan from './VideoSpartan';
 import { usePrefersReducedMotion } from '../utils/useParallax';
 import './GaleriaSpartan.css';
@@ -97,15 +97,12 @@ function ImagenEscena({ src, alt, parallaxOffset = 0 }) {
 
 function VisorGaleria({ escenas }) {
   const visor = useRef(null);
-  const cardFrameRef = useRef(null);
   const [actual, setActual] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [cardTilt, setCardTilt] = useState({ x: 0, y: 0, glowX: 50, glowY: 50 });
   const reducedMotion = usePrefersReducedMotion();
 
   const seleccion = Math.min(actual, Math.max(0, escenas.length - 1));
 
-  // Observador de intersección para sincronizar índice activo
   useEffect(() => {
     const contenedor = visor.current;
     if (!contenedor) return;
@@ -125,7 +122,6 @@ function VisorGaleria({ escenas }) {
     return () => observador.disconnect();
   }, [escenas.length]);
 
-  // Manejo de desplazamiento para efecto paralaje interior de las imágenes
   const manejarScroll = useCallback(() => {
     if (reducedMotion || !visor.current) return;
     const { scrollLeft, clientWidth } = visor.current;
@@ -133,29 +129,6 @@ function VisorGaleria({ escenas }) {
       setScrollProgress(scrollLeft / clientWidth);
     }
   }, [reducedMotion]);
-
-  // Interacción 3D Tilt estilo iOS / Apple TV al pasar el cursor sobre la tarjeta
-  const manejarMouseMove = useCallback(
-    (e) => {
-      if (reducedMotion || !cardFrameRef.current) return;
-      const rect = cardFrameRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-
-      // Inclinación máxima sutil de ±4 grados
-      setCardTilt({
-        x: Math.round((y - 0.5) * -7 * 100) / 100,
-        y: Math.round((x - 0.5) * 7 * 100) / 100,
-        glowX: Math.round(x * 100),
-        glowY: Math.round(y * 100),
-      });
-    },
-    [reducedMotion]
-  );
-
-  const reiniciarTilt = useCallback(() => {
-    setCardTilt({ x: 0, y: 0, glowX: 50, glowY: 50 });
-  }, []);
 
   function irA(indice, instantaneo = false) {
     const contenedor = visor.current;
@@ -179,7 +152,6 @@ function VisorGaleria({ escenas }) {
 
   return (
     <div className="sp-gallery-viewer">
-      {/* Selector Segmentado estilo iOS (Apple Segmented Control) */}
       {escenas.length > 1 && escenas.length <= 6 && (
         <nav className="sp-ios-segmented" role="tablist" aria-label="Escenas de la galería">
           <div
@@ -209,38 +181,7 @@ function VisorGaleria({ escenas }) {
         </nav>
       )}
 
-      {/* Tarjeta Principal con marco de vidrio esmerilado y efecto de inclinación 3D */}
-      <div
-        ref={cardFrameRef}
-        className="sp-gallery-card-frame"
-        onMouseMove={manejarMouseMove}
-        onMouseLeave={reiniciarTilt}
-        style={
-          !reducedMotion && (cardTilt.x !== 0 || cardTilt.y !== 0)
-            ? {
-                transform: `perspective(1200px) rotateX(${cardTilt.x}deg) rotateY(${cardTilt.y}deg)`,
-              }
-            : undefined
-        }
-      >
-        {/* Reflejo dinámico especular que sigue el cursor */}
-        <div
-          className="sp-gallery-sheen"
-          style={{
-            background: `radial-gradient(circle at ${cardTilt.glowX}% ${cardTilt.glowY}%, rgba(255, 255, 255, 0.14) 0%, transparent 60%)`,
-          }}
-          aria-hidden="true"
-        />
-
-        {/* Floating iOS Dynamic Pill Badge */}
-        <div className="sp-ios-floating-pill" aria-hidden="true">
-          <span className="sp-ios-live-indicator" />
-          <span className="sp-ios-pill-text">
-            {numero.format(seleccion + 1)} / {numero.format(escenas.length)} • SPARTAN
-          </span>
-        </div>
-
-        {/* Riel horizontal con efecto Paralaje interior */}
+      <div className="sp-gallery-card-frame">
         <div
           ref={visor}
           id="sp-reel"
@@ -264,7 +205,6 @@ function VisorGaleria({ escenas }) {
           }}
         >
           {escenas.map((escena, indice) => {
-            // Cálculo del desfase de paralaje para la imagen de esta escena
             const offsetDiff = (scrollProgress - indice) * 45;
 
             return (
@@ -293,15 +233,8 @@ function VisorGaleria({ escenas }) {
           })}
         </div>
 
-        {/* Overlay iOS con gradiente sutil y HUD de control inferior */}
         <div className="sp-gallery-glass-hud">
           <div className="sp-gallery-caption-content">
-            <div className="sp-gallery-badge-row">
-              <span className="sp-gallery-kicker">
-                <Sparkles size={13} aria-hidden="true" />
-                ÁREA SELECCIONADA
-              </span>
-            </div>
             <p className="sp-gallery-title" aria-live="polite" aria-atomic="true" dir="auto">
               {tituloEscena(escenas[seleccion])}
             </p>
