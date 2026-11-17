@@ -266,7 +266,15 @@ data class GrupoMuscularResponse(
 data class EjercicioCatalogoResponse(
     val id: Long? = null,
     val nombre: String? = null,
-    val grupoMuscular: GrupoMuscularResponse? = null
+    val grupoMuscular: GrupoMuscularResponse? = null,
+    val nombreOriginal: String? = null,
+    val alias: List<String>? = null,
+    val zona: String? = null,
+    val musculoPrincipal: String? = null,
+    val musculosSecundarios: List<String>? = null,
+    val equipo: String? = null,
+    val dificultad: String? = null,
+    val gifUrl: String? = null
 )
 
 data class RutinaDetalleRequest(

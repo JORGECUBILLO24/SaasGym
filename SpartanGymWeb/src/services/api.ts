@@ -11,6 +11,15 @@ const normalizeApiBaseUrl = (rawValue: unknown): string => {
 
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
+// Archivos estáticos de la API (GIF de ejercicios): viven en la raíz del servidor, fuera de /api.
+export const urlArchivoApi = (ruta: string | null | undefined): string | null => {
+  const valor = String(ruta ?? '').trim();
+  if (!valor) return null;
+  if (/^(https?:|data:)/i.test(valor)) return valor;
+  const raiz = API_BASE_URL.replace(/\/api$/, '');
+  return `${raiz}/${valor.replace(/^\/+/, '')}`;
+};
+
 export const authStorage = {
   getToken: (): string | null => localStorage.getItem('spartan_token'),
   getUser: (): UsuarioGuardado | null => {

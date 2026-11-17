@@ -63,9 +63,11 @@ public class CatalogoService {
                         || dificultadBuscada.equals(BusquedaTexto.normalizar(e.getDificultad())))
                 .map(e -> new Resultado(e, puntuar(e, terminos)))
                 .filter(r -> terminos.isEmpty() || r.puntos() > 0)
-                // En empate gana el nombre más corto: suele ser la variante base ("Press de banca con barra"
-                // antes que "... con agarre amplio en máquina Smith").
+                // En empate va primero el que tiene GIF (se puede mostrar al socio) y luego el nombre más
+                // corto, que suele ser la variante base ("Press de banca con barra" antes que
+                // "... con agarre amplio en máquina Smith").
                 .sorted(Comparator.comparingInt(Resultado::puntos).reversed()
+                        .thenComparing(r -> r.ejercicio().getGifUrl() == null || r.ejercicio().getGifUrl().isBlank())
                         .thenComparingInt(r -> r.ejercicio().getNombre().length())
                         .thenComparing(r -> r.ejercicio().getNombre(), String.CASE_INSENSITIVE_ORDER))
                 .limit(tope)

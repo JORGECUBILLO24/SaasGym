@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { prepararImagen } from '../../../utils/imagen';
 import { catalogoApi, personalApi, rutinasApi, sociosApi } from '../../../services/api';
+import SelectorEjercicio from '../../../components/SelectorEjercicio';
 
 const tiposRutina = ['Hipertrofia', 'Fuerza', 'Definicion', 'Resistencia', 'Salud'];
 const tiposEjercicio = ['Fuerza', 'Cardio', 'Movilidad', 'Funcional', 'Estiramiento'];
@@ -83,13 +84,11 @@ const sumarDiasIso = (dias) => {
   return obtenerFechaIso(fecha);
 };
 
-const crearDetalleInicial = (ejercicios = [], orden = 1) => {
-  const ejercicio = ejercicios[0];
-
+const crearDetalleInicial = (orden = 1) => {
   return {
-    grupoMuscularId: ejercicio?.grupoMuscular?.id ? String(ejercicio.grupoMuscular.id) : '',
-    idEjercicio: ejercicio?.id ? String(ejercicio.id) : '',
-    ejercicioNombre: ejercicio?.nombre || '',
+    grupoMuscularId: '',
+    idEjercicio: '',
+    ejercicioNombre: '',
     tipoEjercicio: 'Fuerza',
     diaSemana: 1,
     series: 3,
@@ -192,16 +191,6 @@ const Rutinas = () => {
     return Array.from(grupos, ([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [ejercicios]);
 
-  const ejerciciosPorGrupo = useMemo(() => {
-    const grupos = new Map();
-    ejercicios.forEach((ejercicio) => {
-      const grupoId = String(ejercicio.grupoMuscular?.id || '');
-      if (!grupos.has(grupoId)) grupos.set(grupoId, []);
-      grupos.get(grupoId).push(ejercicio);
-    });
-    return grupos;
-  }, [ejercicios]);
-
   const resumenRutinas = useMemo(() => {
     const globales = rutinas.filter((rutina) => rutina.esGlobal).length;
     const personales = rutinas.length - globales;
@@ -261,33 +250,29 @@ const Rutinas = () => {
     }));
   };
 
-  const actualizarEjercicioPorNombre = (index, valor, listaEjercicios) => {
-    const texto = valor.trim().toLowerCase();
-    const ejercicioSeleccionado = listaEjercicios.find((ejercicio) => ejercicio.nombre?.trim().toLowerCase() === texto);
-
+  const seleccionarEjercicio = (index, ejercicio) => {
     setFormulario((actual) => ({
       ...actual,
       detalles: actual.detalles.map((detalle, detalleIndex) => (
         detalleIndex === index
-          ? {
-              ...detalle,
-              ejercicioNombre: valor,
-              idEjercicio: ejercicioSeleccionado?.id ? String(ejercicioSeleccionado.id) : '',
-              grupoMuscularId:
-                detalle.grupoMuscularId ||
-                (ejercicioSeleccionado?.grupoMuscular?.id ? String(ejercicioSeleccionado.grupoMuscular.id) : ''),
-            }
+          ? { ...detalle, idEjercicio: String(ejercicio.id), ejercicioNombre: ejercicio.nombre || '' }
           : detalle
       )),
     }));
+    setMensaje(null);
   };
+
+  const ejerciciosPorId = useMemo(
+    () => new Map(ejercicios.map((ejercicio) => [String(ejercicio.id), ejercicio])),
+    [ejercicios],
+  );
 
   const agregarDetalle = () => {
     setFormulario((actual) => ({
       ...actual,
       detalles: [
         ...actual.detalles,
-        crearDetalleInicial(ejercicios, actual.detalles.length + 1),
+        crearDetalleInicial(actual.detalles.length + 1),
       ],
     }));
   };
@@ -366,7 +351,7 @@ const Rutinas = () => {
         nombre: actual.generoObjetivo === 'Mujeres' ? 'Rutina mujer - Hipertrofia' : 'Rutina hombre - Hipertrofia',
         objetivo: '',
         notas: '',
-        detalles: [crearDetalleInicial(ejercicios, actual.fechaInicio || obtenerFechaIso())],
+        detalles: [crearDetalleInicial(1)],
       }));
     } catch (error) {
       setMensaje({ tipo: 'error', texto: error.message || 'No se pudo asignar la rutina.' });
@@ -569,10 +554,10 @@ const Rutinas = () => {
 
             <div className="space-y-3">
               {formulario.detalles.map((detalle, index) => {
-                const ejerciciosGrupo = ejerciciosPorGrupo.get(String(detalle.grupoMuscularId)) || ejercicios;
+                const ejercicioElegido = ejerciciosPorId.get(String(detalle.idEjercicio));
 
                 return (
-                  <div key={`${index}-${detalle.idEjercicio}`} className="rounded-2xl border border-white/10 bg-[#080808] p-4">
+                  <div key={`detalle-${index}`} className="rounded-2xl border border-white/10 bg-[#080808] p-4">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-400">Ejercicio {index + 1}</p>
@@ -595,19 +580,20 @@ const Rutinas = () => {
                         value={detalle.grupoMuscularId}
                         onChange={(valor) => actualizarDetalle(index, 'grupoMuscularId', valor)}
                       >
-                        <option value="">Selecciona grupo</option>
+                        <option value="">Todos los grupos</option>
                         {gruposMusculares.map((grupo) => (
                           <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>
                         ))}
                       </CampoSelect>
 
-                      <CampoEjercicioTexto
-                        label="Ejercicio"
-                        value={detalle.ejercicioNombre || ''}
-                        opciones={ejerciciosGrupo}
-                        listId={`ejercicios-rutina-${index}`}
-                        onChange={(valor) => actualizarEjercicioPorNombre(index, valor, ejerciciosGrupo)}
-                      />
+                      <div className="workspace-routine-exercise">
+                        <SelectorEjercicio
+                          ejercicios={ejercicios}
+                          grupoMuscularId={detalle.grupoMuscularId}
+                          seleccionado={ejercicioElegido}
+                          onSeleccionar={(ejercicio) => seleccionarEjercicio(index, ejercicio)}
+                        />
+                      </div>
 
                       <CampoSelect
                         label="Tipo ejercicio"
@@ -749,15 +735,16 @@ const Rutinas = () => {
 
 const normalizarDetalles = (detalles, ejercicios) => {
   if (!detalles?.length) {
-    return [crearDetalleInicial(ejercicios)];
+    return [crearDetalleInicial()];
   }
 
   return detalles.map((detalle, index) => {
-    const ejercicioActual = ejercicios.find((ejercicio) => String(ejercicio.id) === String(detalle.idEjercicio)) || ejercicios[0];
+    // Sin ejercicio elegido la fila queda vacía: nunca se rellena con el primero del catálogo.
+    const ejercicioActual = ejercicios.find((ejercicio) => String(ejercicio.id) === String(detalle.idEjercicio));
     return {
       ...detalle,
-      grupoMuscularId: detalle.grupoMuscularId || (ejercicioActual?.grupoMuscular?.id ? String(ejercicioActual.grupoMuscular.id) : ''),
-      idEjercicio: detalle.idEjercicio || (ejercicioActual?.id ? String(ejercicioActual.id) : ''),
+      grupoMuscularId: detalle.grupoMuscularId || '',
+      idEjercicio: detalle.idEjercicio || '',
       ejercicioNombre: detalle.ejercicioNombre || ejercicioActual?.nombre || '',
       diaSemana: detalle.diaSemana || 1,
       tipoEjercicio: detalle.tipoEjercicio || 'Fuerza',
@@ -808,25 +795,6 @@ const CampoTexto = ({ label, value, onChange, placeholder, requerido = true }) =
       className="campo-sistema w-full rounded-xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none transition-all focus:border-red-600"
       placeholder={placeholder}
     />
-  </label>
-);
-
-const CampoEjercicioTexto = ({ label, value, onChange, opciones, listId }) => (
-  <label className="block">
-    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-gray-500">{label}</span>
-    <input
-      required
-      value={value}
-      list={listId}
-      onChange={(evento) => onChange(evento.target.value)}
-      className="campo-sistema w-full rounded-xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none transition-all focus:border-red-600"
-      placeholder="Escribe el nombre del ejercicio"
-    />
-    <datalist id={listId}>
-      {opciones.map((ejercicio) => (
-        <option key={ejercicio.id} value={ejercicio.nombre} />
-      ))}
-    </datalist>
   </label>
 );
 

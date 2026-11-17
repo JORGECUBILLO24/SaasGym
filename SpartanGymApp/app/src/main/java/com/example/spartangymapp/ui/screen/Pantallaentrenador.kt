@@ -497,6 +497,7 @@ private fun PantallaCrearRutina(
     var openTipo   by remember { mutableStateOf(false) }
     var openGenero by remember { mutableStateOf(false) }
     var guardando  by remember { mutableStateOf(false) }
+    var buscarParaIndice by remember { mutableStateOf<Int?>(null) }
     var errMsg     by remember { mutableStateOf<String?>(null) }
     val scope      = rememberCoroutineScope()
 
@@ -698,8 +699,8 @@ private fun PantallaCrearRutina(
                 }
                 OutlinedButton(
                     onClick = {
-                        val e = ejercicios.firstOrNull()
-                        listaEj.add(EjEd(id = e?.id ?: 0L, nombre = e?.nombre ?: "", orden = listaEj.size + 1))
+                        listaEj.add(EjEd(id = 0L, nombre = "", orden = listaEj.size + 1))
+                        buscarParaIndice = listaEj.lastIndex
                     },
                     enabled = ejercicios.isNotEmpty(),
                     border  = BorderStroke(1.dp, ap.accent.copy(.5f)),
@@ -722,11 +723,24 @@ private fun PantallaCrearRutina(
             Spacer(Modifier.height(12.dp))
 
             listaEj.forEachIndexed { idx, ej ->
-                EjBloque(idx, ej, ejercicios, ap, { listaEj[idx] = it }) {
+                EjBloque(idx, ej, ap, { listaEj[idx] = it }, onElegirEjercicio = { buscarParaIndice = idx }) {
                     listaEj.removeAt(idx)
                     listaEj.forEachIndexed { i, e -> listaEj[i] = e.copy(orden = i + 1) }
                 }
                 Spacer(Modifier.height(10.dp))
+            }
+
+            buscarParaIndice?.let { indice ->
+                SelectorEjercicioSheet(
+                    ejercicios = ejercicios,
+                    seleccionadoId = listaEj.getOrNull(indice)?.id,
+                    acento = ap.accent,
+                    onElegir = { e ->
+                        listaEj.getOrNull(indice)?.let { actual -> listaEj[indice] = actual.copy(id = e.id ?: 0L, nombre = e.nombre.orEmpty()) }
+                        buscarParaIndice = null
+                    },
+                    onCerrar = { buscarParaIndice = null }
+                )
             }
 
             Spacer(Modifier.height(18.dp))
@@ -751,8 +765,7 @@ private fun PantallaCrearRutina(
 
 // ─── Bloque ejercicio — estado aislado ──────────────────────────────────────
 @Composable
-private fun EjBloque(idx: Int, ej: EjEd, ejercicios: List<EjercicioCatalogoResponse>, ap: EntAp, onChange: (EjEd) -> Unit, onDel: () -> Unit) {
-    var openEj   by remember { mutableStateOf(false) }
+private fun EjBloque(idx: Int, ej: EjEd, ap: EntAp, onChange: (EjEd) -> Unit, onElegirEjercicio: () -> Unit, onDel: () -> Unit) {
     var openTipo by remember { mutableStateOf(false) }
 
     Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
@@ -772,20 +785,7 @@ private fun EjBloque(idx: Int, ej: EjEd, ejercicios: List<EjercicioCatalogoRespo
             Spacer(Modifier.height(10.dp))
             EntL("EJERCICIO")
             Spacer(Modifier.height(4.dp))
-            Box {
-                EntDrop(ej.nombre.ifBlank { "Selecciona ejercicio" }, Icons.Rounded.FitnessCenter, ap, ej.id == 0L) { openEj = true }
-                DropdownMenu(openEj, { openEj = false }, Modifier.background(Color(0xFF111111)).heightIn(max = 260.dp)) {
-                    ejercicios.forEach { e ->
-                        DropdownMenuItem(
-                            text = { Column {
-                                Text(e.nombre ?: "—", color = if (e.id == ej.id) ap.accent else Color.White, fontSize = 13.sp)
-                                if (e.grupoMuscular?.nombre != null) Text(e.grupoMuscular.nombre, color = ENT_GRIS, fontSize = 11.sp)
-                            }},
-                            onClick = { onChange(ej.copy(id = e.id ?: 0L, nombre = e.nombre ?: "")); openEj = false }
-                        )
-                    }
-                }
-            }
+            EntDrop(ej.nombre.ifBlank { "Buscar en la biblioteca" }, Icons.Rounded.Search, ap, ej.id == 0L, onClick = onElegirEjercicio)
             Spacer(Modifier.height(10.dp))
             EntL("TIPO")
             Spacer(Modifier.height(4.dp))
