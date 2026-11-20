@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Calendar, ShieldCheck, Users, Zap } from 'lucide-react';
-import { membresiasApi, operacionApi } from '../../../services/api';
+import { membresiasApi, operacionApi, pagosApi } from '../../../services/api';
 import { formatearMoneda, useConfiguracionApp } from '../../../utils/configuracionApp';
 
 const Membresias = () => {
@@ -8,6 +8,7 @@ const Membresias = () => {
   const [membresiasSocios, setMembresiasSocios] = useState([]);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [confirmando, setConfirmando] = useState('');
   const configuracion = useConfiguracionApp();
   const formatearMonto = (valor) => formatearMoneda(valor, configuracion.currency);
 
@@ -26,6 +27,20 @@ const Membresias = () => {
       .catch(() => setError('No se pudieron cargar membresias desde la API.'))
       .finally(() => setCargando(false));
   }, []);
+
+  const confirmarPago = async (membresia) => {
+    if (!membresia.pagoId) return;
+    setConfirmando(membresia.pagoId);
+    setError('');
+    try {
+      await pagosApi.confirmar(membresia.pagoId);
+      await cargarDatos();
+    } catch (error) {
+      setError(error.message || 'No se pudo confirmar el pago.');
+    } finally {
+      setConfirmando('');
+    }
+  };
 
   return (
     <div className="workspace-page mx-auto w-full max-w-6xl">
@@ -84,6 +99,7 @@ const Membresias = () => {
                 <th className="pb-4 font-bold">Plan</th>
                 <th className="pb-4 font-bold">Vencimiento</th>
                 <th className="pb-4 font-bold">Estado</th>
+                <th className="pb-4 font-bold">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -99,12 +115,24 @@ const Membresias = () => {
                   <td className="py-5">
                     <EtiquetaEstado estado={membresia.estado} />
                   </td>
+                  <td className="py-5">
+                    {membresia.estado === 'Pendiente' && (
+                      <button
+                        type="button"
+                        disabled={Boolean(confirmando)}
+                        onClick={() => confirmarPago(membresia)}
+                        className="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-bold text-green-400 disabled:opacity-50"
+                      >
+                        {confirmando === membresia.pagoId ? 'Confirmando...' : 'Confirmar pago'}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
-              {cargando && <tr><td colSpan="4" className="py-8 text-center text-sm text-gray-400">Cargando membresías…</td></tr>}
+              {cargando && <tr><td colSpan="5" className="py-8 text-center text-sm text-gray-400">Cargando membresías…</td></tr>}
               {!cargando && !membresiasSocios.length && (
                 <tr>
-                  <td colSpan="4" className="py-10 text-center text-sm text-gray-500">
+                  <td colSpan="5" className="py-10 text-center text-sm text-gray-500">
                     No hay membresias registradas.
                   </td>
                 </tr>

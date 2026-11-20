@@ -10,6 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/pagos")
 @RequiredArgsConstructor
@@ -30,5 +32,12 @@ public class PagoController {
     @PreAuthorize("hasAuthority('ROLE_SOCIO')")
     public ResponseEntity<FacturaMembresiaResponse> renovarPropia(@RequestBody CompraMembresiaRequest request, Authentication auth) {
         return ResponseEntity.ok(pagoService.renovarMembresiaSocio(auth.getName(), request.getTipoMembresiaId(), request.getMetodoPago()));
+    }
+
+    @PostMapping("/{idPago}/confirmar")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
+    public ResponseEntity<Void> confirmarPago(@PathVariable UUID idPago, Authentication auth) {
+        pagoService.confirmarPago(idPago, auth);
+        return ResponseEntity.ok().build();
     }
 }

@@ -34,6 +34,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final RespuestaError respuestaError;
 
@@ -71,6 +72,7 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, ex) -> respuestaError.escribir(
                                 response, HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
                                 "No tienes permisos para realizar esta acción.", request)))
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

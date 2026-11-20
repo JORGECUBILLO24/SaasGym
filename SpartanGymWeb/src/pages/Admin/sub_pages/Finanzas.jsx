@@ -71,8 +71,12 @@ const Finanzas = () => {
   };
 
   useEffect(() => {
-    cargarTransacciones().catch(() => setErrorApi('No se pudieron cargar los movimientos. Intenta actualizar.'));
-    cargarDatosRenovacion().catch(() => setMensajeRenovacion({ tipo: 'error', texto: 'No se pudieron cargar socios o membresías. Intenta actualizar.' }));
+    Promise.resolve()
+      .then(cargarTransacciones)
+      .catch(() => setErrorApi('No se pudieron cargar los movimientos. Intenta actualizar.'));
+    Promise.resolve()
+      .then(cargarDatosRenovacion)
+      .catch(() => setMensajeRenovacion({ tipo: 'error', texto: 'No se pudieron cargar socios o membresías. Intenta actualizar.' }));
   }, []);
 
   const actualizarDatos = async () => {

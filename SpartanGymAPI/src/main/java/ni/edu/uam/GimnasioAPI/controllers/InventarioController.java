@@ -5,6 +5,7 @@ import ni.edu.uam.GimnasioAPI.dto.ProductoCatalogoResponse;
 import ni.edu.uam.GimnasioAPI.dto.ProductoInventarioRequest;
 import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
 import ni.edu.uam.GimnasioAPI.models.Socio;
+import ni.edu.uam.GimnasioAPI.models.Personal;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
 import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
@@ -33,8 +34,12 @@ public class InventarioController {
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<ProductoInventario>> listar() {
-        return ResponseEntity.ok(repository.findAll());
+    public ResponseEntity<List<ProductoInventario>> listar(Authentication auth) {
+        UUID sucursalId = sucursalDelSocio(auth);
+        return ResponseEntity.ok(repository.findAll().stream()
+                .filter(producto -> sucursalId == null
+                        || (producto.getSucursal() != null && sucursalId.equals(producto.getSucursal().getId())))
+                .toList());
     }
 
     // Catalogo de la app (socio o entrenador): productos de su misma sucursal que se venden al
@@ -57,11 +62,17 @@ public class InventarioController {
             return null;
         }
         return usuarioRepository.findByEmail(auth.getName())
-                .map(usuario -> socioRepository.findById(usuario.getId())
-                        .map(Socio::getSucursal)
-                        .or(() -> personalRepository.findById(usuario.getId()).map(personal -> personal.getSucursal()))
-                        .map(Sucursal::getId)
-                        .orElse(null))
+                .map(usuario -> {
+                    String rol = usuario.getRol() != null ? usuario.getRol().getNombre() : "";
+                    if ("ROLE_SUPERADMIN".equals(rol) || "ROLE_ADMIN".equals(rol)) {
+                        return null;
+                    }
+                    return socioRepository.findById(usuario.getId())
+                            .map(Socio::getSucursal)
+                            .or(() -> personalRepository.findById(usuario.getId()).map(personal -> personal.getSucursal()))
+                            .map(Sucursal::getId)
+                            .orElse(null);
+                })
                 .orElse(null);
     }
 

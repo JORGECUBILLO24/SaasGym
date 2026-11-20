@@ -62,7 +62,7 @@ public class AuthService {
         socio.setNombres(nombres);
         socio.setApellidos(apellidos);
         socio.setTelefono(request.getTelefono());
-        socio.setEstadoAcceso("Activo");
+        socio.setEstadoAcceso("Inactivo");
         if (request.getSucursalId() != null) {
             Sucursal sucursal = sucursalRepository.findById(request.getSucursalId())
                     .orElseThrow(() -> new RecursoNoEncontradoException("Sucursal no encontrada"));

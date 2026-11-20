@@ -7,6 +7,7 @@ import ni.edu.uam.GimnasioAPI.services.SocioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,8 +21,8 @@ public class SocioController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR')")
-    public ResponseEntity<List<SocioResponse>> listar() {
-        return ResponseEntity.ok(socioService.listarSocios());
+    public ResponseEntity<List<SocioResponse>> listar(Authentication auth) {
+        return ResponseEntity.ok(socioService.listarSocios(auth));
     }
 
     // Mismo criterio que el resto de endpoints con socioId: el personal ve a cualquier socio,

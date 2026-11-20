@@ -14,7 +14,9 @@ import ni.edu.uam.GimnasioAPI.repositories.PagoRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.TipoMembresiaRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final MembresiaSocioRepository membresiaSocioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PersonalRepository personalRepository;
     private final ConfiguracionAppService configuracionAppService;
 
     // Renovacion desde el panel (recepcion/admin): el socio viene en el request.
@@ -45,7 +48,7 @@ public class PagoService {
     public FacturaMembresiaResponse registrarPagoYMembresia(PagoRequest request) {
         Socio socio = socioRepository.findById(request.getIdSocio())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Socio no encontrado"));
-        return procesarRenovacion(socio, request.getIdTipoMembresia(), request.getMetodoPago());
+        return procesarRenovacion(socio, request.getIdTipoMembresia(), request.getMetodoPago(), false);
     }
 
     // Renovacion desde la app: el socio se resuelve del token, solo puede pagar lo suyo.
@@ -55,13 +58,20 @@ public class PagoService {
                 .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
         Socio socio = socioRepository.findById(usuario.getId())
                 .orElseThrow(() -> new AccesoDenegadoException("Perfil de socio no encontrado"));
-        return procesarRenovacion(socio, tipoMembresiaId, metodoPago);
+        return procesarRenovacion(socio, tipoMembresiaId, metodoPago, true);
     }
 
-    private FacturaMembresiaResponse procesarRenovacion(Socio socio, Integer tipoMembresiaId, String metodoPago) {
+    private FacturaMembresiaResponse procesarRenovacion(Socio socio, Integer tipoMembresiaId, String metodoPago,
+                                                        boolean desdeApp) {
         String metodoPagoValidado = MembresiaService.validarMetodoPago(metodoPago);
         TipoMembresia tipoMembresia = tipoMembresiaRepository.findById(tipoMembresiaId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de membresía no encontrado"));
+        if (membresiaSocioRepository.findFirstBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Pendiente").isPresent()) {
+            throw new ConflictoException("Ya tienes una renovación pendiente de confirmación.");
+        }
+        boolean requiereConfirmacion = desdeApp
+                ? !"Efectivo".equalsIgnoreCase(metodoPagoValidado)
+                : "Transferencia".equalsIgnoreCase(metodoPagoValidado);
 
         // Se cierra la membresía activa anterior. saveAndFlush garantiza que el UPDATE
         // (Activa -> Renovada) ocurra antes del INSERT de la nueva, respetando el índice único.
@@ -74,8 +84,10 @@ public class PagoService {
             if (vieja.getFechaVencimiento() != null && vieja.getFechaVencimiento().isAfter(hoy)) {
                 baseVencimiento = vieja.getFechaVencimiento();
             }
-            vieja.setEstado("Renovada");
-            membresiaSocioRepository.saveAndFlush(vieja);
+            if (!requiereConfirmacion) {
+                vieja.setEstado("Renovada");
+                membresiaSocioRepository.saveAndFlush(vieja);
+            }
         }
 
         // La membresía se cobra al precio del plan (IVA incluido): el socio paga el precio y
@@ -92,6 +104,7 @@ public class PagoService {
         pago.setMetodoPago(metodoPagoValidado);
         pago.setNumeroFactura(generarNumeroFactura());
         pago.setFechaTransaccion(LocalDateTime.now());
+        pago.setEstado(requiereConfirmacion ? "Pendiente" : "Confirmado");
         pago = pagoRepository.save(pago);
 
         MembresiaSocio nuevaMembresia = new MembresiaSocio();
@@ -100,11 +113,13 @@ public class PagoService {
         nuevaMembresia.setPago(pago);
         nuevaMembresia.setFechaInicio(hoy);
         nuevaMembresia.setFechaVencimiento(baseVencimiento.plusDays(tipoMembresia.getDuracionDias()));
-        nuevaMembresia.setEstado("Activa");
+        nuevaMembresia.setEstado(requiereConfirmacion ? "Pendiente" : "Activa");
         MembresiaSocio guardada = membresiaSocioRepository.save(nuevaMembresia);
 
-        socio.setEstadoAcceso("Activo");
-        socioRepository.save(socio);
+        if (!requiereConfirmacion) {
+            socio.setEstadoAcceso("Activo");
+            socioRepository.save(socio);
+        }
 
         return FacturaMembresiaResponse.builder()
                 .id(pago.getId())
@@ -135,5 +150,61 @@ public class PagoService {
     private String generarNumeroFactura() {
         String fecha = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT).format(LocalDateTime.now());
         return "MEM-" + fecha + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+    }
+
+    @Transactional
+    public void confirmarPago(UUID idPago) {
+        confirmarPago(idPago, null);
+    }
+
+    @Transactional
+    public void confirmarPago(UUID idPago, Authentication auth) {
+        Pago pago = pagoRepository.findByIdForUpdate(idPago)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Pago no encontrado"));
+        if ("Confirmado".equalsIgnoreCase(pago.getEstado())) {
+            return;
+        }
+
+        MembresiaSocio membresia = membresiaSocioRepository.findByPagoId(idPago)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Membresía pendiente no encontrada"));
+        Socio socio = membresia.getSocio();
+        validarSucursalPersonal(auth, socio);
+
+        membresiaSocioRepository.findBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Activa")
+                .ifPresent(actual -> {
+                    if (actual.getId().equals(membresia.getId())) {
+                        return;
+                    }
+                    actual.setEstado("Renovada");
+                    membresiaSocioRepository.save(actual);
+                });
+
+        pago.setEstado("Confirmado");
+        pagoRepository.save(pago);
+        membresia.setEstado("Activa");
+        membresiaSocioRepository.save(membresia);
+        socio.setEstadoAcceso("Activo");
+        socioRepository.save(socio);
+    }
+
+    private void validarSucursalPersonal(Authentication auth, Socio socio) {
+        if (auth == null || auth.getName() == null) {
+            return;
+        }
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(auth.getName()).orElse(null);
+        if (usuario == null || usuario.getRol() == null) {
+            return;
+        }
+        String rol = usuario.getRol().getNombre();
+        if (!"ROLE_ENTRENADOR".equals(rol) && !"ROLE_RECEPCIONISTA".equals(rol)) {
+            return;
+        }
+        var personal = personalRepository.findById(usuario.getId()).orElse(null);
+        UUID sucursalPersonal = personal != null && personal.getSucursal() != null
+                ? personal.getSucursal().getId() : null;
+        UUID sucursalSocio = socio.getSucursal() != null ? socio.getSucursal().getId() : null;
+        if (sucursalPersonal == null || !sucursalPersonal.equals(sucursalSocio)) {
+            throw new AccesoDenegadoException("El pago pertenece a otra sucursal.");
+        }
     }
 }

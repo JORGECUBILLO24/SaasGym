@@ -24,5 +24,9 @@ public interface MembresiaSocioRepository extends JpaRepository<MembresiaSocio, 
 
     List<MembresiaSocio> findBySocioUsuarioIdOrderByFechaInicioDesc(UUID socioId);
 
+    Optional<MembresiaSocio> findByPagoId(UUID pagoId);
+
+    Optional<MembresiaSocio> findFirstBySocioUsuarioIdAndEstado(UUID socioId, String estado);
+
     List<MembresiaSocio> findByEstadoAndFechaVencimientoBetweenOrderByFechaVencimientoAsc(String estado, LocalDate inicio, LocalDate fin);
 }

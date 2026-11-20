@@ -7,8 +7,11 @@ import ni.edu.uam.GimnasioAPI.dto.SocioResponse;
 import ni.edu.uam.GimnasioAPI.models.MembresiaSocio;
 import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.repositories.MembresiaSocioRepository;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
+import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,10 +24,34 @@ public class SocioService {
 
     private final SocioRepository socioRepository;
     private final MembresiaSocioRepository membresiaRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PersonalRepository personalRepository;
 
     @Transactional(readOnly = true)
     public List<SocioResponse> listarSocios() {
         return socioRepository.findAll().stream()
+                .map(this::mapearSocio)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SocioResponse> listarSocios(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            return List.of();
+        }
+        var usuario = usuarioRepository.findByEmailIgnoreCase(auth.getName()).orElse(null);
+        if (usuario == null || !"ROLE_ENTRENADOR".equals(usuario.getRol().getNombre())) {
+            return listarSocios();
+        }
+        var sucursalId = personalRepository.findById(usuario.getId())
+                .map(personal -> personal.getSucursal())
+                .map(sucursal -> sucursal.getId())
+                .orElse(null);
+        if (sucursalId == null) {
+            return List.of();
+        }
+        return socioRepository.findAll().stream()
+                .filter(socio -> socio.getSucursal() != null && sucursalId.equals(socio.getSucursal().getId()))
                 .map(this::mapearSocio)
                 .toList();
     }

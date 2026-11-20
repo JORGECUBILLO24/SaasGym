@@ -103,12 +103,17 @@ public class MembresiaService {
         if (membresiaActiva.isPresent()) {
             throw new ConflictoException("Error: Ya posees una membresía Activa. Espera a que caduque para renovar.");
         }
+        if (membresiaSocioRepository.findFirstBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Pendiente").isPresent()) {
+            throw new ConflictoException("Ya tienes una membresía pendiente de confirmación.");
+        }
 
         // 4. Registrar el pago en la tabla inmutable
         Pago pago = new Pago();
         pago.setSocio(socio);
         pago.setMonto(tipo.getPrecio()); // El precio es el oficial de la base de datos
         pago.setMetodoPago(metodoPago);
+        boolean requiereConfirmacion = !"Efectivo".equalsIgnoreCase(metodoPago);
+        pago.setEstado(requiereConfirmacion ? "Pendiente" : "Confirmado");
         pago = pagoRepository.save(pago);
 
         // 5. Crear y calcular la nueva membresía
@@ -119,12 +124,14 @@ public class MembresiaService {
         nuevaMembresia.setFechaInicio(LocalDate.now());
 
         nuevaMembresia.setFechaVencimiento(LocalDate.now().plusDays(tipo.getDuracionDias()));
-        nuevaMembresia.setEstado("Activa");
+        nuevaMembresia.setEstado(requiereConfirmacion ? "Pendiente" : "Activa");
         MembresiaSocio guardada = membresiaSocioRepository.save(nuevaMembresia);
 
         // Igual que en la renovación: un socio que estaba inactivo por vencimiento recupera el acceso.
-        socio.setEstadoAcceso("Activo");
-        socioRepository.save(socio);
+        if (!requiereConfirmacion) {
+            socio.setEstadoAcceso("Activo");
+            socioRepository.save(socio);
+        }
 
         return guardada;
     }

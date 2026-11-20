@@ -625,10 +625,10 @@ const ModalValidacionQr = ({ onClose }) => {
     } catch {
       // Ignorar 401 si expiro el QR
     }
-  }, [cargandoQr, estadoQr, qrSesion?.token]);
+  }, [cargandoQr, estadoQr, qrSesion]);
 
   useEffect(() => {
-    generarQr();
+    Promise.resolve().then(generarQr);
   }, []);
 
   useEffect(() => {

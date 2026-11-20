@@ -52,6 +52,7 @@ public class ReporteService {
                 .count();
 
         BigDecimal ingresosPagos = pagoRepository.findAll().stream()
+                .filter(p -> "Confirmado".equalsIgnoreCase(p.getEstado()))
                 .filter(p -> sucursalId == null || sucursalId.isBlank() || (p.getSocio().getSucursal() != null && p.getSocio().getSucursal().getId().toString().equals(sucursalId)))
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -111,6 +112,7 @@ public class ReporteService {
 
     private ReporteContenido reporteFinanzas(String sucursalId) {
         List<Pago> pagos = pagoRepository.findAll().stream()
+                .filter(p -> "Confirmado".equalsIgnoreCase(p.getEstado()))
                 .filter(p -> sucursalId == null || sucursalId.isBlank() || (p.getSocio().getSucursal() != null && p.getSocio().getSucursal().getId().toString().equals(sucursalId)))
                 .toList();
         BigDecimal pagosMembresia = pagos.stream()
@@ -206,12 +208,13 @@ public class ReporteService {
                 .filter(p -> sucursalId == null || sucursalId.isBlank() || (p.getSucursal() != null && p.getSucursal().getId().toString().equals(sucursalId)))
                 .toList();
 
-        long alertas = productos.stream().filter(p -> p.getStock() <= 5).count();
+        long alertas = productos.stream().filter(p -> p.getDisponible() <= 5).count();
         BigDecimal valorInventario = productos.stream()
-                .map(p -> p.getPrecio().multiply(BigDecimal.valueOf(p.getStock())))
+                .map(p -> p.getPrecio().multiply(BigDecimal.valueOf(p.getDisponible())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<VentaProducto> ventas = ventaRepository.findAllByOrderByFechaCreacionDesc().stream()
+                .filter(v -> "Completada".equalsIgnoreCase(v.getEstado()))
                 .filter(v -> sucursalId == null || sucursalId.isBlank() || (v.getSucursal() != null && v.getSucursal().getId().toString().equals(sucursalId)))
                 .toList();
 
@@ -221,7 +224,7 @@ public class ReporteService {
                         .map(p -> List.of(
                                 valor(p.getNombre()),
                                 valor(p.getCategoria()),
-                                String.valueOf(p.getStock()),
+                                String.valueOf(p.getDisponible()),
                                 money(p.getPrecio()),
                                 p.getSucursal() != null ? p.getSucursal().getNombre() : "Sin sucursal"
                         ))

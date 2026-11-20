@@ -27,8 +27,8 @@ public class RutinaController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_ENTRENADOR')")
-    public ResponseEntity<List<Map<String, Object>>> listarRutinas() {
-        return ResponseEntity.ok(rutinaService.listarRutinas());
+    public ResponseEntity<List<Map<String, Object>>> listarRutinas(Authentication auth) {
+        return ResponseEntity.ok(rutinaService.listarRutinas(auth));
     }
 
     @PostMapping

@@ -30,4 +30,7 @@ public class Pago {
 
     @Column(name = "fecha_transaccion", updatable = false)
     private LocalDateTime fechaTransaccion = LocalDateTime.now();
+
+    @Column(name = "estado", nullable = false, length = 20)
+    private String estado = "Confirmado";
 }

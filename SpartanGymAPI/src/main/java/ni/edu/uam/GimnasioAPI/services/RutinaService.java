@@ -8,6 +8,7 @@ import ni.edu.uam.GimnasioAPI.models.*;
 import ni.edu.uam.GimnasioAPI.repositories.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ public class RutinaService {
 
     private final RutinaRepository rutinaRepository;
     private final PersonalRepository personalRepository;
+    private final UsuarioRepository usuarioRepository;
     private final SocioRepository socioRepository;
     private final EjercicioRepository ejercicioRepository;
     private final NotificacionService notificacionService;
@@ -38,6 +40,32 @@ public class RutinaService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listarRutinas() {
         return rutinaRepository.findAll().stream()
+                .map(this::mapearRutina)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listarRutinas(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            return List.of();
+        }
+        UUID usuarioId = usuarioRepository.findByEmailIgnoreCase(auth.getName())
+                .map(Usuario::getId)
+                .orElse(null);
+        if (usuarioId == null) {
+            return List.of();
+        }
+        Personal entrenador = personalRepository.findById(usuarioId).orElse(null);
+        if (entrenador == null || !esEntrenador(entrenador)) {
+            return listarRutinas();
+        }
+        UUID sucursalId = entrenador.getSucursal() != null ? entrenador.getSucursal().getId() : null;
+        if (sucursalId == null) {
+            return List.of();
+        }
+        return rutinaRepository.findAll().stream()
+                .filter(rutina -> rutina.getSocio().getSucursal() != null
+                        && sucursalId.equals(rutina.getSocio().getSucursal().getId()))
                 .map(this::mapearRutina)
                 .toList();
     }

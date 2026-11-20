@@ -214,7 +214,7 @@ const CheckIn = () => {
     } catch (error) {
       setErrorQr(extraerMensajeError(error, 'No se pudo consultar el estado del QR.'));
     }
-  }, [cargandoQr, cargarDatos, estadoQr, qrSesion?.token, registrarSocioValidado]);
+  }, [cargandoQr, cargarDatos, estadoQr, qrSesion, registrarSocioValidado]);
 
   useEffect(() => {
     Promise.resolve()
@@ -230,7 +230,7 @@ const CheckIn = () => {
   }, [cargarDatos]);
 
   useEffect(() => {
-    generarSesionQr();
+    Promise.resolve().then(generarSesionQr);
   }, [generarSesionQr]);
 
   useEffect(() => {
@@ -241,7 +241,7 @@ const CheckIn = () => {
   useEffect(() => {
     if (!qrSesion?.token || estadoQr !== 'pendiente') return undefined;
 
-    consultarEstadoQr();
+    Promise.resolve().then(consultarEstadoQr);
     const intervalo = window.setInterval(consultarEstadoQr, 2500);
     return () => window.clearInterval(intervalo);
   }, [consultarEstadoQr, estadoQr, qrSesion?.token]);
@@ -251,8 +251,10 @@ const CheckIn = () => {
 
   useEffect(() => {
     if (estadoQr === 'pendiente' && expiraMs && segundosRestantes <= 0) {
-      setEstadoQr('expirado');
-      setMensajeQr('QR expirado. Genera uno nuevo.');
+      Promise.resolve().then(() => {
+        setEstadoQr('expirado');
+        setMensajeQr('QR expirado. Genera uno nuevo.');
+      });
     }
   }, [estadoQr, expiraMs, segundosRestantes]);
 

@@ -1,0 +1,945 @@
+package ni.edu.uam.spartangymapp.ui.screen
+
+import ni.edu.uam.spartangymapp.ui.theme.FuenteTitulo
+import android.app.DatePickerDialog
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Assignment
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import ni.edu.uam.spartangymapp.R
+import ni.edu.uam.spartangymapp.network.*
+import ni.edu.uam.spartangymapp.ui.components.escalaAlPresionar
+import java.util.Calendar
+
+// ─── Paleta ─────────────────────────────────────────────────────────────────
+private val ENT_BG    = Color(0xFF050505)
+private val ENT_CARD  = Color(0xFF111111)
+private val ENT_CARD2 = Color(0xFF181818)
+private val ENT_BORDE = Color(0xFF1E1E1E)
+private val ENT_GRIS  = Color(0xFFA0A0A0)
+private val ENT_GRIS2 = Color(0xFF9A9A9A)
+
+// ─── Helpers color API ───────────────────────────────────────────────────────
+private fun entHex(hex: String?, fb: Color): Color {
+    val c = hex?.trim()?.removePrefix("#") ?: return fb
+    if (!c.matches(Regex("[0-9a-fA-F]{6}"))) return fb
+    return try { Color(("ff$c").toLong(16)) } catch (_: Exception) { fb }
+}
+private fun entDark(c: Color, p: Float): Color {
+    val b = 1f - p.coerceIn(0f, 1f)
+    return Color(c.red * b, c.green * b, c.blue * b, 1f)
+}
+private data class EntAp(val accent: Color, val hover: Color, val soft: Color) {
+    companion object {
+        fun desde(cfg: AppConfigResponse): EntAp {
+            val a = entHex(cfg.accentColor, Color(0xFFE10613))
+            return EntAp(a, entHex(cfg.accentHoverColor, entDark(a, .22f)), entHex(cfg.accentSoftColor, entDark(a, .66f)))
+        }
+    }
+}
+
+// ─── Helpers fecha — sin java.time (compatible con minSdk 24) ────────────────
+private fun calHoy(): Calendar = Calendar.getInstance()
+private fun calToIso(cal: Calendar): String =
+    "%04d-%02d-%02d".format(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+private fun calMas(dias: Int): String {
+    val c = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, dias) }
+    return calToIso(c)
+}
+private fun isoADisplay(iso: String): String {
+    val p = iso.split("-")
+    if (p.size != 3) return iso
+    return "${p[2]}/${p[1]}/${p[0]}"
+}
+private fun isoACal(iso: String): Calendar {
+    val p = iso.split("-").map { it.toIntOrNull() ?: 0 }
+    return Calendar.getInstance().apply {
+        set(p.getOrElse(0) { 2024 }, (p.getOrElse(1) { 1 }) - 1, p.getOrElse(2) { 1 })
+    }
+}
+
+private data class EntNavItem(val label: String, val icon: ImageVector)
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PANTALLA PRINCIPAL ENTRENADOR
+// ═══════════════════════════════════════════════════════════════════════════
+@Composable
+fun PantallaEntrenador(
+    usuario: String = "Entrenador",
+    appConfig: AppConfigResponse,
+    onCerrarSesion: () -> Unit = {}
+) {
+    var seccion     by rememberSaveable { mutableIntStateOf(0) }
+    var subPantalla by rememberSaveable { mutableStateOf("") }
+
+    var dash      by remember { mutableStateOf<EntrenadorDashboardResponse?>(null) }
+    var clientes  by remember { mutableStateOf<List<EntrenadorClienteResponse>>(emptyList()) }
+    var perfil    by remember { mutableStateOf<EntrenadorPerfilResponse?>(null) }
+    val ejercicios = remember { mutableStateListOf<EjercicioCatalogoResponse>() }
+    var cargando  by remember { mutableStateOf(true) }
+    var error     by remember { mutableStateOf<String?>(null) }
+    val scope     = rememberCoroutineScope()
+
+    val ap = remember(appConfig.accentColor, appConfig.accentHoverColor, appConfig.accentSoftColor) {
+        EntAp.desde(appConfig)
+    }
+
+    fun recargar() {
+        scope.launch {
+            cargando = true; error = null
+            try {
+                dash     = RetrofitClient.apiService.obtenerDashboardEntrenador().body()
+                clientes = RetrofitClient.apiService.obtenerClientesEntrenador().body().orEmpty()
+                perfil   = RetrofitClient.apiService.obtenerPerfilEntrenador().body()
+                ejercicios.clear()
+                ejercicios.addAll(RetrofitClient.apiService.listarEjercicios().body().orEmpty())
+            } catch (e: Exception) { error = e.message }
+            finally { cargando = false }
+        }
+    }
+    LaunchedEffect(Unit) { recargar() }
+
+    // Modo crear rutina: ocupa toda la pantalla sin scaffold
+    if (subPantalla == "crear_rutina") {
+        PantallaCrearRutina(
+            perfil     = perfil,
+            clientes   = clientes,
+            ejercicios = ejercicios,
+            ap         = ap,
+            onVolver   = { subPantalla = "" },
+            onGuardado = { subPantalla = ""; recargar() }
+        )
+        return
+    }
+
+    Scaffold(
+        containerColor = ENT_BG,
+        bottomBar = { EntBarraNav(seccion, ap.accent) { seccion = it } }
+    ) { scaffoldPad ->
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(scaffoldPad)
+                .background(ENT_BG),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(Modifier.fillMaxWidth().widthIn(max = 640.dp).fillMaxHeight()) {
+                when {
+                    cargando    -> EntCargando(ap.accent, appConfig.nombreVisibleApp())
+                    error != null -> EntError(error!!, ap)
+                    else -> when (seccion) {
+                        0 -> TabInicio(
+                            dash = dash,
+                            perfil = perfil,
+                            usuario = usuario,
+                            appConfig = appConfig,
+                            ap = ap,
+                            onCrearRutina = { subPantalla = "crear_rutina" }
+                        )
+                        1 -> TabClientes(clientes, ap, appConfig)
+                        2 -> TabVenderEntrenador(appConfig, ap.accent)
+                        3 -> TabRutinas(dash?.rutinasRecientes.orEmpty(), ap) { subPantalla = "crear_rutina" }
+                        4 -> TabPerfil(perfil, appConfig, ap, onCerrarSesion)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Bottom Nav ──────────────────────────────────────────────────────────────
+@Composable
+private fun EntBarraNav(sel: Int, accent: Color, onSelect: (Int) -> Unit) {
+    val tabs = listOf(
+        EntNavItem("Inicio",   Icons.Rounded.Home),
+        EntNavItem("Clientes", Icons.Rounded.People),
+        EntNavItem("Vender",   Icons.Rounded.ShoppingCart),
+        EntNavItem("Rutinas",  Icons.Rounded.FitnessCenter),
+        EntNavItem("Perfil",   Icons.Rounded.Person)
+    )
+    NavigationBar(containerColor = ENT_CARD, tonalElevation = 0.dp) {
+        tabs.forEachIndexed { i, t ->
+            NavigationBarItem(
+                selected = sel == i, onClick = { onSelect(i) },
+                icon  = { Icon(t.icon, t.label) },
+                label = { Text(t.label, fontSize = 12.sp, fontWeight = if (sel == i) FontWeight.SemiBold else FontWeight.Medium) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = accent, selectedTextColor = accent,
+                    indicatorColor = accent.copy(alpha = 0.18f),
+                    unselectedIconColor = ENT_GRIS, unselectedTextColor = ENT_GRIS
+                )
+            )
+        }
+    }
+}
+
+// ─── Cargando / Error ────────────────────────────────────────────────────────
+@Composable
+private fun EntCargando(accent: Color, nombreGimnasio: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
+            Spacer(Modifier.height(12.dp))
+            Text("Cargando $nombreGimnasio…", color = ENT_GRIS, fontSize = 13.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+@Composable
+private fun EntError(msg: String, ap: EntAp) {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Surface(shape = RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
+            Column(Modifier.padding(20.dp)) {
+                Text("Error de conexión", color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                Spacer(Modifier.height(6.dp))
+                Text(msg, color = ENT_GRIS2, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TAB INICIO
+// ═══════════════════════════════════════════════════════════════════════════
+@Composable
+private fun TabInicio(
+    dash: EntrenadorDashboardResponse?,
+    perfil: EntrenadorPerfilResponse?,
+    usuario: String,
+    appConfig: AppConfigResponse,
+    ap: EntAp,
+    onCrearRutina: () -> Unit
+) {
+    val nombreCompleto = listOfNotNull(perfil?.nombres?.trim(), perfil?.apellidos?.trim())
+        .filter { it.isNotBlank() }
+        .joinToString(" ")
+        .ifBlank { usuario.substringBefore('@').ifBlank { "Entrenador" } }
+    val nombreCorto = nombreCompleto.trim().split(Regex("\\s+")).firstOrNull().orEmpty().ifBlank { "Entrenador" }
+    val recientes = dash?.rutinasRecientes.orEmpty()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            MarcaAplicacion(
+                appConfig = appConfig,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 54.dp)
+            )
+            Spacer(Modifier.height(7.dp))
+            Text("Hola, $nombreCorto", color = ENT_GRIS, fontSize = 14.sp, textAlign = TextAlign.Center)
+            Text(
+                "Panel de entrenador",
+                color = Color.White,
+                fontSize = 23.sp,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Text("RESUMEN", modifier = Modifier.fillMaxWidth(), color = ENT_GRIS, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(6.dp))
+            EntStatSummary(dash)
+
+            Spacer(Modifier.height(12.dp))
+            val rutinaInteractionSource = remember { MutableInteractionSource() }
+            Button(
+                onClick = onCrearRutina,
+                interactionSource = rutinaInteractionSource,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).escalaAlPresionar(rutinaInteractionSource),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ap.accent)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("Crear rutina", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Rutinas recientes", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Planes de tus socios", color = ENT_GRIS, fontSize = 12.sp)
+                }
+                Text("${recientes.size}", color = ap.accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(7.dp))
+            if (recientes.isNotEmpty()) {
+                recientes.take(5).forEach { rutina ->
+                    EntRutinaItem(rutina, ap)
+                }
+            } else {
+                Spacer(Modifier.height(12.dp))
+                Icon(Icons.Rounded.FitnessCenter, null, tint = ap.accent, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.height(5.dp))
+                Text("Aún no hay rutinas", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Text("Crea un plan para acompañar a tus socios.", color = ENT_GRIS, fontSize = 12.sp, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TAB CLIENTES
+// ═══════════════════════════════════════════════════════════════════════════
+@Composable
+private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, appConfig: AppConfigResponse) {
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(120.dp)) {
+            ImagenMarca(
+                source = appConfig.fondoLogin,
+                fallbackResource = R.drawable.fondo_login,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.7f), ENT_BG))))
+            Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                Text("Mis Clientes", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
+                Text("${clientes.size} socios del gym asignados", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (clientes.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Rounded.PeopleAlt, null, tint = ENT_GRIS, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("Sin clientes asignados", color = ENT_GRIS, fontSize = 13.sp)
+                }
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(clientes) { c ->
+                    val ini = "${c.nombres?.firstOrNull() ?: ""}${c.apellidos?.firstOrNull() ?: ""}".uppercase().ifBlank { "?" }
+                    val activo = c.estadoAcceso?.lowercase()?.contains("activ") == true
+                    Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(44.dp).background(ap.soft, CircleShape), contentAlignment = Alignment.Center) {
+                                FotoPerfilCredencial(
+                                    fotoUrl = c.fotoUrl,
+                                    modifier = Modifier.size(44.dp).clip(CircleShape)
+                                ) {
+                                    Text(ini, color = ap.accent, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("${c.nombres} ${c.apellidos}", color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(c.email ?: "Sin email", color = ENT_GRIS, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            val dot by animateColorAsState(if (activo) Color(0xFF22C55E) else ENT_GRIS, tween(150), label = "")
+                            Column(horizontalAlignment = Alignment.End) {
+                                Box(Modifier.size(8.dp).background(dot, CircleShape))
+                                Spacer(Modifier.height(3.dp))
+                                Text(if (activo) "Activo" else "Inactivo", color = dot, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TAB RUTINAS
+// ═══════════════════════════════════════════════════════════════════════════
+@Composable
+private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear: () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(120.dp)) {
+            Image(painterResource(R.drawable.image_03453d), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.65f), ENT_BG))))
+            Row(Modifier.fillMaxWidth().align(Alignment.BottomStart).padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Column {
+                    Text("Rutinas", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
+                    Text("${rutinas.size} asignadas", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Button(onClick = onCrear, colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)) {
+                    Icon(Icons.Rounded.Add, null, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Crear", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+        }
+        if (rutinas.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Rounded.FitnessCenter, null, tint = ENT_GRIS, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("Sin rutinas creadas", color = ENT_GRIS, fontSize = 13.sp)
+                    Spacer(Modifier.height(14.dp))
+                    Button(onClick = onCrear, colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(12.dp)) {
+                        Icon(Icons.Rounded.Add, null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Crear primera rutina", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(rutinas) { r -> EntRutinaItem(r, ap) }
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TAB PERFIL
+// ═══════════════════════════════════════════════════════════════════════════
+@Composable
+private fun TabPerfil(perfil: EntrenadorPerfilResponse?, appConfig: AppConfigResponse, ap: EntAp, onCerrarSesion: () -> Unit) {
+    val nombre   = listOfNotNull(perfil?.nombres, perfil?.apellidos).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Entrenador" }
+    val correo   = perfil?.email?.ifBlank { null } ?: "—"
+    val sucursal = perfil?.sucursal?.ifBlank { null } ?: sucursalPrincipalTexto(appConfig)
+    val detalles = listOfNotNull(
+        detalleCredencial("Especialidad", perfil?.especialidad),
+        detalleCredencial("Teléfono",    perfil?.telefono),
+        detalleCredencial("Rutinas",     perfil?.rutinasCreadas?.toString()),
+        detalleCredencial("Estado",      if (perfil?.activo == true) "Activo" else if (perfil != null) "Inactivo" else null)
+    )
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        CredencialSistemaCard(
+            titulo = "", nombre = nombre, correo = correo,
+            bloqueTitulo = "ESPECIALIDAD",
+            bloqueValor  = perfil?.especialidad?.ifBlank { null } ?: "Entrenamiento General",
+            sucursal = sucursal, permisos = rolLegible(perfil?.rol),
+            detalles = detalles, integradaPantalla = true, appConfig = appConfig
+        )
+        Column(Modifier.padding(20.dp)) {
+            Button(onClick = onCerrarSesion, modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(16.dp)) {
+                Icon(Icons.AutoMirrored.Rounded.Logout, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Cerrar Sesión", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CREAR RUTINA — pantalla completa (sin Scaffold anidado)
+// ═══════════════════════════════════════════════════════════════════════════
+private val TIPOS_RUTINA    = listOf("Hipertrofia", "Fuerza", "Definicion", "Resistencia", "Salud")
+private val TIPOS_EJERCICIO = listOf("Fuerza", "Cardio", "Movilidad", "Funcional", "Estiramiento")
+private val GENEROS         = listOf("Hombres", "Mujeres", "Todos")
+
+private data class EjEd(
+    val id: Long = 0L, val nombre: String = "",
+    val tipo: String = "Fuerza", val series: Int = 3, val reps: Int = 12,
+    val peso: String = "", val descanso: String = "60", val nota: String = "", val orden: Int = 1
+)
+private fun EjEd.toReq() = RutinaDetalleRequest(
+    idEjercicio = id, tipoEjercicio = tipo, series = series, repeticiones = reps,
+    pesoSugeridoKg = peso.toDoubleOrNull(), tiempoDescansoSegundos = descanso.toIntOrNull(),
+    notas = nota.ifBlank { null }, orden = orden
+)
+
+@Composable
+private fun PantallaCrearRutina(
+    perfil:     EntrenadorPerfilResponse?,
+    clientes:   List<EntrenadorClienteResponse>,
+    ejercicios: List<EjercicioCatalogoResponse>,
+    ap:         EntAp,
+    onVolver:   () -> Unit,
+    onGuardado: () -> Unit
+) {
+    val ctx = LocalContext.current
+
+    var esGlobal   by remember { mutableStateOf(false) }
+    var clienteId  by remember { mutableStateOf(clientes.firstOrNull()?.id ?: "") }
+    var nombre     by remember { mutableStateOf("") }
+    var tipo       by remember { mutableStateOf(TIPOS_RUTINA[0]) }
+    var genero     by remember { mutableStateOf(GENEROS[2]) }
+    var objetivo   by remember { mutableStateOf("") }
+    var notasRut   by remember { mutableStateOf("") }
+    var fInicio    by remember { mutableStateOf(calToIso(calHoy())) }
+    var fFin       by remember { mutableStateOf(calMas(28)) }
+    val listaEj    = remember { mutableStateListOf<EjEd>() }
+
+    var openTipo   by remember { mutableStateOf(false) }
+    var openGenero by remember { mutableStateOf(false) }
+    var guardando  by remember { mutableStateOf(false) }
+    var buscarParaIndice by remember { mutableStateOf<Int?>(null) }
+    var errMsg     by remember { mutableStateOf<String?>(null) }
+    val scope      = rememberCoroutineScope()
+
+    // Auto-completar nombre y objetivo al cambiar tipo/género
+    LaunchedEffect(tipo, genero) {
+        if (nombre.isBlank() || nombre.startsWith("Rutina"))
+            nombre = when (genero) { "Hombres" -> "Rutina hombre - $tipo"; "Mujeres" -> "Rutina mujer - $tipo"; else -> "Rutina mixta - $tipo" }
+    }
+    LaunchedEffect(genero) {
+        if (objetivo.isBlank()) objetivo = when (genero) {
+            "Hombres" -> "Hipertrofia, fuerza progresiva y control tecnico."
+            "Mujeres" -> "Tonificacion, gluteos, fuerza funcional y resistencia."
+            else      -> "Plan equilibrado adaptable para cualquier socio."
+        }
+    }
+
+    fun abrirFecha(iso: String, onOk: (String) -> Unit) {
+        val cal = isoACal(iso)
+        DatePickerDialog(ctx, { _, y, m, d -> onOk("%04d-%02d-%02d".format(y, m + 1, d)) },
+            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
+    val valido = nombre.isNotBlank() && objetivo.isNotBlank() &&
+            listaEj.isNotEmpty() && listaEj.all { it.id != 0L } &&
+            (esGlobal || clienteId.isNotBlank())
+
+    fun guardar() {
+        if (!valido || guardando) return
+        guardando = true; errMsg = null
+        scope.launch {
+            try {
+                val respuesta = RetrofitClient.apiService.crearRutina(RutinaRequest(
+                    idSocio = if (esGlobal) null else clienteId.ifBlank { null },
+                    idEntrenador = perfil?.id ?: "",
+                    esGlobal = esGlobal, nombre = nombre.trim(),
+                    tipoRutina = tipo, generoObjetivo = genero,
+                    fechaInicio = fInicio, fechaFin = fFin,
+                    objetivo = objetivo.trim(), notas = notasRut.ifBlank { null },
+                    detalles = listaEj.map { it.toReq() }
+                ))
+                if (respuesta.isSuccessful) {
+                    onGuardado()
+                } else {
+                    // Se queda en el formulario para no perder lo escrito.
+                    errMsg = mensajeDeError(respuesta.errorBody()?.string())
+                        ?: "No se pudo guardar la rutina (${respuesta.code()})"
+                    guardando = false
+                }
+            } catch (e: Exception) { errMsg = e.message ?: "Error al guardar"; guardando = false }
+        }
+    }
+
+    // Pantalla completa con insets correctos
+    Column(
+        Modifier.fillMaxSize().background(ENT_BG).statusBarsPadding().navigationBarsPadding()
+    ) {
+        // ── Top bar ──────────────────────────────────────────────────────
+        Surface(color = ENT_CARD) {
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onVolver) { Icon(Icons.Rounded.Close, "Volver", tint = Color.White) }
+                Column(Modifier.weight(1f)) {
+                    Text("Constructor de rutinas", color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                    Text(if (esGlobal) "Global · todos los socios" else "Rutina personal", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                if (guardando) {
+                    CircularProgressIndicator(Modifier.size(22.dp), color = ap.accent, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(12.dp))
+                } else {
+                    IconButton(onClick = ::guardar, enabled = valido) {
+                        Icon(Icons.Rounded.Check, "Guardar", tint = if (valido) ap.accent else ENT_GRIS)
+                    }
+                }
+            }
+        }
+
+        // ── Contenido scrollable ──────────────────────────────────────────
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp)) {
+
+            // Banner error
+            if (errMsg != null) {
+                Surface(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), color = ap.soft, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
+                    Text(errMsg!!, color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            // ALCANCE
+            EntL("ALCANCE")
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                EntSeg("Personal", Icons.Rounded.Person, !esGlobal, ap, Modifier.weight(1f)) { esGlobal = false }
+                EntSeg("Global",   Icons.Rounded.People, esGlobal,  ap, Modifier.weight(1f)) { esGlobal = true }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // SOCIO
+            if (!esGlobal) {
+                EntL("SOCIO DEL GYM")
+                Spacer(Modifier.height(6.dp))
+                if (clientes.isEmpty()) {
+                    Text("Aún no tienes socios asignados.", color = ENT_GRIS, fontSize = 13.sp)
+                } else {
+                    // La lista aparece solo al escribir: con muchos socios el menú ocupaba la pantalla.
+                    BuscadorPersona(
+                        personas = clientes.mapNotNull { c ->
+                            c.id?.let { PersonaBuscable(it, listOfNotNull(c.nombres, c.apellidos).joinToString(" "), c.email ?: c.telefono) }
+                        },
+                        seleccionadoId = clienteId.ifBlank { null },
+                        acento = ap.accent,
+                        onElegir = { clienteId = it?.id ?: "" }
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+            }
+
+            // NOMBRE
+            EntL("NOMBRE DE RUTINA")
+            Spacer(Modifier.height(6.dp))
+            EntTF(nombre, "Ej. Rutina mujer - Glúteos", ap) { nombre = it }
+
+            Spacer(Modifier.height(14.dp))
+
+            // TIPO + GÉNERO
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    EntL("TIPO")
+                    Spacer(Modifier.height(6.dp))
+                    Box {
+                        EntDrop(tipo, null, ap, false) { openTipo = true }
+                        DropdownMenu(openTipo, { openTipo = false }, Modifier.background(Color(0xFF111111))) {
+                            TIPOS_RUTINA.forEach { t ->
+                                DropdownMenuItem(text = { Text(t, color = if (t == tipo) ap.accent else Color.White, fontWeight = if (t == tipo) FontWeight.Black else FontWeight.Normal) }, onClick = { tipo = t; openTipo = false })
+                            }
+                        }
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    EntL("GÉNERO")
+                    Spacer(Modifier.height(6.dp))
+                    Box {
+                        EntDrop(genero, null, ap, false) { openGenero = true }
+                        DropdownMenu(openGenero, { openGenero = false }, Modifier.background(Color(0xFF111111))) {
+                            GENEROS.forEach { g ->
+                                DropdownMenuItem(text = { Text(g, color = if (g == genero) ap.accent else Color.White, fontWeight = if (g == genero) FontWeight.Black else FontWeight.Normal) }, onClick = { genero = g; openGenero = false })
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // FECHAS
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    EntL("FECHA INICIO")
+                    Spacer(Modifier.height(6.dp))
+                    EntFecha(isoADisplay(fInicio), ap) { abrirFecha(fInicio) { fInicio = it } }
+                }
+                Column(Modifier.weight(1f)) {
+                    EntL("FECHA FIN")
+                    Spacer(Modifier.height(6.dp))
+                    EntFecha(isoADisplay(fFin), ap) { abrirFecha(fFin) { fFin = it } }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // OBJETIVO
+            EntL("OBJETIVO")
+            Spacer(Modifier.height(6.dp))
+            EntTF(objetivo, "Ej. Hipertrofia, fuerza progresiva…", ap) { objetivo = it }
+
+            Spacer(Modifier.height(14.dp))
+
+            // NOTAS
+            EntL("NOTAS (opcional)")
+            Spacer(Modifier.height(6.dp))
+            EntTA(notasRut, "Indicaciones generales, calentamiento…", ap) { notasRut = it }
+
+            Spacer(Modifier.height(22.dp))
+
+            // EJERCICIOS
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(3.dp).height(15.dp).background(ap.accent, RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Ejercicios del plan", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+                    }
+                    Text("${listaEj.size} añadidos", color = ENT_GRIS, fontSize = 11.sp, modifier = Modifier.padding(start = 11.dp))
+                }
+                OutlinedButton(
+                    onClick = {
+                        listaEj.add(EjEd(id = 0L, nombre = "", orden = listaEj.size + 1))
+                        buscarParaIndice = listaEj.lastIndex
+                    },
+                    enabled = ejercicios.isNotEmpty(),
+                    border  = BorderStroke(1.dp, ap.accent.copy(.5f)),
+                    shape   = RoundedCornerShape(12.dp),
+                    colors  = ButtonDefaults.outlinedButtonColors(contentColor = ap.accent)
+                ) {
+                    Icon(Icons.Rounded.Add, null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Agregar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (ejercicios.isEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Surface(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+                    Text("⚠ Sin ejercicios en catálogo. Regístralos desde la web.", color = ENT_GRIS, fontSize = 12.sp, modifier = Modifier.padding(14.dp))
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            listaEj.forEachIndexed { idx, ej ->
+                EjBloque(idx, ej, ap, { listaEj[idx] = it }, onElegirEjercicio = { buscarParaIndice = idx }) {
+                    listaEj.removeAt(idx)
+                    listaEj.forEachIndexed { i, e -> listaEj[i] = e.copy(orden = i + 1) }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+
+            buscarParaIndice?.let { indice ->
+                SelectorEjercicioSheet(
+                    ejercicios = ejercicios,
+                    seleccionadoId = listaEj.getOrNull(indice)?.id,
+                    acento = ap.accent,
+                    onElegir = { e ->
+                        listaEj.getOrNull(indice)?.let { actual -> listaEj[indice] = actual.copy(id = e.id ?: 0L, nombre = e.nombre.orEmpty()) }
+                        buscarParaIndice = null
+                    },
+                    onCerrar = { buscarParaIndice = null }
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            // Botón guardar
+            Button(
+                onClick  = ::guardar,
+                enabled  = valido && !guardando,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = ap.accent, disabledContainerColor = ap.soft),
+                shape    = RoundedCornerShape(16.dp)
+            ) {
+                if (guardando) { CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
+                else { Icon(Icons.Rounded.FitnessCenter, null, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(7.dp)) }
+                Text(if (guardando) "Asignando…" else if (esGlobal) "Asignar a todos" else "Asignar rutina",
+                    color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+// ─── Bloque ejercicio — estado aislado ──────────────────────────────────────
+@Composable
+private fun EjBloque(idx: Int, ej: EjEd, ap: EntAp, onChange: (EjEd) -> Unit, onElegirEjercicio: () -> Unit, onDel: () -> Unit) {
+    var openTipo by remember { mutableStateOf(false) }
+
+    Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+        Column(Modifier.padding(14.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(26.dp).background(ap.soft, CircleShape), contentAlignment = Alignment.Center) {
+                        Text("${idx + 1}", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text("EJERCICIO ${idx + 1}", color = ap.accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                }
+                IconButton(onClick = onDel, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Delete, null, tint = ENT_GRIS, modifier = Modifier.size(16.dp))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            EntL("EJERCICIO")
+            Spacer(Modifier.height(4.dp))
+            EntDrop(ej.nombre.ifBlank { "Buscar en la biblioteca" }, Icons.Rounded.Search, ap, ej.id == 0L, onClick = onElegirEjercicio)
+            Spacer(Modifier.height(10.dp))
+            EntL("TIPO")
+            Spacer(Modifier.height(4.dp))
+            Box {
+                EntDrop(ej.tipo, null, ap, false) { openTipo = true }
+                DropdownMenu(openTipo, { openTipo = false }, Modifier.background(Color(0xFF111111))) {
+                    TIPOS_EJERCICIO.forEach { t ->
+                        DropdownMenuItem(text = { Text(t, color = if (t == ej.tipo) ap.accent else Color.White) }, onClick = { onChange(ej.copy(tipo = t)); openTipo = false })
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            EntL("SERIES · REPS · PESO KG · DESCANSO SEG")
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EntNum("Series",  ej.series.toString(), "3")  { v -> onChange(ej.copy(series  = v.toIntOrNull() ?: ej.series)) }
+                EntNum("Reps",    ej.reps.toString(),   "12") { v -> onChange(ej.copy(reps    = v.toIntOrNull() ?: ej.reps)) }
+                EntNum("Peso kg", ej.peso,              "—")  { v -> onChange(ej.copy(peso    = v)) }
+                EntNum("Desc. s", ej.descanso,          "60") { v -> onChange(ej.copy(descanso= v)) }
+            }
+            Spacer(Modifier.height(10.dp))
+            EntL("NOTA (opcional)")
+            Spacer(Modifier.height(4.dp))
+            OutlinedTextField(
+                value = ej.nota, onValueChange = { onChange(ej.copy(nota = it)) },
+                placeholder = { Text("Ej. Controlar técnica, tempo 3-1-1…", color = ENT_GRIS, fontSize = 12.sp) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                    focusedBorderColor = ENT_GRIS.copy(.4f), unfocusedBorderColor = ENT_BORDE,
+                    focusedContainerColor = ENT_CARD2, unfocusedContainerColor = ENT_CARD2
+                ),
+                shape = RoundedCornerShape(12.dp), textStyle = TextStyle(fontSize = 13.sp),
+                modifier = Modifier.fillMaxWidth(), singleLine = true
+            )
+        }
+    }
+}
+
+// ─── UI helpers ──────────────────────────────────────────────────────────────
+@Composable private fun EntL(text: String) =
+    Text(text, color = ENT_GRIS, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+
+@Composable private fun EntSeg(label: String, icon: ImageVector, activo: Boolean, ap: EntAp, modifier: Modifier, onClick: () -> Unit) {
+    Surface(modifier.clickable { onClick() }, RoundedCornerShape(12.dp), color = if (activo) ap.soft else ENT_CARD2, border = BorderStroke(1.dp, if (activo) ap.accent.copy(.55f) else ENT_BORDE)) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 13.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = if (activo) ap.accent else ENT_GRIS, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, color = if (activo) ap.accent else ENT_GRIS, fontSize = 13.sp, fontWeight = if (activo) FontWeight.Black else FontWeight.Medium)
+        }
+    }
+}
+
+@Composable private fun EntDrop(label: String, icono: ImageVector?, ap: EntAp, vacio: Boolean, onClick: () -> Unit) {
+    Surface(Modifier.fillMaxWidth().clickable { onClick() }, RoundedCornerShape(12.dp), color = ENT_CARD2, border = BorderStroke(1.dp, ENT_BORDE)) {
+        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icono != null) { Icon(icono, null, tint = ENT_GRIS, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(9.dp)) }
+            Text(label, color = if (vacio) ENT_GRIS else Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Rounded.KeyboardArrowDown, null, tint = ENT_GRIS, modifier = Modifier.size(17.dp))
+        }
+    }
+}
+
+@Composable private fun EntFecha(label: String, ap: EntAp, onClick: () -> Unit) {
+    Surface(Modifier.fillMaxWidth().clickable { onClick() }, RoundedCornerShape(12.dp), color = ENT_CARD2, border = BorderStroke(1.dp, ENT_BORDE)) {
+        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.CalendarMonth, null, tint = ap.accent, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable private fun EntTF(v: String, ph: String, ap: EntAp, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = v, onValueChange = onChange,
+        placeholder = { Text(ph, color = ENT_GRIS, fontSize = 13.sp) },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedBorderColor = ap.accent.copy(.7f), unfocusedBorderColor = ENT_BORDE,
+            cursorColor = ap.accent, focusedContainerColor = ENT_CARD2, unfocusedContainerColor = ENT_CARD2
+        ),
+        shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(), singleLine = true
+    )
+}
+
+@Composable private fun EntTA(v: String, ph: String, ap: EntAp, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = v, onValueChange = onChange,
+        placeholder = { Text(ph, color = ENT_GRIS, fontSize = 13.sp) },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedBorderColor = ap.accent.copy(.6f), unfocusedBorderColor = ENT_BORDE,
+            cursorColor = ap.accent, focusedContainerColor = ENT_CARD2, unfocusedContainerColor = ENT_CARD2
+        ),
+        shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp), maxLines = 4
+    )
+}
+
+@Composable private fun EntNum(label: String, value: String, hint: String, onChange: (String) -> Unit) {
+    Surface(Modifier.width(82.dp), RoundedCornerShape(12.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+        Column(Modifier.padding(10.dp)) {
+            Text(label, color = ENT_GRIS, fontSize = 9.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            Spacer(Modifier.height(4.dp))
+            BasicTextField(
+                value = value, onValueChange = onChange,
+                textStyle = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                decorationBox = { inner -> if (value.isEmpty()) Text(hint, color = ENT_GRIS, fontSize = 14.sp) else inner() }
+            )
+        }
+    }
+}
+
+@Composable private fun EntRutinaItem(r: RutinaResumenResponse, ap: EntAp) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(34.dp).background(ap.soft, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.FitnessCenter, null, tint = ap.accent, modifier = Modifier.size(16.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(r.nombre ?: r.objetivo ?: "Sin nombre", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${r.tipoRutina ?: "General"} · ${r.socio ?: "Global"}", color = ENT_GRIS, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (r.esGlobal == true) {
+                Text("GLOBAL", color = ap.accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(ENT_BORDE))
+    }
+}
+
+@Composable
+private fun EntStatSummary(dash: EntrenadorDashboardResponse?) {
+    val datos = listOf(
+        "Clientes" to (dash?.clientesAsignados?.toString() ?: "—"),
+        "Rutinas" to (dash?.rutinasCreadas?.toString() ?: "—"),
+        "Pendientes" to (dash?.evaluacionesPendientes?.toString() ?: "—")
+    )
+
+    Surface(
+        Modifier.fillMaxWidth().animateContentSize(
+            spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+        ),
+        RoundedCornerShape(16.dp),
+        color = ENT_CARD
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            datos.forEachIndexed { index, (label, value) ->
+                if (index > 0) Box(Modifier.width(1.dp).height(32.dp).background(ENT_BORDE))
+                Column(Modifier.weight(1f).padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(value, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text(label, color = ENT_GRIS, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
