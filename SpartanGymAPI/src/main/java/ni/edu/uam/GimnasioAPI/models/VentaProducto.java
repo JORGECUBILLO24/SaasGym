@@ -103,4 +103,14 @@ public class VentaProducto {
 
     @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<VentaProductoDetalle> detalles = new ArrayList<>();
+
+    /** Hasta cuándo un pedido pendiente aparta el stock; al vencer se cancela solo. */
+    @Column(name = "fecha_expiracion")
+    private LocalDateTime fechaExpiracion;
+
+    /** Stock apartado por un pedido pendiente (ver VentaProductoReserva). */
+    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @lombok.ToString.Exclude
+    @lombok.EqualsAndHashCode.Exclude
+    private List<VentaProductoReserva> reservas = new ArrayList<>();
 }

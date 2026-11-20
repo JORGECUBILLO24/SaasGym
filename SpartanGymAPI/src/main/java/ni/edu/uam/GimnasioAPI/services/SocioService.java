@@ -7,11 +7,12 @@ import ni.edu.uam.GimnasioAPI.dto.SocioResponse;
 import ni.edu.uam.GimnasioAPI.models.MembresiaSocio;
 import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.repositories.MembresiaSocioRepository;
-import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
-import org.springframework.stereotype.Service;
+import ni.edu.uam.GimnasioAPI.models.Usuario;
+import ni.edu.uam.GimnasioAPI.security.AlcanceSucursal;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -25,7 +26,7 @@ public class SocioService {
     private final SocioRepository socioRepository;
     private final MembresiaSocioRepository membresiaRepository;
     private final UsuarioRepository usuarioRepository;
-    private final PersonalRepository personalRepository;
+    private final AlcanceSucursal alcanceSucursal;
 
     @Transactional(readOnly = true)
     public List<SocioResponse> listarSocios() {
@@ -34,24 +35,21 @@ public class SocioService {
                 .toList();
     }
 
+    /**
+     * Listado para el panel. El entrenador solo ve socios de su sucursal (igual que en sus
+     * pantallas de la app). Recepción ve a todos para poder registrar la entrada de un socio de
+     * otra sede, pero las acciones sobre la cuenta (contraseña, progreso) siguen limitadas a la suya.
+     */
     @Transactional(readOnly = true)
     public List<SocioResponse> listarSocios(Authentication auth) {
-        if (auth == null || auth.getName() == null) {
-            return List.of();
-        }
-        var usuario = usuarioRepository.findByEmailIgnoreCase(auth.getName()).orElse(null);
-        if (usuario == null || !"ROLE_ENTRENADOR".equals(usuario.getRol().getNombre())) {
-            return listarSocios();
-        }
-        var sucursalId = personalRepository.findById(usuario.getId())
-                .map(personal -> personal.getSucursal())
-                .map(sucursal -> sucursal.getId())
-                .orElse(null);
-        if (sucursalId == null) {
-            return List.of();
-        }
+        Usuario actor = auth == null || auth.getName() == null ? null
+                : usuarioRepository.findByEmailIgnoreCase(auth.getName()).orElse(null);
+        boolean esEntrenador = actor != null && actor.getRol() != null
+                && "ROLE_ENTRENADOR".equals(actor.getRol().getNombre());
+        Optional<UUID> sucursal = esEntrenador ? alcanceSucursal.sucursalRestringida(actor) : Optional.empty();
         return socioRepository.findAll().stream()
-                .filter(socio -> socio.getSucursal() != null && sucursalId.equals(socio.getSucursal().getId()))
+                .filter(socio -> sucursal.isEmpty()
+                        || (socio.getSucursal() != null && sucursal.get().equals(socio.getSucursal().getId())))
                 .map(this::mapearSocio)
                 .toList();
     }

@@ -415,7 +415,7 @@ export const FacturaMembresiaModal = ({
             <div className="mt-7 overflow-x-auto">
               <table className="w-full min-w-[520px] border-collapse text-sm">
                 <thead>
-                  <tr className="bg-neutral-950 text-left text-[11px] uppercase text-white">
+                  <tr className="superficie-oscura bg-neutral-950 text-left text-[11px] uppercase text-white">
                     <th className="px-4 py-3">Concepto</th>
                     <th className="px-4 py-3 text-center">Cant.</th>
                     <th className="px-4 py-3 text-right">Precio</th>

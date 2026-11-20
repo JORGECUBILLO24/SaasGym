@@ -167,9 +167,37 @@ data class RegistroProgresoRequest(
     val medidasNotas: String? = null
 )
 
-data class CompraMembresiaAppRequest(
+/** El socio reporta la transferencia que hizo; recepción la confirma antes de activar el plan. */
+data class SolicitudTransferenciaAppRequest(
     val tipoMembresiaId: Int,
-    val metodoPago: String
+    val cuentaBancariaId: String,
+    val referencia: String,
+    val metodoPago: String = "Transferencia"
+)
+
+data class SolicitudPagoAppResponse(
+    val id: String? = null,
+    val tipoMembresia: String? = null,
+    val monto: Double? = null,
+    val banco: String? = null,
+    val tipoCuenta: String? = null,
+    val numeroCuenta: String? = null,
+    val moneda: String? = null,
+    val referencia: String? = null,
+    val estado: String? = null,
+    val motivoRechazo: String? = null,
+    val fechaCreacion: String? = null,
+    val fechaRevision: String? = null
+)
+
+/** Cuenta del gimnasio que administración publica desde la web. */
+data class CuentaBancariaApp(
+    val id: String,
+    val banco: String? = null,
+    val tipoCuenta: String? = null,
+    val numeroCuenta: String? = null,
+    val titular: String? = null,
+    val moneda: String? = null
 )
 
 data class FacturaMembresiaAppResponse(

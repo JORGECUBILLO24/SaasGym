@@ -10,6 +10,7 @@ La API aplica sola los cambios de base de datos al arrancar. Ya no se corre SQL 
 |---|---|
 | `V1__esquema_inicial.sql` | Esquema completo (antes `gimnasio_schema.sql`). |
 | `V2__biblioteca_ejercicios.sql` | Biblioteca de 536 ejercicios con GIF. |
+| `V3__seguridad_transferencias.sql` | Sesiones (`auth_version`), ajustes de stock, reservas y vencimiento de pedidos, cuentas bancarias y pagos por transferencia. |
 
 Flyway guarda en la tabla `flyway_schema_history` qué versiones ya aplicó. Al arrancar, corre en orden solo las que falten. Si una falla, la API no arranca y Render mantiene la versión anterior.
 

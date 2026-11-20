@@ -12,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { membresiasApi, operacionApi, pagosApi, sociosApi } from '../../../services/api';
+import TransferenciasPendientes from '../../../components/TransferenciasPendientes';
 import { formatearMoneda, useConfiguracionApp } from '../../../utils/configuracionApp';
 
 const pagoVacio = {
@@ -98,6 +99,8 @@ const Pagos = () => {
           Actualizar
         </button>
       </div>
+
+      <TransferenciasPendientes onAprobada={cargarDatos} />
 
       <div className="workspace-grid--cards">
         <Resumen icon={DollarSign} title="Total recaudado" value={formatearMonto(totalRecaudado)} detail={`${historialPagos.length} pagos`} />

@@ -25,7 +25,7 @@ public class AsistenciaController {
     @PostMapping("/check-in")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA')")
     public ResponseEntity<AsistenciaResponse> registrarCheckIn(@RequestBody AsistenciaRequest request) {
-        return ResponseEntity.ok(AsistenciaResponse.desde(asistenciaService.registrarEntrada(request)));
+        return ResponseEntity.ok(asistenciaService.registrarEntradaConDecision(request));
     }
 
     @GetMapping("/qr-activo")
@@ -58,12 +58,16 @@ public class AsistenciaController {
         return ResponseEntity.ok(asistenciaService.registrarEntradaQrWeb(request, principal.getName()));
     }
 
+    // Solo el personal que muestra el QR en recepcion consulta su estado: la respuesta trae
+    // nombre, membresia y estado de acceso del socio que lo escaneo.
     @PostMapping("/qr-validacion/estado")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA')")
     public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(@RequestBody AsistenciaQrRequest request) {
         return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(request));
     }
 
     @GetMapping("/estado/{sessionId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA')")
     public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(@PathVariable UUID sessionId) {
         return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(sessionId));
     }

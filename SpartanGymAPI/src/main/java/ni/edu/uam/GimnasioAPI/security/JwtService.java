@@ -49,9 +49,16 @@ public class JwtService {
                         + "Es obligatoria fuera del perfil 'local'.");
     }
 
+    /** Claim con la versión de credenciales del usuario (ver Usuario.authVersion). */
+    static final String CLAIM_VERSION = "av";
+
     // Genera el token a partir de los datos del usuario
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        Map<String, Object> claims = new HashMap<>();
+        if (userDetails instanceof UserDetailsImpl detalles && detalles.getUsuario() != null) {
+            claims.put(CLAIM_VERSION, versionDe(detalles));
+        }
+        return generateToken(claims, userDetails);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
@@ -67,7 +74,25 @@ public class JwtService {
     // Valida si el token le pertenece al usuario y si no ha expirado
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token)
+                && versionVigente(token, userDetails);
+    }
+
+    // Al cambiar o restablecer la contraseña sube la versión del usuario y los tokens emitidos
+    // antes dejan de valer: quien robó una sesión la pierde en cuanto el dueño cambia la clave.
+    // Un token sin el claim (emitido antes de este cambio) vale como versión 0.
+    private boolean versionVigente(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof UserDetailsImpl detalles) || detalles.getUsuario() == null) {
+            return true;
+        }
+        Number enToken = extractClaim(token, claims -> claims.get(CLAIM_VERSION, Number.class));
+        int version = enToken == null ? 0 : enToken.intValue();
+        return version == versionDe(detalles);
+    }
+
+    private static int versionDe(UserDetailsImpl detalles) {
+        Integer version = detalles.getUsuario().getAuthVersion();
+        return version == null ? 0 : version;
     }
 
     public String extractUsername(String token) {

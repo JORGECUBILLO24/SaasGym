@@ -7,6 +7,7 @@ import {
 
 import ControlSesion from '../../components/ControlSesion';
 import { cerrarSesionActual } from '../../utils/cuentaActual';
+import { cerrarSesionServidor } from '../../services/api';
 import { useLogosApp } from '../../utils/logosApp';
 import { obtenerNombreGimnasio, useConfiguracionApp } from '../../utils/configuracionApp';
 
@@ -20,6 +21,7 @@ const RecepcionistaLayout = () => {
   const mostrarLogoPrincipal = Boolean(logos.principal);
 
   const cerrarSesion = () => {
+    cerrarSesionServidor();
     cerrarSesionActual('manual');
     setMenuAbierto(false);
     navigate('/login', { replace: true });

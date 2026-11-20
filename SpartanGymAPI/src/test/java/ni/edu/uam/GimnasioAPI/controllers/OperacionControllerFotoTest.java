@@ -42,12 +42,12 @@ class OperacionControllerFotoTest {
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ActualizarFotoRequest req = new ActualizarFotoRequest();
-        req.setFotoUrl("data:image/webp;base64,AAAA");
+        req.setFotoUrl("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==");
 
         ResponseEntity<Map<String, Object>> resp = controller.actualizarFoto(req, auth);
 
-        assertEquals("data:image/webp;base64,AAAA", usuario.getFotoUrl());
-        assertEquals("data:image/webp;base64,AAAA", resp.getBody().get("fotoUrl"));
+        assertEquals("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==", usuario.getFotoUrl());
+        assertEquals("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==", resp.getBody().get("fotoUrl"));
         verify(usuarioRepository).findByEmail("socio@ejemplo.com");
         verify(usuarioRepository).save(usuario);
         verifyNoMoreInteractions(usuarioRepository);

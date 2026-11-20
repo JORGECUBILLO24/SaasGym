@@ -1,6 +1,7 @@
 package ni.edu.uam.GimnasioAPI.controllers;
 
 import lombok.RequiredArgsConstructor;
+import ni.edu.uam.GimnasioAPI.dto.AjusteStockRequest;
 import ni.edu.uam.GimnasioAPI.dto.ProductoCatalogoResponse;
 import ni.edu.uam.GimnasioAPI.dto.ProductoInventarioRequest;
 import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
@@ -30,6 +31,7 @@ public class InventarioController {
     private final UsuarioRepository usuarioRepository;
     private final SocioRepository socioRepository;
     private final PersonalRepository personalRepository;
+    private final ni.edu.uam.GimnasioAPI.repositories.AjusteStockRepository ajusteStockRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
@@ -100,6 +102,33 @@ public class InventarioController {
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<ProductoInventario> actualizar(@PathVariable UUID id, @RequestBody ProductoInventarioRequest request) {
         return ResponseEntity.ok(inventarioService.actualizar(id, request));
+    }
+
+    @PostMapping("/{id}/ajuste-stock")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    public ResponseEntity<ProductoInventario> ajustarStock(@PathVariable UUID id,
+                                                           @RequestBody AjusteStockRequest request,
+                                                           Authentication auth) {
+        return ResponseEntity.ok(inventarioService.ajustarStock(id, request.getCantidad(), request.getMotivo(),
+                auth != null ? auth.getName() : null));
+    }
+
+    @GetMapping("/{id}/ajustes")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<java.util.Map<String, Object>>> ajustes(@PathVariable UUID id) {
+        return ResponseEntity.ok(ajusteStockRepository.findTop50ByProducto_IdOrderByFechaDesc(id).stream()
+                .map(a -> {
+                    java.util.Map<String, Object> fila = new java.util.LinkedHashMap<>();
+                    fila.put("id", a.getId());
+                    fila.put("cantidad", a.getCantidad());
+                    fila.put("stockResultante", a.getStockResultante());
+                    fila.put("motivo", a.getMotivo());
+                    fila.put("usuario", a.getUsuario());
+                    fila.put("fecha", a.getFecha());
+                    return fila;
+                })
+                .toList());
     }
 
     @DeleteMapping("/{id}")

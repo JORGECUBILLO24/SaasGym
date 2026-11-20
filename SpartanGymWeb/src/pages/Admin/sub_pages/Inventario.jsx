@@ -9,7 +9,7 @@ import {
   MONEDAS_DISPONIBLES,
   useConfiguracionApp,
 } from '../../../utils/configuracionApp';
-import { inventarioApi, sucursalesApi } from '../../../services/api';
+import { ajusteStockApi, inventarioApi, sucursalesApi } from '../../../services/api';
 import { prepararImagen } from '../../../utils/imagen';
 import { normalizar, terminos } from '../../../utils/busquedaEjercicios';
 
@@ -54,6 +54,36 @@ const Inventario = () => {
   const [busqueda, setBusqueda] = useState('');
   // Sin búsqueda ni filtro no se lista nada: el catálogo completo ocupa toda la pantalla.
   const [filtro, setFiltro] = useState('');
+  const [ajuste, setAjuste] = useState({ cantidad: '', motivo: '' });
+  const [ajustando, setAjustando] = useState(false);
+  const [mensajeAjuste, setMensajeAjuste] = useState('');
+
+  // Editar un producto ya no cambia su stock (la API lo ignora): el stock se mueve con ventas o
+  // con un ajuste explícito, que queda registrado con su motivo y no pisa ventas simultáneas.
+  const aplicarAjuste = async (signo) => {
+    const cantidad = Math.abs(Math.trunc(Number(ajuste.cantidad)));
+    if (!cantidad) {
+      setMensajeAjuste('Indica cuántas unidades sumar o restar.');
+      return;
+    }
+    if (!ajuste.motivo.trim()) {
+      setMensajeAjuste('Escribe el motivo (compra, merma, conteo...).');
+      return;
+    }
+    setAjustando(true);
+    setMensajeAjuste('');
+    try {
+      const actualizado = await ajusteStockApi.ajustar(productoEditandoId, signo * cantidad, ajuste.motivo.trim());
+      setNuevoProducto((actual) => ({ ...actual, stock: actualizado?.stock ?? actual.stock }));
+      setAjuste({ cantidad: '', motivo: '' });
+      setMensajeAjuste(`Stock actualizado: ${actualizado?.stock ?? ''}`);
+      await cargarDatos();
+    } catch (error) {
+      setMensajeAjuste(error.message || 'No se pudo ajustar el stock.');
+    } finally {
+      setAjustando(false);
+    }
+  };
 
   const cargarDatos = async () => {
     const [productosApi, sucursalesApiData] = await Promise.all([
@@ -82,6 +112,8 @@ const Inventario = () => {
 
   const editarProducto = (producto) => {
     setProductoEditandoId(producto.id);
+    setAjuste({ cantidad: '', motivo: '' });
+    setMensajeAjuste('');
     setIsSaved(false);
     setErrorApi('');
     setNuevoProducto({
@@ -320,10 +352,24 @@ const Inventario = () => {
               </p>
             </div>
           ) : (
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-gray-400">{productoEditandoId ? 'Stock' : 'Stock inicial'} ({abreviarUnidad(nuevoProducto.unidad)})</span>
-              <input type="number" name="stock" min="0" step="1" required value={nuevoProducto.stock} onChange={handleChange} placeholder={nuevoProducto.unidad === 'g' ? 'Ej. 2270' : 'Ej. 10'} className="inventory-editor-input" />
-            </label>
+            productoEditandoId ? (
+              <div className="block sm:col-span-2">
+                <span className="mb-1.5 block text-xs font-semibold text-gray-400">Stock actual ({abreviarUnidad(nuevoProducto.unidad)})</span>
+                <p className="flex min-h-11 items-center rounded-[.65rem] border border-white/10 px-3 text-sm font-semibold text-gray-200">{nuevoProducto.stock}</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-[110px_1fr_auto_auto]">
+                  <input type="number" min="1" step="1" aria-label="Unidades a ajustar" value={ajuste.cantidad} onChange={(e) => setAjuste((a) => ({ ...a, cantidad: e.target.value }))} placeholder="Cantidad" className="inventory-editor-input" />
+                  <input type="text" maxLength={200} aria-label="Motivo del ajuste" value={ajuste.motivo} onChange={(e) => setAjuste((a) => ({ ...a, motivo: e.target.value }))} placeholder="Motivo: compra, merma, conteo..." className="inventory-editor-input" />
+                  <button type="button" disabled={ajustando} onClick={() => aplicarAjuste(1)} className="rounded-[.65rem] bg-green-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">+ Sumar</button>
+                  <button type="button" disabled={ajustando} onClick={() => aplicarAjuste(-1)} className="rounded-[.65rem] bg-red-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">− Restar</button>
+                </div>
+                {mensajeAjuste && <p className="mt-1.5 text-xs text-gray-400" role="status">{mensajeAjuste}</p>}
+              </div>
+            ) : (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-gray-400">Stock inicial ({abreviarUnidad(nuevoProducto.unidad)})</span>
+                <input type="number" name="stock" min="0" step="1" required value={nuevoProducto.stock} onChange={handleChange} placeholder={nuevoProducto.unidad === 'g' ? 'Ej. 2270' : 'Ej. 10'} className="inventory-editor-input" />
+              </label>
+            )
           )}
 
           {!nuevoProducto.preparado && (

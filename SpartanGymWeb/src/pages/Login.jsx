@@ -350,7 +350,7 @@ const Login = () => {
         </footer>
       </div>
 
-      <div className="hidden lg:flex lg:flex-col lg:justify-end relative min-h-screen overflow-hidden bg-black p-10 xl:p-14">
+      <div className="hidden lg:flex lg:flex-col lg:justify-end superficie-oscura relative min-h-screen overflow-hidden bg-black p-10 xl:p-14">
         <img
           src={showcaseImage}
           alt="Atleta entrenando en un gimnasio"

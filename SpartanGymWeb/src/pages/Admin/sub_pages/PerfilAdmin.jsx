@@ -35,7 +35,7 @@ import {
   personalCreadoPorCuentaActual,
 } from '../../../utils/personalCompartido';
 import { formatearMoneda, useConfiguracionApp } from '../../../utils/configuracionApp';
-import { asistenciasApi, authStorage, operacionApi, personalApi, sociosApi, sucursalesApi } from '../../../services/api';
+import { asistenciasApi, authStorage, cerrarSesionServidor, operacionApi, personalApi, sociosApi, sucursalesApi } from '../../../services/api';
 import { useSucursalGlobal } from '../../../context/SucursalContext';
 import QRCode from 'qrcode';
 
@@ -286,6 +286,7 @@ const PerfilAdmin = () => {
 
     // El token está emitido para el correo anterior: tras cambiarlo hay que volver a entrar.
     if (cambiaCorreo) {
+      await cerrarSesionServidor();
       authStorage.clear();
       window.location.assign('/login');
       return;

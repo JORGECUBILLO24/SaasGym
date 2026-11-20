@@ -41,6 +41,7 @@ public class AsistenciaService {
     private static final String QR_SOCIO_PREFIX = "GIMNASIO_ASISTENCIA";
     private static final String QR_WEB_PREFIX = "GIMNASIO_VALIDACION_WEB";
     private static final long QR_TTL_SECONDS = 180;
+    private static final long MARGEN_CONSULTA_QR_SEGUNDOS = 60;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int LARGO_MINIMO_SECRETO = 32;
     // Solo se usa en el perfil "local". Fuera de ese perfil, app.qr.secret es obligatorio.
@@ -85,6 +86,17 @@ public class AsistenciaService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("Error: Socio no encontrado."));
 
         return registrarAsistencia(socio);
+    }
+
+    /** Check-in manual: registra la entrada y devuelve la decision de acceso para mostrarla. */
+    @Transactional
+    public ni.edu.uam.GimnasioAPI.dto.AsistenciaResponse registrarEntradaConDecision(AsistenciaRequest request) {
+        Asistencia asistencia = registrarEntrada(request);
+        DecisionAcceso decision = decidirAcceso(asistencia.getSocio());
+        ni.edu.uam.GimnasioAPI.dto.AsistenciaResponse respuesta = ni.edu.uam.GimnasioAPI.dto.AsistenciaResponse.desde(asistencia);
+        respuesta.setEstado(decision.estado());
+        respuesta.setMensaje(decision.mensaje());
+        return respuesta;
     }
 
     public AsistenciaQrTokenResponse generarQrAsistencia(String emailUsuario) {
@@ -177,6 +189,15 @@ public class AsistenciaService {
 
     public AsistenciaQrValidationResponse consultarEstadoQrValidacion(AsistenciaQrRequest request) {
         QrWebPayload payload = validarTokenQrWeb(request != null ? request.getToken() : null, false);
+        // Pasado un margen corto tras el vencimiento, el QR ya no revela a quien lo uso: una foto
+        // del QR de recepcion no sirve para consultar despues los datos del socio que entro.
+        if (Instant.now().getEpochSecond() > payload.expiraEpoch() + MARGEN_CONSULTA_QR_SEGUNDOS) {
+            return AsistenciaQrValidationResponse.builder()
+                    .sessionId(payload.sessionId())
+                    .estado("Expirado")
+                    .mensaje("QR expirado. Genera uno nuevo.")
+                    .build();
+        }
         QrWebSessionStore.Session sesion = sesionesQrWeb.buscar(payload.sessionId()).orElse(null);
 
         if (sesion != null && !sesion.tokenHash().equals(payload.tokenHash())) {
@@ -257,15 +278,9 @@ public class AsistenciaService {
         String tipoMembresia = membresiaActiva != null
                 ? membresiaActiva.getTipoMembresia().getNombre()
                 : "Sin membresia";
-        // La entrada se registra igual (recepción decide), pero el estado no puede decir
-        // "Permitido" si el socio no tiene una membresía activa y vigente.
-        boolean vigente = membresiaActiva != null
-                && (membresiaActiva.getFechaVencimiento() == null
-                || !membresiaActiva.getFechaVencimiento().isBefore(java.time.LocalDate.now()));
-        String estado = vigente ? "Permitido" : "Sin membresia";
-        String mensajeFinal = vigente
-                ? mensaje
-                : "Entrada registrada sin membresía activa. El socio debe renovarla en recepción.";
+        DecisionAcceso decision = decidirAcceso(socio, membresiaActiva, mensaje);
+        String estado = decision.estado();
+        String mensajeFinal = decision.mensaje();
 
         return AsistenciaQrValidationResponse.builder()
                 .id(asistencia.getId())
@@ -282,6 +297,44 @@ public class AsistenciaService {
                 .build();
     }
 
+    /**
+     * Decision de acceso unica para el check-in manual y por QR. La entrada se registra igual
+     * (queda el intento en el historial), pero el estado solo dice "Permitido" si la cuenta
+     * esta habilitada, el socio no esta suspendido y tiene una membresia activa y vigente.
+     */
+    public DecisionAcceso decidirAcceso(Socio socio) {
+        MembresiaSocio membresiaActiva = membresiaSocioRepository
+                .findBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Activa")
+                .orElse(null);
+        return decidirAcceso(socio, membresiaActiva, "Asistencia validada.");
+    }
+
+    private DecisionAcceso decidirAcceso(Socio socio, MembresiaSocio membresiaActiva, String mensajePermitido) {
+        Usuario usuario = socio.getUsuario();
+        if (usuario != null && !Boolean.TRUE.equals(usuario.getActivo())) {
+            return new DecisionAcceso("Denegado",
+                    "La cuenta del socio esta desactivada. No permitas el ingreso.");
+        }
+        if ("Suspendido".equalsIgnoreCase(socio.getEstadoAcceso())) {
+            return new DecisionAcceso("Suspendido",
+                    "Acceso suspendido por administracion. No permitas el ingreso.");
+        }
+        boolean vigente = membresiaActiva != null
+                && (membresiaActiva.getFechaVencimiento() == null
+                || !membresiaActiva.getFechaVencimiento().isBefore(java.time.LocalDate.now()));
+        if (!vigente) {
+            return new DecisionAcceso("Sin membresia",
+                    "Entrada registrada sin membresía activa. El socio debe renovarla en recepción.");
+        }
+        return new DecisionAcceso("Permitido", mensajePermitido);
+    }
+
+    public record DecisionAcceso(String estado, String mensaje) {
+        public boolean permitido() {
+            return "Permitido".equals(estado);
+        }
+    }
+
     private QrSocioPayload validarTokenQrSocio(String token) {
         String[] partes = validarEstructuraToken(token, QR_SOCIO_PREFIX);
 
@@ -293,7 +346,7 @@ public class AsistenciaService {
         }
 
         validarFirmaYExpiracion(partes[1] + "|" + partes[2] + "|" + partes[3], partes[3], partes[4], true);
-        return new QrSocioPayload(socioId, hashToken(token));
+        return new QrSocioPayload(socioId, hashToken(String.join("|", partes)));
     }
 
     private QrWebPayload validarTokenQrWeb(String token, boolean rechazarExpirado) {
@@ -312,7 +365,7 @@ public class AsistenciaService {
                 partes[4],
                 rechazarExpirado
         );
-        return new QrWebPayload(sessionId, hashToken(token), expirado);
+        return new QrWebPayload(sessionId, hashToken(String.join("|", partes)), expirado, Long.parseLong(partes[3]));
     }
 
     private String[] validarEstructuraToken(String token, String prefijoEsperado) {
@@ -320,9 +373,17 @@ public class AsistenciaService {
             throw new ReglaNegocioException("QR invalido: no se recibio token.");
         }
 
-        String[] partes = token.split("\\|");
+        // El limite -1 conserva los campos vacios del final: con split("\\|") a secas, "T|" o
+        // "T||" daban las mismas 5 partes con firma valida pero OTRO hash, y el mismo QR se
+        // podia volver a usar agregandole separadores al final.
+        String[] partes = token.split("\\|", -1);
         if (partes.length != 5 || !prefijoEsperado.equals(partes[0])) {
             throw new ReglaNegocioException("QR invalido para este gimnasio.");
+        }
+        for (String parte : partes) {
+            if (parte.isEmpty() || !parte.equals(parte.strip())) {
+                throw new ReglaNegocioException("QR invalido para este gimnasio.");
+            }
         }
         return partes;
     }
@@ -386,7 +447,7 @@ public class AsistenciaService {
     private record QrSocioPayload(UUID socioId, String tokenHash) {
     }
 
-    private record QrWebPayload(UUID sessionId, String tokenHash, boolean expirado) {
+    private record QrWebPayload(UUID sessionId, String tokenHash, boolean expirado, long expiraEpoch) {
     }
 
 }

@@ -2266,3 +2266,76 @@ input,select,textarea{
 :root[data-theme="light"] .order-check-card,
 :root[data-theme="light"] .order-check-items,
 :root[data-theme="light"] .order-check-total { border-color: rgb(15 23 42 / .1); }
+
+/* ============================================================
+   Tema claro: superficies y textos que faltaban en la lista
+   ============================================================
+   El tema claro funciona reemplazando cada clase oscura conocida. Las de abajo
+   no estaban en la lista y quedaban negras o grises con texto oscuro encima
+   (login, registro, modales de factura, paneles y textos neutral-*). */
+:root[data-theme="light"] .app-theme [class~="bg-[#070606]"]{
+	background:#f4f6fa !important;
+}
+
+:root[data-theme="light"] .app-theme [class~="bg-[#101010]"],
+:root[data-theme="light"] .app-theme [class~="bg-[#121111]"],
+:root[data-theme="light"] .app-theme [class~="bg-[#0d0c0c]/90"],
+:root[data-theme="light"] .app-theme [class~="bg-[#0a0a0a]/70"],
+:root[data-theme="light"] .app-theme [class~="bg-[#090909]/70"],
+:root[data-theme="light"] .app-theme [class~="bg-neutral-900"],
+:root[data-theme="light"] .app-theme [class~="bg-zinc-900"]{
+	background:#ffffff !important;
+}
+
+:root[data-theme="light"] .app-theme [class~="bg-black/25"],
+:root[data-theme="light"] .app-theme [class~="bg-black/40"],
+:root[data-theme="light"] .app-theme [class~="bg-black/50"]{
+	background:rgba(15,23,42,.06) !important;
+}
+
+:root[data-theme="light"] .app-theme .hover\:bg-neutral-900:hover,
+:root[data-theme="light"] .app-theme .hover\:bg-gray-700:hover,
+:root[data-theme="light"] .app-theme .hover\:bg-\[\#171717\]:hover{
+	background-color:rgba(15,23,42,.08) !important;
+}
+
+:root[data-theme="light"] .app-theme :is(.text-neutral-200,.text-zinc-200){
+	color:#0f172a !important;
+}
+
+:root[data-theme="light"] .app-theme .text-neutral-300{
+	color:#334155 !important;
+}
+
+:root[data-theme="light"] .app-theme :is(.text-neutral-400,.text-neutral-500){
+	color:#64748b !important;
+}
+
+/* Superficies que deben seguir oscuras en el tema claro (fotos con texto encima,
+   la tarjeta de membresía, el encabezado negro de las facturas). Se marcan con
+   la clase .superficie-oscura y aquí se les devuelve el texto claro y el degradado. */
+:root[data-theme="light"] .app-theme .superficie-oscura,
+:root[data-theme="light"] .app-theme .superficie-oscura:is(.text-white,.text-gray-200,.text-neutral-200),
+:root[data-theme="light"] .app-theme .superficie-oscura :is(.text-white,.text-gray-200,.text-neutral-200){
+	color:#ffffff !important;
+}
+
+:root[data-theme="light"] .app-theme .superficie-oscura :is(.text-gray-300,.text-zinc-300,.text-neutral-300){
+	color:#d4d4d8 !important;
+}
+
+:root[data-theme="light"] .app-theme .superficie-oscura :is(.text-gray-400,.text-gray-500,.text-zinc-400,.text-neutral-400,.text-neutral-500){
+	color:#a1a1aa !important;
+}
+
+:root[data-theme="light"] .app-theme :is(.superficie-oscura,.superficie-oscura *)[class*="bg-gradient-to"]{
+	background-image:linear-gradient(var(--tw-gradient-stops)) !important;
+}
+
+:root[data-theme="light"] .app-theme .superficie-oscura[class~="bg-black"]{
+	background:#000000 !important;
+}
+
+:root[data-theme="light"] .app-theme :is(.superficie-oscura,.superficie-oscura *)[class*="border-white/"]{
+	border-color:rgba(255,255,255,.14) !important;
+}

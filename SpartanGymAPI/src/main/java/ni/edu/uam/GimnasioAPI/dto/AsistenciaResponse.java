@@ -18,6 +18,9 @@ public class AsistenciaResponse {
     private UUID socioId;
     private String socio;
     private LocalDateTime fechaHora;
+    /** Solo en el check-in: Permitido, Sin membresia, Suspendido o Denegado. */
+    private String estado;
+    private String mensaje;
 
     public static AsistenciaResponse desde(Asistencia asistencia) {
         return AsistenciaResponse.builder()

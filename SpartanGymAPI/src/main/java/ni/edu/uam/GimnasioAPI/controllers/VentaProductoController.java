@@ -28,14 +28,14 @@ public class VentaProductoController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
-    public ResponseEntity<List<VentaProductoResponse>> listar() {
-        return ResponseEntity.ok(service.listar());
+    public ResponseEntity<List<VentaProductoResponse>> listar(Authentication auth) {
+        return ResponseEntity.ok(service.listar(auth));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
-    public ResponseEntity<VentaProductoResponse> obtener(@PathVariable UUID id) {
-        return ResponseEntity.ok(service.obtener(id));
+    public ResponseEntity<VentaProductoResponse> obtener(@PathVariable UUID id, Authentication auth) {
+        return ResponseEntity.ok(service.obtener(id, auth));
     }
 
     @PostMapping

@@ -22,7 +22,15 @@ public class CatalogoService {
     private final GrupoMuscularRepository grupoMuscularRepository;
     private final EjercicioRepository ejercicioRepository;
 
-    public GrupoMuscular crearGrupoMuscular(GrupoMuscular grupo) {
+    // Crear siempre es crear: si el cuerpo trae un id se descarta. Antes, mandar el id de un
+    // registro existente hacia que save() lo sobrescribiera (y con el, las rutinas que lo usan).
+    @Transactional
+    public GrupoMuscular crearGrupoMuscular(GrupoMuscular datos) {
+        if (datos == null || datos.getNombre() == null || datos.getNombre().isBlank()) {
+            throw new ReglaNegocioException("Escribe el nombre del grupo muscular");
+        }
+        GrupoMuscular grupo = new GrupoMuscular();
+        grupo.setNombre(datos.getNombre().trim());
         return grupoMuscularRepository.save(grupo);
     }
 
@@ -30,10 +38,21 @@ public class CatalogoService {
         return grupoMuscularRepository.findAll();
     }
 
+    @Transactional
     public Ejercicio crearEjercicio(Ejercicio ejercicio) {
+        if (ejercicio == null || ejercicio.getNombre() == null || ejercicio.getNombre().isBlank()) {
+            throw new ReglaNegocioException("Escribe el nombre del ejercicio");
+        }
+        if (ejercicio.getGrupoMuscular() == null || ejercicio.getGrupoMuscular().getId() == null) {
+            throw new ReglaNegocioException("Elige el grupo muscular del ejercicio");
+        }
         GrupoMuscular grupo = grupoMuscularRepository.findById(ejercicio.getGrupoMuscular().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Grupo muscular no encontrado"));
 
+        // Igual que con los grupos: un id en el cuerpo no puede convertir la creacion en una
+        // edicion de un ejercicio de la biblioteca.
+        ejercicio.setId(null);
+        ejercicio.setNombre(ejercicio.getNombre().trim());
         ejercicio.setGrupoMuscular(grupo);
         return ejercicioRepository.save(ejercicio);
     }

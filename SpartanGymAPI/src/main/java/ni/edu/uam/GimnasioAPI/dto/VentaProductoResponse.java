@@ -18,6 +18,8 @@ public class VentaProductoResponse {
     private String socio;
     private UUID sucursalId;
     private String sucursal;
+    /** Solo en pedidos pendientes: hasta cuándo se guarda el stock. */
+    private LocalDateTime fechaExpiracion;
     private UUID vendedorId;
     private String vendedor;
     private String clienteNombre;

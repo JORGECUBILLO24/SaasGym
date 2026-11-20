@@ -16,7 +16,8 @@ export interface SesionUsuario {
   id: Identificador;
   email: string;
   rol: Rol;
-  token: string;
+  /** El web ya no lo recibe (va en una cookie HttpOnly); la app Android sí. */
+  token?: string | null;
 }
 
 /** Usuario que el cliente deja en localStorage ("spartan_user"): la sesión sin el token. */

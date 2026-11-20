@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Respaldo automático (Android 11 o anterior). Las credenciales del acceso con huella
+   (acceso_biometrico.xml) no se respaldan: aunque van cifradas, incluyen el correo y no
+   sirven en otro teléfono (la llave queda en el Keystore del equipo original).
 -->
 <full-backup-content>
-    <exclude domain="sharedpref" path="gym_session.xml"/>
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="acceso_biometrico.xml" />
 </full-backup-content>
