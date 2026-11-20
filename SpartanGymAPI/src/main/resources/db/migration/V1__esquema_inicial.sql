@@ -1,4 +1,4 @@
-﻿
+
 -- ==========================================
 -- Esquema PostgreSQL del Gimnasio
 -- Alineado con las entidades JPA de GimnasioAPI

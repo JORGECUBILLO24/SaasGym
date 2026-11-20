@@ -2,7 +2,7 @@
 
 ## Ejecutar localmente
 Requisitos sugeridos: Java 21, Maven Wrapper incluido, Node.js 22, PostgreSQL y Android SDK para la app.
-- API: configurar `SPRING_DATASOURCE_URL`, usuario, contraseña, JWT_SECRET (fuera de local); inicializar `gimnasio_schema.sql`. `cd SpartanGymAPI && ./mvnw spring-boot:run`
+- API: configurar `SPRING_DATASOURCE_URL`, usuario, contraseña, JWT_SECRET (fuera de local); la base vacía la arma Flyway al arrancar (ver docs/MIGRACIONES.md). `cd SpartanGymAPI && ./mvnw spring-boot:run`
 - Web: `cd SpartanGymWeb && npm ci && npm run dev`, con `VITE_API_BASE_URL`.
 - Android: abrir `SpartanGymApp` con Android Studio o ejecutar `./gradlew testDebugUnitTest assembleDebug`.
 - Redis opcional: configurar `APP_QR_SESSION_STORE=redis` y `SPRING_DATA_REDIS_URL` para compartir sesiones QR. Por defecto queda `memory`.

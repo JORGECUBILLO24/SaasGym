@@ -24,6 +24,8 @@ public abstract class IntegracionPostgresBase {
     @DynamicPropertySource
     static void baseDeDatos(DynamicPropertyRegistry registro) {
         registro.add("spring.datasource.url", () -> System.getenv("SPARTAN_IT_DB_URL"));
+        // La base de integración se arma con las mismas migraciones que producción.
+        registro.add("spring.flyway.enabled", () -> "true");
         registro.add("spring.datasource.username", () -> System.getenv().getOrDefault("SPARTAN_IT_DB_USER", "postgres"));
         registro.add("spring.datasource.password", () -> System.getenv().getOrDefault("SPARTAN_IT_DB_PASSWORD", "postgres"));
     }

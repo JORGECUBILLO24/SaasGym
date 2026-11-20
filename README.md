@@ -32,9 +32,11 @@ git clone https://github.com/JORGECUBILLO24/SaasGym.git
 cd SaasGym
 ```
 
-Crea una base de datos PostgreSQL llamada `spartangym_db` y ejecuta
-`gimnasio_schema.sql`. El esquema se administra mediante ese archivo porque
-Hibernate está configurado con `ddl-auto=none`.
+Crea una base de datos PostgreSQL vacía llamada `spartangym_db`. Al arrancar, la
+API crea las tablas sola con **Flyway** (migraciones en
+`SpartanGymAPI/src/main/resources/db/migration`). Hibernate está con
+`ddl-auto=none` y no toca el esquema. Reglas para cambiar la base:
+[docs/MIGRACIONES.md](docs/MIGRACIONES.md).
 
 El esquema no crea cuentas administrativas ni precarga sucursales. Debes crear
 la primera cuenta administrativa mediante un procedimiento controlado de
