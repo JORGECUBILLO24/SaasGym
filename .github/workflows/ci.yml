@@ -63,9 +63,6 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Load database schema
-        working-directory: .
-        run: psql "postgresql://postgres:postgres@localhost:5432/spartangym_it" -v ON_ERROR_STOP=1 -q -f gimnasio_schema.sql
       - name: Run tests
         run: ./mvnw -B --no-transfer-progress test
 
