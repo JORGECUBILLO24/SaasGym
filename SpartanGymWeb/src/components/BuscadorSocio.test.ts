@@ -14,9 +14,9 @@ describe('filtrarSocios', () => {
   });
 
   it('busca sin tildes por nombre, apellido, correo o teléfono', () => {
-    expect(filtrarSocios(socios, 'maria perez').map((s) => s.id)).toEqual(['1']);
-    expect(filtrarSocios(socios, 'MARTINEZ').map((s) => s.id)).toEqual(['3']);
-    expect(filtrarSocios(socios, 'jorge@').map((s) => s.id)).toEqual(['2']);
-    expect(filtrarSocios(socios, '8888').map((s) => s.id)).toEqual(['1']);
+    expect(filtrarSocios(socios, 'maria perez').map((s: { id: string }) => s.id)).toEqual(['1']);
+    expect(filtrarSocios(socios, 'MARTINEZ').map((s: { id: string }) => s.id)).toEqual(['3']);
+    expect(filtrarSocios(socios, 'jorge@').map((s: { id: string }) => s.id)).toEqual(['2']);
+    expect(filtrarSocios(socios, '8888').map((s: { id: string }) => s.id)).toEqual(['1']);
   });
 });

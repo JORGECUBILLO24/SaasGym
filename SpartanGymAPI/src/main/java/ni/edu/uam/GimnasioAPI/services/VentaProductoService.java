@@ -103,6 +103,7 @@ public class VentaProductoService {
                 ? null
                 : socioRepository.findById(request.getSocioId())
                         .orElseThrow(() -> new RecursoNoEncontradoException("Socio no encontrado"));
+        validarSucursalPersonal(auth, socio, sucursal);
         Usuario vendedor = obtenerVendedor(auth);
 
         String clienteNombre = clienteEventual
@@ -287,11 +288,17 @@ public class VentaProductoService {
 
     @Transactional
     public VentaProductoResponse confirmarPedido(String codigo, ConfirmarPedidoRequest datos, Authentication auth) {
-        VentaProducto venta = pedidoVisible(codigo, auth);
+        String limpio = normalizarCodigoPedido(codigo);
+        VentaProducto venta = ventaRepository.findByCodigoPedidoForUpdate(limpio)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No hay ningún pedido con el código " + limpio));
+        validarSucursalPedido(venta, auth);
         exigirPendiente(venta);
         Usuario quien = obtenerVendedor(auth);
 
-        if ("Efectivo".equalsIgnoreCase(venta.getMetodoPago()) && datos != null && datos.getMontoRecibido() != null) {
+        if ("Efectivo".equalsIgnoreCase(venta.getMetodoPago())) {
+            if (datos == null || datos.getMontoRecibido() == null) {
+                throw new ReglaNegocioException("Ingresa el monto recibido en efectivo");
+            }
             if (datos.getMontoRecibido().compareTo(venta.getTotal()) < 0) {
                 throw new ReglaNegocioException("El efectivo recibido no cubre el total del pedido");
             }
@@ -300,6 +307,13 @@ public class VentaProductoService {
             venta.setMontoRecibido(datos.getMontoRecibido().setScale(2, RoundingMode.HALF_UP));
             venta.setMontoRecibidoConvertido(venta.getMontoRecibido());
             venta.setCambio(venta.getMontoRecibido().subtract(venta.getTotal()).setScale(2, RoundingMode.HALF_UP));
+        }
+        if ("Transferencia".equalsIgnoreCase(venta.getMetodoPago())) {
+            String referencia = datos == null ? null : limpiarTexto(datos.getReferenciaPago());
+            if (referencia == null) {
+                throw new ReglaNegocioException("Ingresa la referencia de la transferencia confirmada");
+            }
+            venta.setReferenciaPago(referencia);
         }
         if (datos != null && limpiarTexto(datos.getReferenciaPago()) != null) {
             venta.setReferenciaPago(limpiarTexto(datos.getReferenciaPago()));
@@ -317,7 +331,10 @@ public class VentaProductoService {
     /** Cancela un pedido sin pagar y devuelve al inventario lo que tenía apartado. */
     @Transactional
     public VentaProductoResponse cancelarPedido(String codigo, Authentication auth) {
-        VentaProducto venta = pedidoVisible(codigo, auth);
+        String limpio = normalizarCodigoPedido(codigo);
+        VentaProducto venta = ventaRepository.findByCodigoPedidoForUpdate(limpio)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No hay ningún pedido con el código " + limpio));
+        validarSucursalPedido(venta, auth);
         exigirPendiente(venta);
 
         List<UUID> ids = venta.getDetalles().stream().map(d -> d.getProducto().getId()).distinct().toList();
@@ -365,15 +382,22 @@ public class VentaProductoService {
         String limpio = normalizarCodigoPedido(codigo);
         VentaProducto venta = ventaRepository.findByCodigoPedidoIgnoreCase(limpio)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No hay ningún pedido con el código " + limpio));
+        validarSucursalPedido(venta, auth);
+        return venta;
+    }
+
+    private void validarSucursalPedido(VentaProducto venta, Authentication auth) {
         Usuario usuario = obtenerVendedor(auth);
         String rol = usuario != null && usuario.getRol() != null ? usuario.getRol().getNombre() : "";
         if (usuario != null && (rol.endsWith("ENTRENADOR") || rol.endsWith("RECEPCIONISTA"))) {
             Sucursal suya = personalRepository.findById(usuario.getId()).map(personal -> personal.getSucursal()).orElse(null);
-            if (suya != null && !suya.getId().equals(venta.getSucursal().getId())) {
+            if (suya == null) {
+                throw new AccesoDenegadoException("Tu perfil no tiene una sucursal asignada.");
+            }
+            if (!suya.getId().equals(venta.getSucursal().getId())) {
                 throw new AccesoDenegadoException("Ese pedido es de otra sucursal (" + venta.getSucursal().getNombre() + ")");
             }
         }
-        return venta;
     }
 
     /** Acepta el código como lo dicten o escriban: "p 98gyw7", "P98GYW7" o "P-98GYW7". */
@@ -445,6 +469,31 @@ public class VentaProductoService {
         }
 
         return usuarioRepository.findByEmail(auth.getName()).orElse(null);
+    }
+
+    private void validarSucursalPersonal(Authentication auth, Socio socio, Sucursal sucursalVenta) {
+        if (socio == null || auth == null || auth.getName() == null) {
+            return;
+        }
+        Usuario usuario = usuarioRepository.findByEmail(auth.getName()).orElse(null);
+        if (usuario == null || usuario.getRol() == null) {
+            return;
+        }
+        String rol = usuario.getRol().getNombre();
+        if (!"ROLE_ENTRENADOR".equals(rol) && !"ROLE_RECEPCIONISTA".equals(rol)) {
+            return;
+        }
+        Sucursal sucursalPersonal = personalRepository.findById(usuario.getId())
+                .map(personal -> personal.getSucursal())
+                .orElse(null);
+        if (sucursalPersonal == null) {
+            throw new ReglaNegocioException("Tu perfil no tiene una sucursal asignada.");
+        }
+        UUID sucursalSocio = socio.getSucursal() != null ? socio.getSucursal().getId() : null;
+        if (sucursalSocio == null || !sucursalSocio.equals(sucursalPersonal.getId())
+                || !sucursalPersonal.getId().equals(sucursalVenta.getId())) {
+            throw new AccesoDenegadoException("El socio o la venta no pertenecen a tu sucursal.");
+        }
     }
 
     private BigDecimal obtenerTasaImpuesto() {

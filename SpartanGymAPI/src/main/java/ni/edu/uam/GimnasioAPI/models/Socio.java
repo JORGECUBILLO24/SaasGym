@@ -28,7 +28,7 @@ public class Socio {
     private String telefono;
 
     @Column(name = "estado_acceso", length = 20)
-    private String estadoAcceso = "Activo";
+    private String estadoAcceso = "Inactivo";
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_id")

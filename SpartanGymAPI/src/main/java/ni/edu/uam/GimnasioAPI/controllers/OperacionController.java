@@ -78,7 +78,7 @@ public class OperacionController {
         List<MembresiaSocio> vencimientos = membresiaRepository
                 .findByEstadoAndFechaVencimientoBetweenOrderByFechaVencimientoAsc("Activa", hoy, hoy.plusDays(15));
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("sociosActivos", socioRepository.count());
+        data.put("sociosActivos", membresiaRepository.countByEstado("Activa"));
         data.put("membresiasActivas", membresiaRepository.countByEstado("Activa"));
         data.put("pagosRecientes", pagoRepository.findAllByOrderByFechaTransaccionDesc().stream().limit(8).map(this::pagoMap).toList());
         data.put("proximosVencimientos", vencimientos.stream().limit(8).map(this::membresiaMap).toList());
@@ -252,6 +252,7 @@ public class OperacionController {
         data.put("socio", pago.getSocio().getNombres() + " " + pago.getSocio().getApellidos());
         data.put("monto", pago.getMonto());
         data.put("metodoPago", pago.getMetodoPago());
+        data.put("estado", pago.getEstado());
         data.put("fechaTransaccion", pago.getFechaTransaccion());
         return data;
     }
@@ -265,6 +266,7 @@ public class OperacionController {
         data.put("fechaInicio", membresia.getFechaInicio());
         data.put("fechaVencimiento", membresia.getFechaVencimiento());
         data.put("estado", membresia.getEstado());
+        data.put("pagoId", membresia.getPago() != null ? membresia.getPago().getId() : null);
         return data;
     }
 

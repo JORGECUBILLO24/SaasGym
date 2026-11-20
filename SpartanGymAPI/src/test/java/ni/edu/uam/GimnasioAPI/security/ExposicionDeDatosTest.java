@@ -203,7 +203,7 @@ class ExposicionDeDatosTest {
         control.setId(UUID.randomUUID());
         control.setSocio(socio);
         control.setPesoKg(70.0);
-        when(controlBiometricoService.registrarProgreso(any())).thenReturn(control);
+        when(controlBiometricoService.registrarProgreso(any(), any())).thenReturn(control);
 
         MvcResult resultado = mockMvc.perform(post("/api/progreso")
                         .contentType("application/json")

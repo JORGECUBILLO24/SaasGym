@@ -264,6 +264,9 @@ export const pagosApi = {
     method: 'POST',
     body: JSON.stringify({ idSocio, idTipoMembresia, metodoPago }),
   }),
+  confirmar: (idPago: string) => apiRequest(`/pagos/${encodeURIComponent(idPago)}/confirmar`, {
+    method: 'POST',
+  }),
 };
 
 export const asistenciasApi = {

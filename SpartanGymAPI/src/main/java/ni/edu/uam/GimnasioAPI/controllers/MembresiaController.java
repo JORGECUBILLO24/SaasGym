@@ -55,6 +55,7 @@ public class MembresiaController {
     }
 
     @PostMapping("/comprar")
+    @PreAuthorize("hasAuthority('ROLE_SOCIO')")
     public ResponseEntity<MembresiaSocioResponse> comprarMembresia(
             @RequestBody CompraMembresiaRequest request,
             Authentication authentication // Spring Security inyecta aquí los datos del usuario autenticado

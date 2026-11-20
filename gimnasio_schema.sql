@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS sucursales (
 
 ALTER TABLE socios
     ADD COLUMN IF NOT EXISTS sucursal_id UUID REFERENCES sucursales(id);
+ALTER TABLE socios
+    ALTER COLUMN estado_acceso SET DEFAULT 'Inactivo';
 
 ALTER TABLE personal
     ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
@@ -258,12 +260,14 @@ CREATE TABLE IF NOT EXISTS pagos (
     monto DECIMAL(10, 2) NOT NULL CHECK (monto >= 0),
     metodo_pago VARCHAR(50) NOT NULL,
     numero_factura VARCHAR(40),
-    fecha_transaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha_transaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado VARCHAR(20) NOT NULL DEFAULT 'Confirmado'
 );
 
 -- Numero de factura para la renovacion de membresia (facturacion en Finanzas)
 ALTER TABLE pagos
-    ADD COLUMN IF NOT EXISTS numero_factura VARCHAR(40);
+    ADD COLUMN IF NOT EXISTS numero_factura VARCHAR(40),
+    ADD COLUMN IF NOT EXISTS estado VARCHAR(20) NOT NULL DEFAULT 'Confirmado';
 
 CREATE TABLE IF NOT EXISTS membresias_socio (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -272,7 +276,7 @@ CREATE TABLE IF NOT EXISTS membresias_socio (
     pago_id UUID NOT NULL REFERENCES pagos(id),
     fecha_inicio DATE NOT NULL DEFAULT CURRENT_DATE,
     fecha_vencimiento DATE NOT NULL,
-    estado VARCHAR(20) DEFAULT 'Activa' CHECK (estado IN ('Activa', 'Vencida', 'Cancelada', 'Renovada'))
+    estado VARCHAR(20) DEFAULT 'Activa' CHECK (estado IN ('Activa', 'Vencida', 'Cancelada', 'Renovada', 'Pendiente'))
 );
 
 CREATE TABLE IF NOT EXISTS asistencias (

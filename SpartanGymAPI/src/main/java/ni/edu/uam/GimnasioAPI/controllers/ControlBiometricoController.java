@@ -7,6 +7,7 @@ import ni.edu.uam.GimnasioAPI.services.ControlBiometricoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,8 +25,8 @@ public class ControlBiometricoController {
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
             + "or @accesoSocio.esElMismo(authentication, #request.idSocio)")
-    public ResponseEntity<ControlBiometricoResponse> registrar(@RequestBody ControlBiometricoRequest request) {
-        return ResponseEntity.ok(ControlBiometricoResponse.desde(controlService.registrarProgreso(request)));
+    public ResponseEntity<ControlBiometricoResponse> registrar(@RequestBody ControlBiometricoRequest request, Authentication auth) {
+        return ResponseEntity.ok(ControlBiometricoResponse.desde(controlService.registrarProgreso(request, auth)));
     }
 
     // Endpoint para obtener la gráfica de historial

@@ -12,11 +12,11 @@ const pares = [
 
 export default function BarraEnsamblada() {
   const seccionRef = useRef(null);
+  const reducedMotion = usePrefersReducedMotion();
   // paso = pares colocados (0 a 3); cada par suma 40 kg a la barra de 20 kg.
-  const [paso, setPaso] = useState(0);
+  const [paso, setPaso] = useState(() => (reducedMotion ? 3 : 0));
   const [animando, setAnimando] = useState(false);
   const timersRef = useRef([]);
-  const reducedMotion = usePrefersReducedMotion();
 
   const limpiarTimers = useCallback(() => {
     timersRef.current.forEach(clearTimeout);
@@ -44,8 +44,6 @@ export default function BarraEnsamblada() {
 
   useEffect(() => {
     if (reducedMotion) {
-      setPaso(3);
-      setAnimando(false);
       return;
     }
 
