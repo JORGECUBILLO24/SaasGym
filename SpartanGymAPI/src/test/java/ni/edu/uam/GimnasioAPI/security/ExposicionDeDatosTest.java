@@ -11,6 +11,10 @@ import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.services.AsistenciaService;
 import ni.edu.uam.GimnasioAPI.services.ControlBiometricoService;
 import ni.edu.uam.GimnasioAPI.services.MembresiaService;
+import ni.edu.uam.GimnasioAPI.services.TransferenciaService;
+import ni.edu.uam.GimnasioAPI.dto.SolicitudPagoResponse;
+import ni.edu.uam.GimnasioAPI.models.CuentaBancaria;
+import ni.edu.uam.GimnasioAPI.models.SolicitudPagoMembresia;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +61,10 @@ class ExposicionDeDatosTest {
 
     @MockitoBean private AsistenciaService asistenciaService;
     @MockitoBean private MembresiaService membresiaService;
+    @MockitoBean private TransferenciaService transferenciaService;
     @MockitoBean private ControlBiometricoService controlBiometricoService;
+    // El alcance por sucursal consulta la base; aquí solo importa qué datos salen en el JSON.
+    @MockitoBean private AlcanceSucursal alcanceSucursal;
 
     private MockMvc mockMvc;
     private Socio socio;
@@ -65,6 +72,7 @@ class ExposicionDeDatosTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(contexto).apply(springSecurity()).build();
+        when(alcanceSucursal.puedeAtenderSocio(any(), any())).thenReturn(true);
 
         Rol rol = new Rol();
         rol.setId(4);
@@ -109,7 +117,9 @@ class ExposicionDeDatosTest {
     @Test
     @WithMockUser(username = "recepcion@ejemplo.com", roles = "RECEPCIONISTA")
     void checkIn_noExponeElHashNiLosDatosDeLaCuenta() throws Exception {
-        when(asistenciaService.registrarEntrada(any())).thenReturn(asistencia());
+        ni.edu.uam.GimnasioAPI.dto.AsistenciaResponse respuesta = ni.edu.uam.GimnasioAPI.dto.AsistenciaResponse.desde(asistencia());
+        respuesta.setEstado("Permitido");
+        when(asistenciaService.registrarEntradaConDecision(any())).thenReturn(respuesta);
 
         MvcResult resultado = mockMvc.perform(post("/api/asistencias/check-in")
                         .contentType("application/json")
@@ -138,36 +148,37 @@ class ExposicionDeDatosTest {
 
     @Test
     @WithMockUser(username = "socio@ejemplo.com", roles = "SOCIO")
-    void comprarMembresia_noExponeElHashNiLosDatosDeLaCuenta() throws Exception {
+    void comprarMembresia_quedaPendienteYNoExponeElHashNiLosDatosDeLaCuenta() throws Exception {
         TipoMembresia tipo = new TipoMembresia();
         tipo.setId(1);
         tipo.setNombre("Mensual");
         tipo.setDuracionDias(30);
         tipo.setPrecio(new BigDecimal("25.00"));
 
-        Pago pago = new Pago();
-        pago.setId(UUID.randomUUID());
-        pago.setSocio(socio);
-        pago.setMonto(new BigDecimal("25.00"));
-        pago.setMetodoPago("Efectivo");
+        CuentaBancaria cuenta = new CuentaBancaria();
+        cuenta.setId(UUID.randomUUID());
+        cuenta.setBanco("BAC");
+        cuenta.setTipoCuenta("Ahorro");
+        cuenta.setNumeroCuenta("123456789");
+        cuenta.setTitular("Spartan Gym S.A.");
+        cuenta.setMoneda("NIO");
 
-        MembresiaSocio membresia = new MembresiaSocio();
-        membresia.setId(UUID.randomUUID());
-        membresia.setSocio(socio);
-        membresia.setTipoMembresia(tipo);
-        membresia.setPago(pago);
-        membresia.setFechaInicio(LocalDate.of(2026, 10, 15));
-        membresia.setFechaVencimiento(LocalDate.of(2026, 11, 14));
-        membresia.setEstado("Activa");
-        when(membresiaService.comprarMembresia(anyString(), any())).thenReturn(membresia);
+        SolicitudPagoMembresia solicitud = new SolicitudPagoMembresia();
+        solicitud.setId(UUID.randomUUID());
+        solicitud.setSocio(socio);
+        solicitud.setTipoMembresia(tipo);
+        solicitud.setCuentaBancaria(cuenta);
+        solicitud.setMonto(new BigDecimal("25.00"));
+        solicitud.setReferencia("ABC123");
+        when(transferenciaService.solicitar(anyString(), any()))
+                .thenReturn(SolicitudPagoResponse.desde(solicitud, false));
 
         MvcResult resultado = mockMvc.perform(post("/api/membresias/comprar")
                         .contentType("application/json")
-                        .content("{\"tipoMembresiaId\":1,\"metodoPago\":\"Efectivo\"}"))
+                        .content("{\"tipoMembresiaId\":1,\"cuentaBancariaId\":\"" + cuenta.getId() + "\",\"referencia\":\"ABC123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tipoMembresia").value("Mensual"))
-                .andExpect(jsonPath("$.estado").value("Activa"))
-                .andExpect(jsonPath("$.fechaVencimiento").value("2026-11-14"))
+                .andExpect(jsonPath("$.estado").value("Pendiente"))
                 .andReturn();
 
         assertSinDatosSensibles(resultado);

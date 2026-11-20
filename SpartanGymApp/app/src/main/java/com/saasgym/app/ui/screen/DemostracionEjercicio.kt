@@ -336,7 +336,7 @@ private fun GifPantallaCompleta(nombre: String, url: String, cargador: ImageLoad
             }
             Text(
                 "Pellizca para acercar · doble toque para restablecer",
-                color = Color(0xFF6B6B73),
+                color = Color(0xFFA1A1AA),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp)

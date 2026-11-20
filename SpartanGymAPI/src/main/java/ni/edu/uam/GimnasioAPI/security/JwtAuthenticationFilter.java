@@ -31,14 +31,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // La app manda el token en Authorization; el panel web lo trae en la cookie HttpOnly.
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith(PREFIJO_BEARER)) {
-            filterChain.doFilter(request, response);
-            return;
+        String jwt = null;
+        if (authHeader != null && authHeader.startsWith(PREFIJO_BEARER)) {
+            jwt = authHeader.substring(PREFIJO_BEARER.length()).trim();
+        } else {
+            String deCookie = CookieSesion.leer(request);
+            // CSRF: con la cookie, una petición que modifica datos solo vale si trae el header
+            // del panel web. Un formulario o enlace de otro sitio no puede ponerlo.
+            if (deCookie != null && (esLectura(request) || CookieSesion.esClienteWeb(request))) {
+                jwt = deCookie;
+            }
         }
-
-        String jwt = authHeader.substring(PREFIJO_BEARER.length()).trim();
-        if (jwt.isEmpty()) {
+        if (jwt == null || jwt.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -66,5 +72,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static boolean esLectura(HttpServletRequest request) {
+        String metodo = request.getMethod();
+        return "GET".equalsIgnoreCase(metodo) || "HEAD".equalsIgnoreCase(metodo) || "OPTIONS".equalsIgnoreCase(metodo);
     }
 }

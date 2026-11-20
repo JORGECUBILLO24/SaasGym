@@ -22,6 +22,8 @@ import {
   useConfiguracionApp,
 } from '../../../utils/configuracionApp';
 import { finanzasApi, membresiasApi, pagosApi, sociosApi } from '../../../services/api';
+import TransferenciasPendientes from '../../../components/TransferenciasPendientes';
+import CuentasBancarias from '../../../components/CuentasBancarias';
 import BuscadorSocio from '../../../components/BuscadorSocio';
 
 const renovacionInicial = { idSocio: '', idTipoMembresia: '', metodoPago: 'Efectivo' };
@@ -174,6 +176,8 @@ const Finanzas = () => {
           Actualizar
         </button>
       </header>
+
+      <TransferenciasPendientes onAprobada={actualizarDatos} />
 
       <section className="finance-summary" aria-label="Resumen financiero">
         <div className="finance-summary-item finance-summary-balance">
@@ -461,6 +465,7 @@ const Finanzas = () => {
           }}
         />
       )}
+      <CuentasBancarias />
     </div>
   );
 };

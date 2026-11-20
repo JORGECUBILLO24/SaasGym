@@ -34,7 +34,6 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final RespuestaError respuestaError;
 
@@ -56,8 +55,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/configuracion").permitAll()
                         // GIFs de demostración de ejercicios: contenido público y sin datos de usuarios.
                         .requestMatchers(HttpMethod.GET, "/gifs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/asistencia/estado/**", "/api/asistencias/estado/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/asistencia/qr-validacion/estado", "/api/asistencias/qr-validacion/estado").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -72,7 +69,6 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, ex) -> respuestaError.escribir(
                                 response, HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
                                 "No tienes permisos para realizar esta acción.", request)))
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -83,7 +79,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(java.util.Arrays.asList(allowedOrigins.split("\\s*,\\s*")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Sucursal-Id"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Sucursal-Id", "X-Requested-With", "Accept"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -11,6 +11,7 @@ import ni.edu.uam.GimnasioAPI.repositories.PasswordResetTokenRepository;
 import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.security.AlcanceSucursal;
 import ni.edu.uam.GimnasioAPI.util.ValidacionCuenta;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -45,6 +46,7 @@ public class PasswordResetService {
     private final PersonalRepository personalRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificacionService notificacionService;
+    private final AlcanceSucursal alcanceSucursal;
 
     @Value("${app.web.reset-password-url:http://localhost:5173/restablecer-contrasena}")
     private String resetPasswordUrl;
@@ -73,7 +75,8 @@ public class PasswordResetService {
     @Transactional
     public void restablecerPassword(String tokenPlano, String nuevaPassword) {
         validarPassword(nuevaPassword);
-        PasswordResetToken token = tokenRepository.findByTokenHashAndUsadoFalse(hashToken(tokenPlano))
+        PasswordResetToken token = tokenRepository.findByTokenHashForUpdate(hashToken(tokenPlano))
+                .filter(encontrado -> !Boolean.TRUE.equals(encontrado.getUsado()))
                 .orElseThrow(() -> new ReglaNegocioException("El enlace de restablecimiento no es valido o ya fue usado"));
 
         if (token.getFechaExpiracion().isBefore(LocalDateTime.now())) {
@@ -84,6 +87,7 @@ public class PasswordResetService {
 
         Usuario usuario = token.getUsuario();
         usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
+        usuario.cerrarSesionesAbiertas();
         usuarioRepository.save(usuario);
         token.setUsado(true);
         tokenRepository.save(token);
@@ -110,6 +114,7 @@ public class PasswordResetService {
         validarPermisoGestion(actor, usuario);
 
         usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
+        usuario.cerrarSesionesAbiertas();
         usuarioRepository.save(usuario);
         invalidarTokensActivos(usuario.getId());
         log.info("{} cambió directamente la contraseña de {}", actor.getEmail(), usuario.getEmail());
@@ -186,7 +191,13 @@ public class PasswordResetService {
             return;
         }
         if ("ROLE_RECEPCIONISTA".equals(rolActor) && "ROLE_SOCIO".equals(rolObjetivo)) {
-            return;
+            // Recepción solo cambia contraseñas de socios de SU sucursal: cambiar la de otro
+            // gimnasio equivale a quedarse con esa cuenta.
+            Socio socio = socioRepository.findById(objetivo.getId()).orElse(null);
+            if (alcanceSucursal.alcanzaSocio(actor, socio)) {
+                return;
+            }
+            throw new AccesoDenegadoException("Ese socio pertenece a otra sucursal");
         }
 
         throw new AccesoDenegadoException("No tienes permisos para gestionar la contraseña de este usuario");

@@ -274,14 +274,16 @@ const CheckIn = () => {
     setErrorManual('');
 
     try {
-      await asistenciasApi.checkIn(socio.usuarioId || socio.id);
+      const respuesta = await asistenciasApi.checkIn(socio.usuarioId || socio.id);
+      // La API decide el acceso (cuenta activa, sin suspensión y membresía vigente); la entrada
+      // queda registrada igual, pero aquí se muestra lo que la API dijo, no un "Permitido" fijo.
       setSocioValidado({
         ...socio,
         nombreCompleto: `${socio.nombres} ${socio.apellidos}`,
-        estadoAccesoValidado: 'Permitido',
+        estadoAccesoValidado: respuesta?.estado || 'Permitido',
         origenAcceso: origen,
-        fechaHoraValidacion: new Date().toISOString(),
-        mensajeValidacion: 'Asistencia validada.',
+        fechaHoraValidacion: respuesta?.fechaHora || new Date().toISOString(),
+        mensajeValidacion: respuesta?.mensaje || 'Asistencia validada.',
       });
       setFormularioManual(formularioManualInicial);
       await cargarDatos();

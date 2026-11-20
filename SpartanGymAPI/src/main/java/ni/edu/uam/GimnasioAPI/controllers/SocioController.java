@@ -7,7 +7,6 @@ import ni.edu.uam.GimnasioAPI.services.SocioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +20,7 @@ public class SocioController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR')")
-    public ResponseEntity<List<SocioResponse>> listar(Authentication auth) {
+    public ResponseEntity<List<SocioResponse>> listar(org.springframework.security.core.Authentication auth) {
         return ResponseEntity.ok(socioService.listarSocios(auth));
     }
 

@@ -1,12 +1,28 @@
 import { cerrarSesionActual } from '../utils/cuentaActual';
 import type { Sucursal, SucursalDisponible, SesionUsuario, TipoMembresia, UsuarioGuardado } from '../types/domain';
 
-const FALLBACK_API_BASE_URL = 'http://localhost:8080/api';
+// La API se llama por el MISMO dominio del web (/api): en Vercel, vercel.json reenvía /api a
+// Render y en desarrollo lo hace el proxy de Vite. Así la cookie de sesión HttpOnly es de primera
+// parte (Safari/iPhone bloquea las de otro dominio).
+const FALLBACK_API_BASE_URL = '/api';
 
 const normalizeApiBaseUrl = (rawValue: unknown): string => {
   const value = String(rawValue ?? '').trim();
   if (!value) return FALLBACK_API_BASE_URL;
-  return value.replace(/\/+$/, '');
+  const limpio = value.replace(/\/+$/, '');
+  // Una URL absoluta de OTRO dominio rompería la cookie de sesión en producción: se ignora y se
+  // usa el reenvío /api (configurado en vercel.json).
+  if (import.meta.env.PROD && /^https?:\/\//i.test(limpio) && typeof window !== 'undefined') {
+    try {
+      if (new URL(limpio).origin !== window.location.origin) {
+        console.warn('VITE_API_BASE_URL apunta a otro dominio; se usa /api (reenvío de vercel.json).');
+        return FALLBACK_API_BASE_URL;
+      }
+    } catch {
+      return FALLBACK_API_BASE_URL;
+    }
+  }
+  return limpio;
 };
 
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
@@ -20,8 +36,14 @@ export const urlArchivoApi = (ruta: string | null | undefined): string | null =>
   return `${raiz}/${valor.replace(/^\/+/, '')}`;
 };
 
+/**
+ * La sesión del web vive en una cookie HttpOnly que pone la API (el JavaScript no la puede leer).
+ * Aquí solo se guardan los datos visibles del usuario (id, correo, rol) para pintar la interfaz.
+ * El token en localStorage queda solo para sesiones iniciadas antes de este cambio.
+ */
 export const authStorage = {
   getToken: (): string | null => localStorage.getItem('spartan_token'),
+  haySesion: (): boolean => Boolean(localStorage.getItem('spartan_user')),
   getUser: (): UsuarioGuardado | null => {
     const rawUser = localStorage.getItem('spartan_user');
     if (!rawUser) return null;
@@ -33,7 +55,11 @@ export const authStorage = {
     }
   },
   setSession: ({ id, token, email, rol }: SesionUsuario): void => {
-    localStorage.setItem('spartan_token', token);
+    if (token) {
+      localStorage.setItem('spartan_token', token);
+    } else {
+      localStorage.removeItem('spartan_token');
+    }
     localStorage.setItem('spartan_user', JSON.stringify({ id, email, rol }));
   },
   clear: (): void => {
@@ -77,8 +103,13 @@ export async function apiRequest<T = unknown>(path: string, options: ApiRequestO
   const { skipAuth, ignoreSucursal, ...fetchOptions } = options;
   const normalizedPath = String(path ?? '').startsWith('/') ? path : `/${String(path ?? '')}`;
   const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+    // Manda la cookie de sesión HttpOnly.
+    credentials: 'include',
     ...fetchOptions,
     headers: {
+      // Marca las peticiones del panel web: la API exige este header para aceptar la cookie en
+      // operaciones que cambian datos (protección CSRF) y no devuelve el token en el cuerpo.
+      'X-Requested-With': 'XMLHttpRequest',
       // application/json va primero: si problem+json tuviera más prioridad, Spring también
       // negociaría las respuestas EXITOSAS como problem+json. Basta con que problem+json
       // aparezca en la lista para que la API devuelva los errores en formato RFC 9457.
@@ -172,6 +203,7 @@ export const authApi = {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   }),
+  logout: () => apiRequest('/auth/logout', { method: 'POST', skipAuth: true }),
   registerSocio: ({ nombres, apellidos, email, password, telefono, sucursalId }: RegistroSocioRequest) => apiRequest('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ nombres, apellidos, email, password, telefono, sucursalId }),
@@ -278,7 +310,6 @@ export const asistenciasApi = {
   estadoQrValidacionPorToken: (token: string) => apiRequest('/asistencias/qr-validacion/estado', {
     method: 'POST',
     body: JSON.stringify({ token }),
-    skipAuth: true,
   }),
   historialSocio: (socioId: string) => apiRequest(`/asistencias/socio/${socioId}`),
 };
@@ -378,4 +409,71 @@ export const notificacionesApi = {
     method: 'POST',
     body: JSON.stringify({ tipo, titulo, mensaje }),
   }),
+};
+
+/** Cierra la sesión también en el servidor (borra la cookie HttpOnly). Nunca falla. */
+export const cerrarSesionServidor = (): Promise<void> =>
+  authApi.logout().then(() => undefined).catch(() => undefined);
+
+export interface CuentaBancaria {
+  id: string;
+  banco: string;
+  tipoCuenta: 'Ahorro' | 'Corriente';
+  numeroCuenta: string;
+  titular: string;
+  moneda: 'NIO' | 'USD';
+  activa: boolean;
+}
+
+export type CuentaBancariaRequest = Omit<CuentaBancaria, 'id'>;
+
+export const cuentasBancariasApi = {
+  listar: (todas = false) => apiRequest<CuentaBancaria[]>(`/cuentas-bancarias${todas ? '?todas=true' : ''}`),
+  crear: (cuenta: CuentaBancariaRequest) => apiRequest<CuentaBancaria>('/cuentas-bancarias', {
+    method: 'POST',
+    body: JSON.stringify(cuenta),
+  }),
+  actualizar: (id: string, cuenta: CuentaBancariaRequest) => apiRequest<CuentaBancaria>(`/cuentas-bancarias/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(cuenta),
+  }),
+  desactivar: (id: string) => apiRequest(`/cuentas-bancarias/${id}`, { method: 'DELETE' }),
+};
+
+export interface SolicitudPago {
+  id: string;
+  socioId: string;
+  socio: string;
+  sucursal?: string | null;
+  tipoMembresia: string;
+  monto: number;
+  banco: string;
+  tipoCuenta: string;
+  numeroCuenta: string;
+  moneda: string;
+  referencia: string;
+  comprobanteUrl?: string | null;
+  estado: 'Pendiente' | 'Aprobada' | 'Rechazada';
+  motivoRechazo?: string | null;
+  fechaCreacion: string;
+  fechaRevision?: string | null;
+  revisadoPor?: string | null;
+  numeroFactura?: string | null;
+}
+
+export const transferenciasApi = {
+  listar: (estado = 'Pendiente') => apiRequest<SolicitudPago[]>(`/pagos/solicitudes${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`),
+  aprobar: (id: string) => apiRequest(`/pagos/solicitudes/${id}/aprobar`, { method: 'POST' }),
+  rechazar: (id: string, motivo: string) => apiRequest(`/pagos/solicitudes/${id}/rechazar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  }),
+};
+
+export const ajusteStockApi = {
+  ajustar: (productoId: string, cantidad: number, motivo: string) => apiRequest(`/inventario/${productoId}/ajuste-stock`, {
+    method: 'POST',
+    body: JSON.stringify({ cantidad, motivo }),
+  }),
+  historial: (productoId: string) => apiRequest(`/inventario/${productoId}/ajustes`),
 };

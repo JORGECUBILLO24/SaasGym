@@ -47,8 +47,11 @@ public class MembresiaScheduler {
 
                 // 2. Le bloqueamos el torniquete al socio
                 Socio socio = membresia.getSocio();
-                socio.setEstadoAcceso("Inactivo");
-                socioRepository.save(socio);
+                // Una suspensión administrativa se mantiene aunque la membresía venza.
+                if (!"Suspendido".equalsIgnoreCase(socio.getEstadoAcceso())) {
+                    socio.setEstadoAcceso("Inactivo");
+                    socioRepository.save(socio);
+                }
 
                 contador++;
                 log.info("Membresía vencida para el socio: {} {}", socio.getNombres(), socio.getApellidos());

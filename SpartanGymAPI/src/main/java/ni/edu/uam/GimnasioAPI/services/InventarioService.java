@@ -5,12 +5,15 @@ import ni.edu.uam.GimnasioAPI.dto.ProductoComponenteRequest;
 import ni.edu.uam.GimnasioAPI.dto.ProductoInventarioRequest;
 import ni.edu.uam.GimnasioAPI.exceptions.RecursoNoEncontradoException;
 import ni.edu.uam.GimnasioAPI.exceptions.ReglaNegocioException;
+import ni.edu.uam.GimnasioAPI.models.AjusteStock;
 import ni.edu.uam.GimnasioAPI.models.ProductoComponente;
 import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
+import ni.edu.uam.GimnasioAPI.repositories.AjusteStockRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoComponenteRepository;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
+import ni.edu.uam.GimnasioAPI.util.FotoPerfilValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,20 +33,70 @@ public class InventarioService {
     private final ProductoInventarioRepository repository;
     private final ProductoComponenteRepository componenteRepository;
     private final SucursalRepository sucursalRepository;
+    private final AjusteStockRepository ajusteStockRepository;
 
     @Transactional
     public ProductoInventario crear(ProductoInventarioRequest request) {
         ProductoInventario producto = new ProductoInventario();
-        aplicar(producto, request);
+        aplicar(producto, request, true);
         return repository.save(producto);
     }
 
+    /**
+     * Edita los datos del producto (nombre, precio, receta...) pero NO su stock: el stock solo
+     * cambia por ventas o por un ajuste explicito (ajustarStock). Antes el formulario mandaba
+     * el stock que tenia abierto y, si en ese rato se vendio algo, lo volvia a subir.
+     * La fila se bloquea igual que en una venta para no pisar un descuento en curso.
+     */
     @Transactional
     public ProductoInventario actualizar(UUID id, ProductoInventarioRequest request) {
-        ProductoInventario producto = repository.findById(id)
+        ProductoInventario producto = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
-        aplicar(producto, request);
+        aplicar(producto, request, false);
         return repository.save(producto);
+    }
+
+    /**
+     * Suma o resta unidades al stock con un motivo (compra a proveedor, merma, conteo...).
+     * Trabaja sobre la fila bloqueada, asi que no se pierde ninguna venta simultanea.
+     */
+    @Transactional
+    public ProductoInventario ajustarStock(UUID id, Integer cantidad, String motivo, String usuario) {
+        if (cantidad == null || cantidad == 0) {
+            throw new ReglaNegocioException("Indica cuántas unidades sumar o restar");
+        }
+        if (Math.abs((long) cantidad) > 1_000_000) {
+            throw new ReglaNegocioException("La cantidad del ajuste es demasiado grande");
+        }
+        String motivoLimpio = requerido(motivo, "Escribe el motivo del ajuste");
+        if (motivoLimpio.length() > 200) {
+            throw new ReglaNegocioException("El motivo no debe superar 200 caracteres");
+        }
+        ProductoInventario producto = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Producto no encontrado"));
+        if (producto.isCompuesto()) {
+            throw new ReglaNegocioException(producto.getNombre()
+                    + " se prepara con receta: ajusta el stock de sus insumos");
+        }
+        long actual = producto.getStock() == null ? 0 : producto.getStock();
+        long resultado = actual + cantidad;
+        if (resultado < 0) {
+            throw new ReglaNegocioException("El ajuste dejaría el stock en negativo: hay " + actual);
+        }
+        if (resultado > Integer.MAX_VALUE) {
+            throw new ReglaNegocioException("El stock resultante es demasiado grande");
+        }
+        producto.setStock((int) resultado);
+        ProductoInventario guardado = repository.save(producto);
+
+        AjusteStock ajuste = new AjusteStock();
+        ajuste.setProducto(guardado);
+        ajuste.setCantidad(cantidad);
+        ajuste.setStockResultante((int) resultado);
+        ajuste.setMotivo(motivoLimpio);
+        ajuste.setUsuario(usuario == null || usuario.isBlank() ? "Sistema" : usuario);
+        ajusteStockRepository.save(ajuste);
+        return guardado;
     }
 
     @Transactional
@@ -56,14 +109,14 @@ public class InventarioService {
         repository.deleteById(id);
     }
 
-    private void aplicar(ProductoInventario producto, ProductoInventarioRequest request) {
+    private void aplicar(ProductoInventario producto, ProductoInventarioRequest request, boolean nuevo) {
         producto.setNombre(requerido(request.getNombre(), "Escribe el nombre del producto"));
         producto.setCategoria(requerido(request.getCategoria(), "Elige una categoría"));
         if (request.getPrecio() == null || request.getPrecio().compareTo(BigDecimal.ZERO) < 0) {
             throw new ReglaNegocioException("El precio no puede ser negativo");
         }
         producto.setPrecio(request.getPrecio());
-        producto.setImagenUrl(request.getImagenUrl());
+        producto.setImagenUrl(FotoPerfilValidator.validar(request.getImagenUrl()));
         producto.setSucursal(obtenerSucursal(request.getSucursalId()));
         producto.setDescripcion(limpiar(request.getDescripcion()));
         String unidad = limpiar(request.getUnidad());
@@ -75,11 +128,14 @@ public class InventarioService {
         if (producto.isCompuesto()) {
             // Lo disponible sale de los insumos; un stock propio confundiría al vender.
             producto.setStock(0);
-        } else {
+        } else if (nuevo) {
+            // El stock inicial se fija al crear; despues solo cambia con ventas o ajustes.
             if (request.getStock() == null || request.getStock() < 0) {
                 throw new ReglaNegocioException("El stock no puede ser negativo");
             }
             producto.setStock(request.getStock());
+        } else if (producto.getStock() == null) {
+            producto.setStock(0);
         }
     }
 

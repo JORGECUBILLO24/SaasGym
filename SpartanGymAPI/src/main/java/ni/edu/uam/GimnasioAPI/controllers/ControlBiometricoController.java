@@ -23,7 +23,9 @@ public class ControlBiometricoController {
     // El idSocio viaja en el body: sin el chequeo de propiedad, un socio podía registrarle
     // progreso a otro con solo cambiarlo.
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+    // El personal de una sucursal solo registra progreso de socios de su sucursal.
+    @PreAuthorize("(hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+            + "and @alcanceSucursal.puedeAtenderSocio(authentication, #request.idSocio)) "
             + "or @accesoSocio.esElMismo(authentication, #request.idSocio)")
     public ResponseEntity<ControlBiometricoResponse> registrar(@RequestBody ControlBiometricoRequest request, Authentication auth) {
         return ResponseEntity.ok(ControlBiometricoResponse.desde(controlService.registrarProgreso(request, auth)));
@@ -31,7 +33,8 @@ public class ControlBiometricoController {
 
     // Endpoint para obtener la gráfica de historial
     @GetMapping("/socio/{socioId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+    @PreAuthorize("(hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+            + "and @alcanceSucursal.puedeAtenderSocio(authentication, #socioId)) "
             + "or @accesoSocio.esElMismo(authentication, #socioId)")
     public ResponseEntity<List<ControlBiometricoResponse>> obtenerHistorial(@PathVariable UUID socioId) {
         return ResponseEntity.ok(controlService.obtenerHistorialProgreso(socioId).stream()

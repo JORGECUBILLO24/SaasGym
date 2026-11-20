@@ -158,6 +158,52 @@ class AsistenciaServiceSecretoQrTest {
         assertThat(resultado.getMensaje()).contains("sin membresía activa");
     }
 
+    @Test
+    void unQrConSeparadoresExtraAlFinalSeRechaza_noSePuedeReutilizar() {
+        AsistenciaService produccion = servicio(SECRETO_FUERTE, "default");
+        produccion.validarSecreto();
+        Usuario usuarioSocio = new Usuario();
+        usuarioSocio.setId(ID_SOCIO);
+        when(usuarioRepository.findByEmailIgnoreCase("socio@ejemplo.com")).thenReturn(Optional.of(usuarioSocio));
+        when(usuarioRepository.findByEmailIgnoreCase("recepcion@ejemplo.com")).thenReturn(Optional.of(new Usuario()));
+        when(socioRepository.findById(ID_SOCIO)).thenReturn(Optional.of(socioConId()));
+
+        String token = produccion.generarQrAsistencia("socio@ejemplo.com").getToken();
+        for (String variante : new String[]{token + "|", token + "||", token + " "}) {
+            AsistenciaQrRequest request = new AsistenciaQrRequest();
+            request.setToken(variante);
+            assertThatThrownBy(() -> produccion.registrarEntradaQr(request, "recepcion@ejemplo.com"))
+                    .as("variante %s", variante.substring(token.length()))
+                    .isInstanceOf(ReglaNegocioException.class);
+        }
+    }
+
+    @Test
+    void socioSuspendidoConMembresiaVigente_noDicePermitido() {
+        AsistenciaService produccion = servicio(SECRETO_FUERTE, "default");
+        produccion.validarSecreto();
+        Socio suspendido = socioConId();
+        suspendido.setEstadoAcceso("Suspendido");
+        when(membresiaRepository.findBySocioUsuarioIdAndEstado(ID_SOCIO, "Activa")).thenReturn(Optional.of(membresiaVigente()));
+
+        AsistenciaService.DecisionAcceso decision = produccion.decidirAcceso(suspendido);
+
+        assertThat(decision.estado()).isEqualTo("Suspendido");
+        assertThat(decision.permitido()).isFalse();
+    }
+
+    @Test
+    void cuentaDesactivada_seDeniega() {
+        AsistenciaService produccion = servicio(SECRETO_FUERTE, "default");
+        Socio socio = socioConId();
+        Usuario cuenta = new Usuario();
+        cuenta.setActivo(false);
+        socio.setUsuario(cuenta);
+        when(membresiaRepository.findBySocioUsuarioIdAndEstado(ID_SOCIO, "Activa")).thenReturn(Optional.of(membresiaVigente()));
+
+        assertThat(produccion.decidirAcceso(socio).estado()).isEqualTo("Denegado");
+    }
+
     private static ni.edu.uam.GimnasioAPI.models.MembresiaSocio membresiaVigente() {
         ni.edu.uam.GimnasioAPI.models.TipoMembresia tipo = new ni.edu.uam.GimnasioAPI.models.TipoMembresia();
         tipo.setNombre("Mensual");

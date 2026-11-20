@@ -43,4 +43,26 @@ class JwtServiceTest {
 
         assertDoesNotThrow(() -> validarSecret(service));
     }
+
+    @Test
+    void cambiarLaContrasenaInvalidaLosTokensEmitidosAntes() {
+        JwtService service = crearServicio("", "local");
+        ReflectionTestUtils.setField(service, "jwtExpiration", 60_000L);
+        validarSecret(service);
+        ni.edu.uam.GimnasioAPI.models.Rol rol = new ni.edu.uam.GimnasioAPI.models.Rol();
+        rol.setNombre("ROLE_SOCIO");
+        ni.edu.uam.GimnasioAPI.models.Usuario usuario = new ni.edu.uam.GimnasioAPI.models.Usuario();
+        usuario.setEmail("socio@ejemplo.com");
+        usuario.setPasswordHash("x");
+        usuario.setRol(rol);
+        UserDetailsImpl detalles = new UserDetailsImpl(usuario);
+
+        String token = service.generateToken(detalles);
+        org.junit.jupiter.api.Assertions.assertTrue(service.isTokenValid(token, detalles));
+
+        usuario.cerrarSesionesAbiertas();
+
+        org.junit.jupiter.api.Assertions.assertFalse(service.isTokenValid(token, new UserDetailsImpl(usuario)));
+        org.junit.jupiter.api.Assertions.assertTrue(service.isTokenValid(service.generateToken(new UserDetailsImpl(usuario)), new UserDetailsImpl(usuario)));
+    }
 }

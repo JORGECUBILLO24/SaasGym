@@ -48,10 +48,18 @@ interface SpartanGymApi {
         @Body request: RegistroProgresoRequest
     ): Response<ControlBiometricoResponse>
 
+    // Reporta la transferencia del pago de la membresía: queda "Pendiente" hasta que
+    // recepción la confirma en el banco; recién ahí se activa el plan.
     @POST("api/pagos/mi-membresia")
-    suspend fun renovarMiMembresia(
-        @Body request: CompraMembresiaAppRequest
-    ): Response<FacturaMembresiaAppResponse>
+    suspend fun reportarTransferencia(
+        @Body request: SolicitudTransferenciaAppRequest
+    ): Response<SolicitudPagoAppResponse>
+
+    @GET("api/pagos/mis-solicitudes")
+    suspend fun misSolicitudesPago(): Response<List<SolicitudPagoAppResponse>>
+
+    @GET("api/cuentas-bancarias")
+    suspend fun cuentasBancarias(): Response<List<CuentaBancariaApp>>
 
     @POST("api/ventas/productos/mi-compra")
     suspend fun comprarProducto(

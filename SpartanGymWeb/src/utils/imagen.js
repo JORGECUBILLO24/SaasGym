@@ -26,8 +26,12 @@ export const prepararImagen = async (
     throw new Error(`La imagen no debe superar ${mb} MB.`);
   }
 
+  // SVG no se acepta: puede llevar scripts y la API lo rechaza.
+  if (archivo.type === 'image/svg+xml') {
+    throw new Error('Usa una imagen PNG, JPG o WEBP (SVG no está permitido).');
+  }
   const dataUrl = await leerArchivoComoDataUrl(archivo);
-  if (archivo.type === 'image/svg+xml' || typeof document === 'undefined') {
+  if (typeof document === 'undefined') {
     return dataUrl;
   }
 

@@ -14,6 +14,7 @@ import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.RolRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.security.AlcanceSucursal;
 import ni.edu.uam.GimnasioAPI.security.JwtService;
 import ni.edu.uam.GimnasioAPI.security.UserDetailsImpl;
 import ni.edu.uam.GimnasioAPI.util.ValidacionCuenta;
@@ -152,7 +153,10 @@ public class PersonalService {
         if (request.getEspecialidad() != null) {
             personal.setEspecialidad(request.getEspecialidad().trim());
         }
-        if (request.getSucursalId() != null) {
+        // Recepción y entrenadores no eligen su propia sucursal: es lo que limita qué socios,
+        // pedidos e inventario pueden tocar. Si la mandan se ignora; la asigna administración.
+        String rolActual = usuario.getRol() != null ? usuario.getRol().getNombre() : "";
+        if (request.getSucursalId() != null && !AlcanceSucursal.esRolDeSucursal(rolActual)) {
             personal.setSucursal(obtenerSucursalOpcional(request.getSucursalId()));
         }
 

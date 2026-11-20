@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import process from 'node:process'
 
 export default defineConfig({
   plugins: [
@@ -11,6 +12,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
+    // Mismo dominio que en producción (Vercel reenvía /api a Render): la cookie de sesión
+    // HttpOnly funciona igual en desarrollo. VITE_API_PROXY permite apuntar a otra API.
+    proxy: {
+      '/api': { target: process.env.VITE_API_PROXY || 'http://localhost:8080', changeOrigin: true },
+      '/gifs': { target: process.env.VITE_API_PROXY || 'http://localhost:8080', changeOrigin: true },
+    },
   },
   preview: {
     host: '0.0.0.0',

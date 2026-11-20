@@ -17,7 +17,7 @@ import {
 } from '../../utils/cuentaActual';
 import { useLogosApp } from '../../utils/logosApp';
 import { SucursalProvider } from '../../context/SucursalContext';
-import { operacionApi } from '../../services/api';
+import { cerrarSesionServidor, operacionApi } from '../../services/api';
 import { obtenerNombreGimnasio, useConfiguracionApp } from '../../utils/configuracionApp';
 
 const AdminLayout = () => {
@@ -56,6 +56,7 @@ const AdminLayout = () => {
   }, []);
 
   const cerrarSesion = () => {
+    cerrarSesionServidor();
     cerrarSesionActual('manual');
     setMenuAbierto(false);
     navigate('/login', { replace: true });

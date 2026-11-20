@@ -54,11 +54,12 @@ const roleMatches = (actualRole, allowedRoles) => {
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const location = useLocation();
-  const token = authStorage.getToken();
+  // La sesión real está en la cookie HttpOnly; si venció, la primera llamada devuelve 401 y
+  // apiRequest manda al login. Aquí basta con saber quién inició sesión.
   const user = authStorage.getUser();
   const role = user?.rol?.toUpperCase();
 
-  if (!token) {
+  if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

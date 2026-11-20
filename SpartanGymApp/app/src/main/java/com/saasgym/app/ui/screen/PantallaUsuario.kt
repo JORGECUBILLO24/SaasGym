@@ -71,12 +71,13 @@ import com.saasgym.app.network.PedidoSocioRequest
 import com.saasgym.app.ui.components.escalaAlPresionar
 import com.saasgym.app.network.AsistenciaQrRequest
 import com.saasgym.app.network.AsistenciaQrValidationResponse
-import com.saasgym.app.network.CompraMembresiaAppRequest
+import com.saasgym.app.network.CuentaBancariaApp
+import com.saasgym.app.network.SolicitudPagoAppResponse
+import com.saasgym.app.network.SolicitudTransferenciaAppRequest
 import com.saasgym.app.network.CompraProductoAppRequest
 import com.saasgym.app.network.ControlBiometricoResponse
 import com.saasgym.app.network.DashboardResponse
 import com.saasgym.app.network.EjercicioRutinaResponse
-import com.saasgym.app.network.FacturaMembresiaAppResponse
 import com.saasgym.app.network.TipoMembresiaResponse
 import com.saasgym.app.network.MarcarEjercicioRequest
 import com.saasgym.app.network.PagoSocioResponse
@@ -1173,6 +1174,9 @@ private fun ProgresoUsuario(
 }
 
 // ─── Renovar / pagar membresia (socio desde la app) ─────────────────────────
+// El pago desde la app es solo por transferencia: el socio elige el plan y la cuenta del
+// gimnasio (las publica administración en la web), transfiere y reporta la referencia.
+// La membresía se activa cuando recepción confirma el dinero en el banco.
 @Composable
 private fun RenovarMembresiaUsuario(
     tipos: List<TipoMembresiaResponse>,
@@ -1181,36 +1185,62 @@ private fun RenovarMembresiaUsuario(
     onVolver: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    @Suppress("DEPRECATION")
+    val portapapeles = androidx.compose.ui.platform.LocalClipboardManager.current
     var seleccionId by remember { mutableStateOf<Int?>(null) }
-    var metodo by remember { mutableStateOf("Efectivo") }
+    var cuentaId by remember { mutableStateOf<String?>(null) }
+    var referencia by remember { mutableStateOf("") }
+    var cuentas by remember { mutableStateOf<List<CuentaBancariaApp>>(emptyList()) }
+    var solicitudes by remember { mutableStateOf<List<SolicitudPagoAppResponse>>(emptyList()) }
+    var cargando by remember { mutableStateOf(true) }
     var procesando by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var factura by remember { mutableStateOf<FacturaMembresiaAppResponse?>(null) }
+    var enviada by remember { mutableStateOf<SolicitudPagoAppResponse?>(null) }
+    var copiado by remember { mutableStateOf<String?>(null) }
 
-    fun pagar() {
+    LaunchedEffect(Unit) {
+        try {
+            val respCuentas = RetrofitClient.apiService.cuentasBancarias()
+            if (respCuentas.isSuccessful) cuentas = respCuentas.body().orEmpty()
+            val respSolicitudes = RetrofitClient.apiService.misSolicitudesPago()
+            if (respSolicitudes.isSuccessful) solicitudes = respSolicitudes.body().orEmpty()
+            if (cuentas.size == 1) cuentaId = cuentas.first().id
+        } catch (e: Exception) {
+            error = "No se pudieron cargar las cuentas del gimnasio. Revisa tu conexión."
+        } finally {
+            cargando = false
+        }
+    }
+
+    val pendiente = enviada ?: solicitudes.firstOrNull { it.estado == "Pendiente" }
+    val ultimaRechazada = solicitudes.firstOrNull()?.takeIf { it.estado == "Rechazada" }
+
+    fun enviar() {
         val id = seleccionId
-        if (id == null) {
-            error = "Selecciona un plan"
-            return
+        val cuenta = cuentaId
+        val ref = referencia.trim()
+        when {
+            id == null -> { error = "Selecciona un plan"; return }
+            cuenta == null -> { error = "Elige la cuenta a la que transferiste"; return }
+            ref.length < 3 -> { error = "Escribe el número de referencia de tu transferencia"; return }
         }
         if (procesando) return
         procesando = true
         error = null
         scope.launch {
             try {
-                val resp = RetrofitClient.apiService.renovarMiMembresia(
-                    CompraMembresiaAppRequest(tipoMembresiaId = id, metodoPago = metodo)
+                val resp = RetrofitClient.apiService.reportarTransferencia(
+                    SolicitudTransferenciaAppRequest(tipoMembresiaId = id!!, cuentaBancariaId = cuenta!!, referencia = ref)
                 )
                 val cuerpo = resp.body()
                 if (!resp.isSuccessful || cuerpo == null) {
-                    val detalle = mensajeDeError(resp.errorBody()?.string())
-                    error = detalle ?: "No se pudo procesar el pago (${resp.code()})."
+                    error = mensajeDeError(resp.errorBody()?.string()) ?: "No se pudo enviar el pago (${resp.code()})."
                 } else {
-                    factura = cuerpo
+                    enviada = cuerpo
                     onRenovado()
                 }
             } catch (e: Exception) {
-                error = e.message ?: "No se pudo procesar el pago."
+                error = e.message ?: "No se pudo enviar el pago."
             } finally {
                 procesando = false
             }
@@ -1220,24 +1250,26 @@ private fun RenovarMembresiaUsuario(
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
         BotonVolver(onVolver)
         Spacer(Modifier.height(16.dp))
-        SeccionHeader("Membresía", "Renueva o paga tu plan")
+        SeccionHeader("Membresía", "Paga tu plan por transferencia")
         Spacer(Modifier.height(16.dp))
 
-        val fac = factura
-        if (fac != null) {
+        if (pendiente != null) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0D2B18),
-                border = BorderStroke(1.dp, VerdeEstado.copy(alpha = 0.35f)),
+                color = Superficie,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("Pago registrado", color = VerdeEstado, fontSize = 22.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
+                    Text("Pago en revisión", color = Color.White, fontSize = 22.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Recepción confirmará tu transferencia y te avisaremos cuando la membresía esté activa.",
+                        color = Color(0xFFD4D4D8), fontSize = 13.sp, lineHeight = 18.sp)
                     Spacer(Modifier.height(10.dp))
-                    FilaDato("Factura", fac.numeroFactura.apiValor())
-                    FilaDato("Plan", fac.tipoMembresia.apiValor())
-                    FilaDato("Total", "${simboloMoneda(appConfig.currency)}${"%.2f".format(fac.total ?: 0.0)}", "Pagado")
-                    FilaDato("Vence", fechaMovil(fac.fechaVencimiento))
+                    FilaDato("Plan", pendiente.tipoMembresia.apiValor())
+                    FilaDato("Monto", "${simboloMoneda(appConfig.currency)}${"%.2f".format(pendiente.monto ?: 0.0)}")
+                    FilaDato("Cuenta", "${pendiente.banco.apiValor()} ${pendiente.numeroCuenta.orEmpty()}")
+                    FilaDato("Referencia", pendiente.referencia.apiValor())
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -1249,10 +1281,27 @@ private fun RenovarMembresiaUsuario(
             ) {
                 Text("Listo", color = Color.White, fontWeight = FontWeight.Bold)
             }
+        } else if (cargando) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         } else if (tipos.isEmpty()) {
             EstadoVacioAPI("Sin planes", "No hay planes de membresía disponibles.")
+        } else if (cuentas.isEmpty()) {
+            EstadoVacioAPI("Pago en recepción", "El gimnasio aún no publicó cuentas para transferencias. Puedes pagar tu membresía en recepción.")
         } else {
-            Text("Elige tu plan", color = GrisTexto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            ultimaRechazada?.let { rechazo ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF2A0D0D),
+                    border = BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Tu último pago (ref. ${rechazo.referencia.orEmpty()}) no se confirmó: ${rechazo.motivoRechazo.orEmpty()}",
+                        color = Color(0xFFFECACA), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(12.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Text("1. Elige tu plan", color = GrisTexto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
             tipos.forEach { tipo ->
                 val sel = seleccionId == tipo.id
@@ -1290,38 +1339,67 @@ private fun RenovarMembresiaUsuario(
             }
 
             Spacer(Modifier.height(8.dp))
-            Text("Método de pago", color = GrisTexto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("2. Transfiere a una de estas cuentas", color = GrisTexto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Efectivo", "Tarjeta", "Transferencia").forEach { m ->
-                    val activo = metodo == m
-                    Surface(
-                        modifier = Modifier.weight(1f).clickable { metodo = m },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (activo) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Superficie,
-                        border = BorderStroke(1.dp, if (activo) MaterialTheme.colorScheme.primary else BordeSutil)
-                    ) {
-                        Text(
-                            m,
-                            color = if (activo) Color.White else GrisTexto,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)
-                        )
+            cuentas.forEach { cuenta ->
+                val activa = cuentaId == cuenta.id
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { cuentaId = cuenta.id },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (activa) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Superficie,
+                    border = BorderStroke(1.dp, if (activa) MaterialTheme.colorScheme.primary else BordeSutil)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("${cuenta.banco.apiValor()} · ${cuenta.tipoCuenta.apiValor()} · ${cuenta.moneda.apiValor()}",
+                                color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(cuenta.numeroCuenta.apiValor(), color = Color.White, fontSize = 16.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = FontWeight.SemiBold)
+                            Text(cuenta.titular.apiValor(), color = Color(0xFFBDBDC4), fontSize = 12.sp)
+                        }
+                        TextButton(onClick = {
+                            portapapeles.setText(androidx.compose.ui.text.AnnotatedString(cuenta.numeroCuenta.orEmpty()))
+                            copiado = cuenta.id
+                            cuentaId = cuenta.id
+                        }) {
+                            Text(if (copiado == cuenta.id) "Copiado" else "Copiar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
             }
+
+            Spacer(Modifier.height(8.dp))
+            Text("3. Escribe la referencia del comprobante", color = GrisTexto, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = referencia,
+                onValueChange = { referencia = it.take(40) },
+                singleLine = true,
+                label = { Text("Número de referencia", color = Color(0xFFBDBDC4)) },
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = BordeSutil,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedContainerColor = Superficie,
+                    unfocusedContainerColor = Superficie
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
 
             error?.let {
                 Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(it, color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { pagar() },
-                enabled = !procesando && seleccionId != null,
+                onClick = { enviar() },
+                enabled = !procesando && seleccionId != null && cuentaId != null && referencia.trim().length >= 3,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -1333,8 +1411,11 @@ private fun RenovarMembresiaUsuario(
                     CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                 }
-                Text(if (procesando) "Procesando" else "Pagar y generar factura", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(if (procesando) "Enviando" else "Ya transferí, enviar comprobante", color = Color.White, fontWeight = FontWeight.Bold)
             }
+            Spacer(Modifier.height(8.dp))
+            Text("Tu membresía se activa cuando recepción confirma el pago en el banco.",
+                color = Color(0xFFBDBDC4), fontSize = 12.sp, lineHeight = 17.sp)
         }
     }
 }

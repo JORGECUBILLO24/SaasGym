@@ -1182,7 +1182,7 @@ const FacturaComercialVista = ({ factura, configuracion, formatearMonto, formate
       <div className="mt-7 overflow-x-auto">
         <table className="w-full min-w-[620px] border-collapse text-sm">
           <thead>
-            <tr className="bg-neutral-950 text-left text-[11px] uppercase text-white">
+            <tr className="superficie-oscura bg-neutral-950 text-left text-[11px] uppercase text-white">
               <th className="px-4 py-3">Producto</th>
               <th className="px-4 py-3 text-center">Cant.</th>
               <th className="px-4 py-3 text-right">Unitario</th>

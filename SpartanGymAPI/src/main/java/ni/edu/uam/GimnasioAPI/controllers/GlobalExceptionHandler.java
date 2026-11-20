@@ -43,7 +43,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<String> handleApi(ApiException ex, HttpServletRequest request) {
         log.warn("{} en {}: {}", ex.getStatus().value(), origen(request), ex.getMessage());
-        return respuestaError.construir(ex.getStatus(), ex.getCodigo(), ex.getMessage(), request);
+        ResponseEntity<String> respuesta = respuestaError.construir(ex.getStatus(), ex.getCodigo(), ex.getMessage(), request);
+        if (ex instanceof ni.edu.uam.GimnasioAPI.exceptions.DemasiadosIntentosException limite) {
+            return ResponseEntity.status(respuesta.getStatusCode())
+                    .headers(respuesta.getHeaders())
+                    .header(org.springframework.http.HttpHeaders.RETRY_AFTER, String.valueOf(limite.getSegundosEspera()))
+                    .body(respuesta.getBody());
+        }
+        return respuesta;
     }
 
     // Falta de permisos (@PreAuthorize) -> 403

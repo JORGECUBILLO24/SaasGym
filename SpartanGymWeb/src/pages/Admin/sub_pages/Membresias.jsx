@@ -195,7 +195,7 @@ const Membresias = () => {
 };
 
 const TarjetaMembresia = ({ data, formatearMonto, nombreGimnasio }) => (
-  <article className="relative flex aspect-[16/10] w-full max-w-[320px] flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#241216] via-[#121216] to-black p-5 shadow-2xl">
+  <article className="superficie-oscura relative flex aspect-[16/10] w-full max-w-[320px] flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#241216] via-[#121216] to-black p-5 shadow-2xl">
     {data.imagenUrl && <img src={data.imagenUrl} className="absolute inset-0 h-full w-full object-cover opacity-80" alt="" loading="lazy" decoding="async" />}
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
 

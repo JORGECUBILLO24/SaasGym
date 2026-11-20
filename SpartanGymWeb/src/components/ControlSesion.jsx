@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { cerrarSesionActual } from '../utils/cuentaActual';
+import { cerrarSesionServidor } from '../services/api';
 
 const TIEMPO_INACTIVIDAD_MS = 60 * 60 * 1000;
 const eventosActividad = ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'];
@@ -12,6 +13,7 @@ const ControlSesion = () => {
   const [motivoCierre, setMotivoCierre] = useState('');
 
   const cerrarPorInactividad = useCallback(() => {
+    cerrarSesionServidor();
     cerrarSesionActual('inactividad');
     setMotivoCierre('Tu sesion se cerro porque no hubo actividad durante 1 hora.');
   }, []);
