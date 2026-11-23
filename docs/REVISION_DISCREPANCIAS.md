@@ -57,7 +57,7 @@ de primera compra para probar este comportamiento.
 | Media | README afirmaba que todos los errores eran estructurados. `exceptions/RespuestaError.java` solo produce problem JSON con `Accept: application/problem+json`; de lo contrario usa texto. | Corregido README. Postman debe enviar el encabezado para comprobar `codigo`, `status`, `detail` e `instance`. |
 | Media | README solo pedía Java 17+; `gradle/gradle-daemon-jvm.properties` exige Java 21 para Android y `app/build.gradle.kts` declara SDK 36 con minorApiLevel 1. | Corregidos requisitos README. Java 17 sigue siendo el nivel de compilación de la API. |
 | Media | `.github/workflows/ci.yml` instala explícitamente `platforms;android-36` y Java 17 para Android; la app pide SDK 36.1 y daemon Java 21. | Diferencia de aprovisionamiento pendiente de comprobar en CI: Gradle puede descargar componentes adicionales, pero el workflow no los declara explícitamente. Alinear SDK y Java con el proyecto para evitar depender de descargas implícitas. |
-| Media | La copia `SaasGymApp/app/src/main/java/com/saasgym/app/resources/database/scrips.txt` no incluye `password_reset_tokens`, `ejercicios_completados` ni los campos semanales actuales, y contiene caracteres mal codificados. | Usar exclusivamente `gimnasio_schema.sql` raíz. La copia Android debe retirarse o convertirse en una referencia al esquema canónico, sin ejecutar ambos scripts. |
+| Media | La copia `SpartanGymApp/app/src/main/java/com/saasgym/app/resources/database/scrips.txt` no incluye `password_reset_tokens`, `ejercicios_completados` ni los campos semanales actuales, y contiene caracteres mal codificados. | Usar exclusivamente `gimnasio_schema.sql` raíz. La copia Android debe retirarse o convertirse en una referencia al esquema canónico, sin ejecutar ambos scripts. |
 | Baja | README usaba `npm install`, aunque hay un lockfile y CI usa `npm ci`. Las dependencias instaladas Vite y ESLint requieren versiones concretas de Node. | README raíz actualizado a `npm ci` y Node 22.13+ (recomendado 24). |
 
 ## Observaciones del esquema y de las reglas de negocio
@@ -89,7 +89,7 @@ no deben usarse como datos de prueba actuales.
 
 ## Validación realizada para la corrección de serialización
 
-Desde `SaasGymAPI`, `mvnw.cmd -B -Dtest=UsuarioJsonTest test` compiló las
+Desde `SpartanGymAPI`, `mvnw.cmd -B -Dtest=UsuarioJsonTest test` compiló las
 fuentes y ejecutó una prueba: 1 aprobada, 0 fallos, 0 errores. La prueba construye
 el grafo real MembresiaSocio → Socio → Usuario y lo serializa con Jackson 3.
 No se hicieron compras, renovaciones ni cambios de credenciales para esta

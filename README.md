@@ -32,9 +32,9 @@ git clone https://github.com/JORGECUBILLO24/SaasGym.git
 cd SaasGym
 ```
 
-Crea una base de datos PostgreSQL vacía llamada `saasgym_db`. Al arrancar, la
+Crea una base de datos PostgreSQL vacía llamada `spartangym_db`. Al arrancar, la
 API crea las tablas sola con **Flyway** (migraciones en
-`SaasGymAPI/src/main/resources/db/migration`). Hibernate está con
+`SpartanGymAPI/src/main/resources/db/migration`). Hibernate está con
 `ddl-auto=none` y no toca el esquema. Reglas para cambiar la base:
 [docs/MIGRACIONES.md](docs/MIGRACIONES.md).
 
@@ -49,7 +49,7 @@ Variables mínimas para desarrollo local:
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
-$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/saasgym_db"
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/spartangym_db"
 $env:SPRING_DATASOURCE_USERNAME = "postgres"
 $env:SPRING_DATASOURCE_PASSWORD = "tu-clave-local"
 $jwtBytes = New-Object byte[] 32
@@ -59,7 +59,7 @@ $jwtRng.Dispose()
 $env:JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
 ```
 
-Desde `SaasGymAPI`:
+Desde `SpartanGymAPI`:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
@@ -72,12 +72,12 @@ misma clave entre reinicios para mantener válidas las sesiones existentes.
 El perfil `local` tiene una clave de respaldo exclusivamente para desarrollo.
 
 Para no repetir variables en cada terminal también puedes crear
-`SaasGymAPI/src/main/resources/application-local.properties`. Ese archivo
+`SpartanGymAPI/src/main/resources/application-local.properties`. Ese archivo
 está excluido de Git y no debe contener credenciales que se quieran compartir.
 
 ### 3. Configurar y ejecutar el web
 
-Desde `SaasGymWeb`:
+Desde `SpartanGymWeb`:
 
 ```powershell
 npm ci
@@ -102,10 +102,10 @@ npm run build
 
 ### 4. Configurar y ejecutar Android
 
-Abre `SaasGymApp` desde Android Studio y espera la sincronización de Gradle.
+Abre `SpartanGymApp` desde Android Studio y espera la sincronización de Gradle.
 La configuración actual requiere Android SDK 36.1 y un daemon Gradle con Java 21
 (ver `app/build.gradle.kts` y `gradle/gradle-daemon-jvm.properties`).
-Si Gradle no encuentra el SDK, crea `SaasGymApp/local.properties` con una ruta
+Si Gradle no encuentra el SDK, crea `SpartanGymApp/local.properties` con una ruta
 local, por ejemplo:
 
 ```properties
@@ -116,7 +116,7 @@ La URL de la API se configura mediante propiedades de Gradle:
 
 ```powershell
 .\gradlew.bat test
-.\gradlew.bat assembleDebug -PSAASGYM_API_BASE_URL_DEBUG=http://10.0.2.2:8080/
+.\gradlew.bat assembleDebug -PSPARTANGYM_API_BASE_URL_DEBUG=http://10.0.2.2:8080/
 ```
 
 `10.0.2.2` apunta al equipo anfitrión cuando se usa el emulador Android. En un
@@ -125,7 +125,7 @@ dispositivo físico debe usarse la IP accesible del equipo que ejecuta la API.
 ## Despliegue
 
 - `render.yaml` contiene la definición del servicio de API para Render.
-- `SaasGymWeb/.env.example` documenta la URL pública de la API para Vercel u
+- `SpartanGymWeb/.env.example` documenta la URL pública de la API para Vercel u
   otro hosting estático.
 - Las variables de producción deben configurarse en el proveedor de despliegue;
   nunca deben incluirse en Git.
@@ -155,14 +155,14 @@ habilitado; no guardes esas credenciales en Git.
 API:
 
 ```powershell
-cd SaasGymAPI
+cd SpartanGymAPI
 .\mvnw.cmd test
 ```
 
 Web:
 
 ```powershell
-cd SaasGymWeb
+cd SpartanGymWeb
 npm ci
 npm run lint
 npm run build
@@ -171,7 +171,7 @@ npm run build
 Android:
 
 ```powershell
-cd SaasGymApp
+cd SpartanGymApp
 .\gradlew.bat test
 ```
 
@@ -207,8 +207,8 @@ La web y Android deben usar la misma instancia de la API. La dirección
 misma red que el equipo, usa la IP de red del equipo en el APK de depuración:
 
 ```powershell
-cd SaasGymApp
-.\gradlew.bat assembleDebug "-PSAASGYM_API_BASE_URL_DEBUG=http://IP_DEL_EQUIPO:8080/"
+cd SpartanGymApp
+.\gradlew.bat assembleDebug "-PSPARTANGYM_API_BASE_URL_DEBUG=http://IP_DEL_EQUIPO:8080/"
 ```
 
 Comprueba desde el celular que la API responde en esa dirección antes de probar
@@ -221,7 +221,7 @@ Crea un cliente OAuth de tipo aplicación web en Google Cloud y autoriza
 autoriza el origen HTTPS real del frontend.
 
 - API: configura `GOOGLE_CLIENT_ID` con el ID público del cliente.
-- Web: configura `VITE_GOOGLE_CLIENT_ID` con el mismo ID en `SaasGymWeb/.env`.
+- Web: configura `VITE_GOOGLE_CLIENT_ID` con el mismo ID en `SpartanGymWeb/.env`.
 - API: configura `GOOGLE_ACCOUNT_LINKS` con las vinculaciones autorizadas en formato
   `sub=correo,sub=correo`. Cada correo debe corresponder a una cuenta activa de
   SaasGym y al correo verificado del token. Usa el identificador estable

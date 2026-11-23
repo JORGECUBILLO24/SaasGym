@@ -3,9 +3,9 @@
 Estado: propuesta de evolución, no arquitectura multiempresa ya implementada.
 
 ## Componentes actuales
-- `SaasGymWeb`: React 19, Vite, Tailwind; admin y recepción.
-- `SaasGymApp`: Android Kotlin/Compose para socios y entrenadores.
-- `SaasGymAPI`: Spring Boot 4, Java, seguridad JWT y lógica de negocio.
+- `SpartanGymWeb`: React 19, Vite, Tailwind; admin y recepción.
+- `SpartanGymApp`: Android Kotlin/Compose para socios y entrenadores.
+- `SpartanGymAPI`: Spring Boot 4, Java, seguridad JWT y lógica de negocio.
 - PostgreSQL: fuente de verdad para usuarios, membresías, pagos, inventario y asistencias.
 
 ## Redis opcional para el flujo QR web
