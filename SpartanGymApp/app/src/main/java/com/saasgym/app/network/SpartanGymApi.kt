@@ -126,6 +126,27 @@ interface SpartanGymApi {
         @Body request: RutinaRequest
     ): Response<ResponseBody>
 
+    @GET("api/rutinas")
+    suspend fun listarRutinas(): Response<List<RutinaResumenResponse>>
+
+    @PUT("api/rutinas/{id}")
+    suspend fun actualizarRutina(@Path("id") id: String, @Body request: RutinaRequest): Response<RutinaResumenResponse>
+
+    @GET("api/asistencias/socio/{id}")
+    suspend fun obtenerAsistenciasSocio(@Path("id") id: String): Response<List<AsistenciaHistorialResponse>>
+
+    @PUT("api/personal/me")
+    suspend fun actualizarPerfilEntrenador(@Body request: ActualizarPerfilEntrenadorRequest): Response<EntrenadorPerfilResponse>
+
+    @GET("api/catalogo/grupos-musculares")
+    suspend fun listarGrupos(): Response<List<GrupoMuscularResponse>>
+
+    @POST("api/catalogo/grupos-musculares")
+    suspend fun crearGrupo(@Body request: CrearGrupoRequest): Response<GrupoMuscularResponse>
+
+    @POST("api/catalogo/ejercicios")
+    suspend fun crearEjercicio(@Body request: CrearEjercicioRequest): Response<EjercicioCatalogoResponse>
+
     @POST("api/rutinas/{rutinaId}/ejercicios/{ejercicioId}/completar")
     suspend fun marcarEjercicioCompletado(
         @Path("rutinaId") rutinaId: String,

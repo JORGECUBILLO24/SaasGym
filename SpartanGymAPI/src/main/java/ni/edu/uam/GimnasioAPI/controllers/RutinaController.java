@@ -42,6 +42,13 @@ public class RutinaController {
         return ResponseEntity.ok(rutinaService.crearRutinaPersonalizada(request));
     }
 
+    @PutMapping("/{rutinaId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_ENTRENADOR')")
+    public ResponseEntity<Map<String, Object>> actualizarRutina(@PathVariable UUID rutinaId,
+            @RequestBody RutinaRequest request, Authentication auth) {
+        return ResponseEntity.ok(rutinaService.actualizarRutina(rutinaId, request, auth));
+    }
+
     @PostMapping("/global")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_ENTRENADOR')")
     public ResponseEntity<Map<String, Object>> crearRutinaGlobal(@RequestBody RutinaRequest request, Authentication auth) {

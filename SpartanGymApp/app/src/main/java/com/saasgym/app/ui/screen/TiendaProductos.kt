@@ -40,6 +40,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -306,9 +308,13 @@ internal fun TabVenderEntrenador(appConfig: AppConfigResponse, acento: Color) {
     var esError by remember { mutableStateOf(false) }
 
     suspend fun cargar() {
+        cargando = true; mensaje = null
         try {
-            productos = RetrofitClient.apiService.listarProductosCatalogo().body().orEmpty()
-            socios = RetrofitClient.apiService.listarSocios().body().orEmpty().mapNotNull { it.comoPersona() }
+            val p = RetrofitClient.apiService.listarProductosCatalogo()
+            val s = RetrofitClient.apiService.listarSocios()
+            productos = p.body().takeIf { p.isSuccessful } ?: throw IllegalStateException("No se pudieron cargar los productos (${p.code()})")
+            socios = (s.body().takeIf { s.isSuccessful } ?: throw IllegalStateException("No se pudieron cargar los socios (${s.code()})")).mapNotNull { it.comoPersona() }
+            esError = false
         } catch (e: Exception) {
             esError = true; mensaje = e.message ?: "No se pudieron cargar los productos."
         } finally { cargando = false }
@@ -336,7 +342,7 @@ internal fun TabVenderEntrenador(appConfig: AppConfigResponse, acento: Color) {
     }
 
     val recibidoNum = recibido.replace(',', '.').toDoubleOrNull()
-    val listo = carrito.isNotEmpty() && !guardando &&
+    val listo = !cargando && !esError && carrito.isNotEmpty() && !guardando &&
         (if (eventual) nombreEventual.isNotBlank() else socioId != null) &&
         (metodo != "Efectivo" || (recibidoNum != null && recibidoNum >= total - 0.005))
 
@@ -405,6 +411,10 @@ internal fun TabVenderEntrenador(appConfig: AppConfigResponse, acento: Color) {
 
         when {
             cargando -> CircularProgressIndicator(color = acento, strokeWidth = 2.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+            esError -> Column {
+                Text(mensaje ?: "No se pudieron cargar los datos", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { scope.launch { cargar() } }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
+            }
             productos.isEmpty() -> Text("Tu sucursal aún no tiene productos.", color = T_GRIS, fontSize = 13.sp)
             !buscando -> Text("Busca un producto por nombre o elige una categoría. Hay ${productos.size} disponibles.", color = T_GRIS, fontSize = 13.sp)
             visibles.isEmpty() -> Text("Ningún producto coincide. Prueba con otra palabra.", color = T_GRIS, fontSize = 13.sp)

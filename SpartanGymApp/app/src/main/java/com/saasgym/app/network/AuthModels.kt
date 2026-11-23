@@ -403,6 +403,7 @@ data class EntrenadorClienteResponse(
 
 data class EntrenadorPerfilResponse(
     val id: String? = null,
+    val fotoUrl: String? = null,
     val email: String? = null,
     val rol: String? = null,
     val activo: Boolean? = null,
@@ -414,6 +415,18 @@ data class EntrenadorPerfilResponse(
     val sucursalId: String? = null,
     val sucursal: String? = null
 )
+
+data class AsistenciaHistorialResponse(
+    val fechaHora: String? = null, val estado: String? = null, val mensaje: String? = null
+)
+
+data class ActualizarPerfilEntrenadorRequest(
+    val nombres: String, val apellidos: String? = null, val telefono: String, val especialidad: String
+)
+
+data class CrearGrupoRequest(val nombre: String)
+
+data class CrearEjercicioRequest(val nombre: String, val grupoMuscular: GrupoMuscularResponse)
 
 data class PagoSocioResponse(
     val id: String? = null,

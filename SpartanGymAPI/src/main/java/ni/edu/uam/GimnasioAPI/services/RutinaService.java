@@ -55,10 +55,13 @@ public class RutinaService {
         if (usuarioId == null) {
             return List.of();
         }
-        Personal entrenador = personalRepository.findById(usuarioId).orElse(null);
-        if (entrenador == null || !esEntrenador(entrenador)) {
+        boolean rolEntrenador = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ENTRENADOR".equals(a.getAuthority()));
+        if (!rolEntrenador) {
             return listarRutinas();
         }
+        Personal entrenador = personalRepository.findById(usuarioId).orElse(null);
+        if (entrenador == null) return List.of();
         UUID sucursalId = entrenador.getSucursal() != null ? entrenador.getSucursal().getId() : null;
         if (sucursalId == null) {
             return List.of();
@@ -93,6 +96,44 @@ public class RutinaService {
         Rutina guardada = rutinaRepository.save(construirRutina(request, socio, entrenador, false));
         notificarRutinaAsignada(guardada);
         return guardada;
+    }
+
+    @Transactional
+    public Map<String, Object> actualizarRutina(UUID id, RutinaRequest request, Authentication auth) {
+        Rutina actual = rutinaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Rutina no encontrada"));
+        boolean entrenador = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ENTRENADOR".equals(a.getAuthority()));
+        if (entrenador) {
+            UUID usuarioId = usuarioRepository.findByEmailIgnoreCase(auth.getName())
+                    .orElseThrow(() -> new NoAutenticadoException("Usuario autenticado no encontrado"))
+                    .getId();
+            Personal personal = personalRepository.findById(usuarioId)
+                    .orElseThrow(() -> new NoAutenticadoException("Entrenador no encontrado"));
+            UUID sucursal = personal.getSucursal() == null ? null : personal.getSucursal().getId();
+            UUID sucursalSocio = actual.getSocio().getSucursal() == null ? null : actual.getSocio().getSucursal().getId();
+            if (sucursal == null || !sucursal.equals(sucursalSocio)) {
+                throw new AccesoDenegadoException("La rutina no pertenece a tu sucursal");
+            }
+        }
+        // No se permite cambiar el socio ni el entrenador mediante una edición.
+        request.setIdSocio(actual.getSocio().getUsuarioId());
+        request.setIdEntrenador(actual.getEntrenador().getUsuarioId());
+        request.setEsGlobal(actual.getEsGlobal());
+        validarRutina(request);
+        Rutina cambios = construirRutina(request, actual.getSocio(), actual.getEntrenador(),
+                Boolean.TRUE.equals(actual.getEsGlobal()));
+        actual.setNombre(cambios.getNombre());
+        actual.setTipoRutina(cambios.getTipoRutina());
+        actual.setGeneroObjetivo(cambios.getGeneroObjetivo());
+        actual.setFechaInicio(cambios.getFechaInicio());
+        actual.setFechaFin(cambios.getFechaFin());
+        actual.setObjetivo(cambios.getObjetivo());
+        actual.setNotas(cambios.getNotas());
+        actual.getDetalles().clear();
+        rutinaRepository.flush();
+        cambios.getDetalles().forEach(detalle -> { detalle.setRutina(actual); actual.getDetalles().add(detalle); });
+        return mapearRutina(rutinaRepository.saveAndFlush(actual));
     }
 
     @Transactional
