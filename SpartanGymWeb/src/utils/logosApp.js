@@ -1,5 +1,5 @@
-import LogoAccesoDefecto from '../assets/Logo SpartanGym.webp';
-import LogoPrincipalDefecto from '../assets/Logo Web.webp';
+import LogoAccesoDefecto from '../assets/logo-saasgym.svg';
+import LogoPrincipalDefecto from '../assets/logo-saasgym-horizontal.svg';
 import FondoLoginDefecto from '../assets/fondo_login.webp';
 import { obtenerNombreGimnasio, useConfiguracionApp } from './configuracionApp';
 
@@ -11,7 +11,7 @@ export const LOGOS_APP_DEFECTO = {
 
 const correspondeAlNombreActual = (logo, nombreGuardado, nombreActual) => {
   if (!logo) return false;
-  if (!nombreGuardado) return nombreActual.toLowerCase() === 'spartan gym';
+  if (!nombreGuardado) return nombreActual.toLowerCase() === 'saasgym';
   return String(nombreGuardado).trim().toLowerCase() === nombreActual.trim().toLowerCase();
 };
 
@@ -19,7 +19,7 @@ export const obtenerLogosApp = (configuracion = {}) => {
   const nombre = obtenerNombreGimnasio(configuracion);
   const logoPrincipalValido = correspondeAlNombreActual(configuracion.logoPrincipal, configuracion.logoPrincipalNombre, nombre);
   const logoAccesoValido = correspondeAlNombreActual(configuracion.logoAcceso, configuracion.logoAccesoNombre, nombre);
-  const esMarcaPredeterminada = nombre.toLowerCase() === 'spartan gym';
+  const esMarcaPredeterminada = nombre.toLowerCase() === 'saasgym';
   const principal = logoPrincipalValido
     ? configuracion.logoPrincipal
     : esMarcaPredeterminada ? LOGOS_APP_DEFECTO.principal : '';

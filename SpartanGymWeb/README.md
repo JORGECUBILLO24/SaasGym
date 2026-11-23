@@ -1,6 +1,6 @@
-# SpartanGym Web
+# SaasGym Web
 
-Frontend React/Vite para administración y recepción de SpartanGym.
+Frontend React/Vite para administración y recepción de SaasGym.
 
 ## Desarrollo
 

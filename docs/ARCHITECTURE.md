@@ -1,11 +1,11 @@
-# Arquitectura y ruta SaaS — SpartanGym
+# Arquitectura y ruta SaaS — SaasGym
 
 Estado: propuesta de evolución, no arquitectura multiempresa ya implementada.
 
 ## Componentes actuales
-- `SpartanGymWeb`: React 19, Vite, Tailwind; admin y recepción.
-- `SpartanGymApp`: Android Kotlin/Compose para socios y entrenadores.
-- `SpartanGymAPI`: Spring Boot 4, Java, seguridad JWT y lógica de negocio.
+- `SaasGymWeb`: React 19, Vite, Tailwind; admin y recepción.
+- `SaasGymApp`: Android Kotlin/Compose para socios y entrenadores.
+- `SaasGymAPI`: Spring Boot 4, Java, seguridad JWT y lógica de negocio.
 - PostgreSQL: fuente de verdad para usuarios, membresías, pagos, inventario y asistencias.
 
 ## Redis opcional para el flujo QR web

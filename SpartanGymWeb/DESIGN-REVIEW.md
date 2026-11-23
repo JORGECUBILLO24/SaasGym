@@ -40,7 +40,7 @@ Los clips se sirven localmente con fotogramas WebP como portada.
 
 ## Galería simplificada y prueba adversarial — 9 de noviembre de 2026
 
-Alcance: `GaleriaSpartan` y su frontera de props `escenas`. Hallazgos registrados antes de corregir; la solicitud del usuario incluye mejorar y reparar la interfaz.
+Alcance: `GaleriaGimnasio` y su frontera de props `escenas`. Hallazgos registrados antes de corregir; la solicitud del usuario incluye mejorar y reparar la interfaz.
 
 | Campo | Origen | Tipo | Límite | Opcional |
 | --- | --- | --- | --- | --- |

@@ -1,7 +1,7 @@
 /* Portada pública: fondo oscuro, texto claro y un solo color de acento
    tomado de la configuración de la app (--accent-color). */
 
-.spartan-editorial {
+.portada-editorial {
   --sp-bg: #090808;
   --sp-surface: #141212;
   --sp-surface-glass: rgba(22, 19, 19, 0.72);
@@ -24,11 +24,11 @@
   overflow-x: clip;
 }
 
-.spartan-editorial [id] {
+.portada-editorial [id] {
   scroll-margin-top: 6rem;
 }
 
-.spartan-editorial :focus-visible {
+.portada-editorial :focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 4px;
 }

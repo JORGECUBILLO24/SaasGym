@@ -39,14 +39,14 @@ import { asistenciasApi, authStorage, cerrarSesionServidor, operacionApi, person
 import { useSucursalGlobal } from '../../../context/SucursalContext';
 import QRCode from 'qrcode';
 
-const CLAVE_PERFIL_ADMIN = 'spartanGym.adminProfile';
+const CLAVE_PERFIL_ADMIN = 'saasGym.adminProfile';
 
 const perfilPorDefecto = {
   nombre: 'Administrador',
-  correo: 'admin@spartangym.com',
+  correo: 'admin@saasgym.com',
   telefono: '+505 0000 0000',
   cargo: 'Administrador General',
-  sucursal: 'SpartanGym Central',
+  sucursal: 'Sede central',
   ubicacion: 'Managua, Nicaragua',
 };
 
@@ -587,7 +587,7 @@ const ModalValidacionQr = ({ onClose }) => {
   const [qrBase64, setQrBase64] = useState(null);
   const [qrSesion, setQrSesion] = useState(null);
   const [estadoQr, setEstadoQr] = useState('pendiente');
-  const [mensajeQr, setMensajeQr] = useState('Escanea este codigo con la App Spartan para registrar tu entrada.');
+  const [mensajeQr, setMensajeQr] = useState('Escanea este código con la app del gimnasio para registrar tu entrada.');
   const [cargandoQr, setCargandoQr] = useState(false);
 
   const generarQr = async () => {

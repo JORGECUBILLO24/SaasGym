@@ -42,10 +42,10 @@ export const urlArchivoApi = (ruta: string | null | undefined): string | null =>
  * El token en localStorage queda solo para sesiones iniciadas antes de este cambio.
  */
 export const authStorage = {
-  getToken: (): string | null => localStorage.getItem('spartan_token'),
-  haySesion: (): boolean => Boolean(localStorage.getItem('spartan_user')),
+  getToken: (): string | null => localStorage.getItem('saasgym_token'),
+  haySesion: (): boolean => Boolean(localStorage.getItem('saasgym_user')),
   getUser: (): UsuarioGuardado | null => {
-    const rawUser = localStorage.getItem('spartan_user');
+    const rawUser = localStorage.getItem('saasgym_user');
     if (!rawUser) return null;
 
     try {
@@ -56,15 +56,15 @@ export const authStorage = {
   },
   setSession: ({ id, token, email, rol }: SesionUsuario): void => {
     if (token) {
-      localStorage.setItem('spartan_token', token);
+      localStorage.setItem('saasgym_token', token);
     } else {
-      localStorage.removeItem('spartan_token');
+      localStorage.removeItem('saasgym_token');
     }
-    localStorage.setItem('spartan_user', JSON.stringify({ id, email, rol }));
+    localStorage.setItem('saasgym_user', JSON.stringify({ id, email, rol }));
   },
   clear: (): void => {
-    localStorage.removeItem('spartan_token');
-    localStorage.removeItem('spartan_user');
+    localStorage.removeItem('saasgym_token');
+    localStorage.removeItem('saasgym_user');
   },
 };
 

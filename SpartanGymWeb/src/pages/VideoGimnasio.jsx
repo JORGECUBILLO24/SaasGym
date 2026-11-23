@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 
-export default function VideoSpartan({ src, poster, className, automatico = false }) {
+export default function VideoGimnasio({ src, poster, className, automatico = false }) {
   const video = useRef(null);
   const [visible, setVisible] = useState(false);
   const [reducido, setReducido] = useState(true);

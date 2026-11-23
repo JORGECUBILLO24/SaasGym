@@ -6,9 +6,9 @@ import videoTecnica from '../assets/gym-training-loop.mp4';
 import escenaAestheticEspacio from '../assets/gym-aesthetic-workout.webp';
 import escenaAestheticPhysique from '../assets/gym-youngla-physique.webp';
 import escenaAestheticFuerza from '../assets/gym-aesthetic-coach.webp';
-import VideoSpartan from './VideoSpartan';
+import VideoGimnasio from './VideoGimnasio';
 import BarraEnsamblada from './BarraEnsamblada';
-import GaleriaSpartan from './GaleriaSpartan';
+import GaleriaGimnasio from './GaleriaGimnasio';
 import { beneficiosInicio } from '../data/homeBenefits';
 import { useLogosApp } from '../utils/logosApp';
 import { obtenerNombreGimnasio, useConfiguracionApp } from '../utils/configuracionApp';
@@ -72,7 +72,7 @@ export default function Home() {
   const botonMenu = useRef(null);
 
   return (
-    <div className="spartan-editorial" id="inicio">
+    <div className="portada-editorial" id="inicio">
       <a className="sp-skip" href="#contenido-portada">
         Saltar al contenido
       </a>
@@ -143,7 +143,7 @@ export default function Home() {
               width="720"
               height="1280"
             />
-            <VideoSpartan className="sp-hero-image" src={videoTecnica} poster={atleta} automatico />
+            <VideoGimnasio className="sp-hero-image" src={videoTecnica} poster={atleta} automatico />
             <div className="sp-hero-vignette" aria-hidden="true" />
           </div>
 
@@ -193,7 +193,7 @@ export default function Home() {
           </div>
 
           <div id="galeria" className="sp-reveal">
-            <GaleriaSpartan escenas={escenas} />
+            <GaleriaGimnasio escenas={escenas} />
           </div>
 
           <div id="beneficios" className="sp-bento-section">

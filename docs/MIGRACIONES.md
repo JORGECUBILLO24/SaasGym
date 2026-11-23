@@ -4,7 +4,7 @@ La API aplica sola los cambios de base de datos al arrancar. Ya no se corre SQL 
 
 ## Dónde están
 
-`SpartanGymAPI/src/main/resources/db/migration/`
+`SaasGymAPI/src/main/resources/db/migration/`
 
 | Archivo | Contenido |
 |---|---|
@@ -38,6 +38,6 @@ Flyway guarda en la tabla `flyway_schema_history` qué versiones ya aplicó. Al 
 
 `FLYWAY_ENABLED=false` lo apaga (solo para emergencias). Las pruebas sin base real lo tienen apagado; las de integración con PostgreSQL lo usan para armar su base.
 
-## Carpeta `SpartanGymAPI/migrations/`
+## Carpeta `SaasGymAPI/migrations/`
 
 Histórico de los scripts que se corrían a mano hasta el 19-nov-2026. Ya están incluidos en V1 y V2; **no agregues archivos nuevos ahí**.

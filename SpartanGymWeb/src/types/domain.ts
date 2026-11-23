@@ -1,6 +1,6 @@
 /**
  * Modelos de dominio para la migración gradual a React + TypeScript.
- * Reflejan los DTO/entidades de SpartanGymAPI; se amplían a medida que se tipan más pantallas.
+ * Reflejan los DTO/entidades de la API; se amplían a medida que se tipan más pantallas.
  */
 export type Rol =
   | 'ROLE_SUPERADMIN'
@@ -20,7 +20,7 @@ export interface SesionUsuario {
   token?: string | null;
 }
 
-/** Usuario que el cliente deja en localStorage ("spartan_user"): la sesión sin el token. */
+/** Usuario que el cliente deja en localStorage ("saasgym_user"): la sesión sin el token. */
 export type UsuarioGuardado = Pick<SesionUsuario, 'id' | 'email' | 'rol'>;
 
 /** Cuerpo de error RFC 9457 (application/problem+json) con el `codigo` estable de la API. */

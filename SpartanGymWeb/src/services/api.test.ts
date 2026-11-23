@@ -49,7 +49,7 @@ describe('apiRequest: cabecera Accept', () => {
 
 describe('apiRequest: autenticación y sucursal', () => {
   it('envía el token y la sucursal elegida', async () => {
-    localStorage.setItem('spartan_token', 'tok-123');
+    localStorage.setItem('saasgym_token', 'tok-123');
     localStorage.setItem('global_sucursal_id', 'suc-9');
     fetchMock.mockResolvedValue(respuesta('[]', 200, 'application/json'));
 
@@ -60,7 +60,7 @@ describe('apiRequest: autenticación y sucursal', () => {
   });
 
   it('con skipAuth no envía el token y con ignoreSucursal no envía la sucursal', async () => {
-    localStorage.setItem('spartan_token', 'tok-123');
+    localStorage.setItem('saasgym_token', 'tok-123');
     localStorage.setItem('global_sucursal_id', 'suc-9');
     fetchMock.mockResolvedValue(respuesta('{}', 200, 'application/json'));
 
@@ -158,8 +158,8 @@ describe('apiRequest: errores RFC 9457', () => {
 
 describe('apiRequest: 401 y sesión vencida', () => {
   beforeEach(() => {
-    localStorage.setItem('spartan_token', 'vencido');
-    localStorage.setItem('spartan_user', JSON.stringify({ email: 'x@x.com', rol: 'ROLE_ADMIN' }));
+    localStorage.setItem('saasgym_token', 'vencido');
+    localStorage.setItem('saasgym_user', JSON.stringify({ email: 'x@x.com', rol: 'ROLE_ADMIN' }));
     localStorage.setItem(CLAVE_CUENTA_ACTUAL, JSON.stringify({ username: 'x@x.com', role: 'Administrador' }));
   });
 
@@ -169,8 +169,8 @@ describe('apiRequest: 401 y sesión vencida', () => {
     await expect(apiRequest('/socios')).rejects.toMatchObject({ status: 401, codigo: 'NO_AUTENTICADO' });
 
     // La sesión vive en dos lugares; si solo se limpiara uno, /login volvía a /admin en loop.
-    expect(localStorage.getItem('spartan_token')).toBeNull();
-    expect(localStorage.getItem('spartan_user')).toBeNull();
+    expect(localStorage.getItem('saasgym_token')).toBeNull();
+    expect(localStorage.getItem('saasgym_user')).toBeNull();
     expect(localStorage.getItem(CLAVE_CUENTA_ACTUAL)).toBeNull();
     expect(JSON.parse(localStorage.getItem(CLAVE_ULTIMO_CIERRE) ?? '{}')).toMatchObject({ motivo: 'sesion-expirada' });
     expect(window.location.href).toBe('/login');
@@ -184,7 +184,7 @@ describe('apiRequest: 401 y sesión vencida', () => {
       status: 401,
     });
 
-    expect(localStorage.getItem('spartan_token')).toBe('vencido');
+    expect(localStorage.getItem('saasgym_token')).toBe('vencido');
     expect(window.location.href).toBe('http://localhost/admin');
   });
 });
@@ -220,7 +220,7 @@ describe('authApi y authStorage', () => {
     expect(authStorage.getToken()).toBe('secreto');
     expect(authStorage.getUser()).toEqual({ id: '1', email: 'a@a.com', rol: 'ROLE_ADMIN' });
     // El token nunca se guarda dentro del objeto de usuario.
-    expect(localStorage.getItem('spartan_user')).not.toContain('secreto');
+    expect(localStorage.getItem('saasgym_user')).not.toContain('secreto');
 
     authStorage.clear();
 
@@ -229,7 +229,7 @@ describe('authApi y authStorage', () => {
   });
 
   it('getUser tolera un valor corrupto', () => {
-    localStorage.setItem('spartan_user', '{corrupto');
+    localStorage.setItem('saasgym_user', '{corrupto');
 
     expect(authStorage.getUser()).toBeNull();
   });

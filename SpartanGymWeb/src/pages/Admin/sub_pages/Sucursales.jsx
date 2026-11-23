@@ -6,7 +6,7 @@ import {
 import { sucursalesApi } from '../../../services/api';
 
 // Reutilizamos la imagen de estadísticas o laptop como fondo de tarjeta, o puedes cambiarla por una de la infraestructura
-import imgGymCard from "../../../assets/EstadisticasSpartan.webp";
+import imgGymCard from "../../../assets/Estadisticas.webp";
 
 const Sucursales = () => {
   const [formData, setFormData] = useState({
@@ -110,7 +110,7 @@ const Sucursales = () => {
                   <Building2 className="absolute left-4 top-3.5 text-gray-500" size={18} />
                   <input 
                     type="text" name="nombreSucursal" required value={formData.nombreSucursal} onChange={handleChange}
-                    placeholder="Ej. Spartan Central, Spartan Norte..." 
+                    placeholder="Ej. Sucursal Central, Sucursal Norte..." 
                     className="w-full bg-[#111] border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-red-600 focus:bg-[#151515] transition-all" 
                   />
                 </div>
@@ -240,7 +240,7 @@ const Sucursales = () => {
             <div className="flex justify-between items-start w-full gap-4 mb-4 relative z-10">
               <div className="overflow-hidden flex-1">
                 <p className="text-[9px] uppercase font-black text-red-500 tracking-widest mb-1 flex items-center gap-1">
-                  <Dumbbell size={10} /> Spartan HQ
+                  <Dumbbell size={10} /> Sede principal
                 </p>
                 <h4 className="text-lg font-black text-white tracking-tight leading-tight break-words w-full">
                   {formData.nombreSucursal || 'NOMBRE DE SUCURSAL'}

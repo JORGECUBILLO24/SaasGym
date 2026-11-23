@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 150" role="img" aria-label="SaasGym">
+  <rect width="500" height="150" rx="34" fill="#0b0b0d"/>
+  <rect x="16" y="16" width="118" height="118" rx="28" fill="#141418" stroke="#e50914" stroke-width="4"/>
+  <g fill="#ffffff">
+    <rect x="32" y="57" width="12" height="36" rx="4"/>
+    <rect x="47" y="49" width="13" height="52" rx="4"/>
+    <rect x="90" y="49" width="13" height="52" rx="4"/>
+    <rect x="106" y="57" width="12" height="36" rx="4"/>
+  </g>
+  <rect x="60" y="69" width="30" height="12" rx="3" fill="#e50914"/>
+  <text x="156" y="101" font-family="'Barlow Condensed','Arial Narrow',Arial,sans-serif" font-weight="800" font-size="74" letter-spacing="1" fill="#ffffff">SAAS<tspan fill="#e50914">GYM</tspan></text>
+</svg>
