@@ -27,13 +27,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: spartangym_it
+          POSTGRES_DB: saasgym_it
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d spartangym_it"
+          --health-cmd "pg_isready -U postgres -d saasgym_it"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -47,10 +47,10 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      SPARTAN_IT_DB_URL: jdbc:postgresql://localhost:5432/spartangym_it
-      SPARTAN_IT_DB_USER: postgres
-      SPARTAN_IT_DB_PASSWORD: postgres
-      SPARTAN_IT_REDIS_URL: redis://localhost:6379
+      SAASGYM_IT_DB_URL: jdbc:postgresql://localhost:5432/saasgym_it
+      SAASGYM_IT_DB_USER: postgres
+      SAASGYM_IT_DB_PASSWORD: postgres
+      SAASGYM_IT_REDIS_URL: redis://localhost:6379
     defaults:
       run:
         working-directory: SpartanGymAPI
