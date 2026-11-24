@@ -69,6 +69,31 @@ class RedisQrWebSessionStoreIntegrationTest {
     }
 
     @Test
+    void guardaQuienGeneroElQr() {
+        RedisQrWebSessionStore almacen = new RedisQrWebSessionStore(instanciaA.plantilla());
+        UUID id = sesion();
+        String creador = UUID.randomUUID().toString();
+
+        almacen.guardar(id, "hash-del-token", Instant.now().plusSeconds(180), creador);
+
+        assertThat(almacen.buscar(id).orElseThrow().creador()).isEqualTo(creador);
+    }
+
+    @Test
+    void leeSesionesGuardadasConElFormatoAnterior() {
+        // Antes se guardaba hashToken|expiraMillis, sin creador.
+        UUID id = sesion();
+        Instant expira = Instant.now().plusSeconds(180);
+        instanciaA.plantilla().opsForValue().set(PREFIJO + id, "hash-viejo|" + expira.toEpochMilli());
+
+        QrWebSessionStore.Session recuperada = new RedisQrWebSessionStore(instanciaA.plantilla()).buscar(id).orElseThrow();
+
+        assertThat(recuperada.tokenHash()).isEqualTo("hash-viejo");
+        assertThat(recuperada.creador()).isNull();
+        assertThat(recuperada.expira().toEpochMilli()).isEqualTo(expira.toEpochMilli());
+    }
+
+    @Test
     void sesionDesconocida_devuelveVacio() {
         assertThat(new RedisQrWebSessionStore(instanciaA.plantilla()).buscar(UUID.randomUUID())).isEmpty();
     }

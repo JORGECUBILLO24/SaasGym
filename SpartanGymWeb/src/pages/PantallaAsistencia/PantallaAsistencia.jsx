@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Loader2, Maximize, RefreshCw, Unplug, XCircle } from 'lucide-react';
 import { obtenerNombreGimnasio, useConfiguracionApp } from '../../utils/configuracionApp';
 import { useLogosApp } from '../../utils/logosApp';
-import { abrirCanal, diasHasta, SEGUNDOS_RESULTADO } from './canalAsistencia';
+import { abrirCanal, SEGUNDOS_RESULTADO } from './canalAsistencia';
 import './PantallaAsistencia.css';
 
 
@@ -24,59 +24,50 @@ const Reloj = () => {
   );
 };
 
-const formatearFechaCorta = (fecha) => {
-  if (!fecha) return '';
-  const [anio, mes, dia] = String(fecha).slice(0, 10).split('-').map(Number);
-  if (!anio || !mes || !dia) return String(fecha);
-  return new Date(anio, mes - 1, dia).toLocaleDateString('es-NI', { day: 'numeric', month: 'long', year: 'numeric' });
-};
-
-const textoDias = (dias) => {
-  if (dias === null) return null;
-  if (dias < 0) return 'Vencida';
-  if (dias === 0) return 'Vence hoy';
-  return dias === 1 ? '1 día' : `${dias} días`;
-};
-
 const primerNombre = (nombre) => String(nombre || '').trim().split(/\s+/)[0] || '';
 
+const inicialesSocio = (nombre) => String(nombre || '')
+  .trim()
+  .split(/\s+/)
+  .slice(0, 2)
+  .map((parte) => parte[0] || '')
+  .join('')
+  .toUpperCase();
+
+/** Foto que el socio subió desde la app; si no tiene (o no carga), sus iniciales. */
+const FotoSocio = ({ foto, nombre }) => {
+  const [fallo, setFallo] = useState(false);
+  if (foto && !fallo) {
+    return <img src={foto} alt={`Foto de ${nombre}`} className="pa-foto" onError={() => setFallo(true)} />;
+  }
+  return <span className="pa-foto pa-foto--iniciales" aria-hidden="true">{inicialesSocio(nombre) || '?'}</span>;
+};
+
+/**
+ * Lo que ve el socio al registrarse: su foto y su nombre. La pantalla mira al público, así que
+ * no muestra la membresía ni el motivo de un rechazo; eso lo ve recepción en su pantalla.
+ */
 const Resultado = ({ acceso }) => {
-  const dias = diasHasta(acceso.vencimiento);
-  const quedanPocos = dias !== null && dias <= 5;
   const clase = acceso.permitido ? 'pa-resultado pa-resultado--ok' : 'pa-resultado pa-resultado--no';
+  const Icono = acceso.permitido ? CheckCircle2 : XCircle;
 
   return (
     <main className={clase} role="status" aria-live="assertive">
-      {acceso.permitido
-        ? <CheckCircle2 className="pa-icono-resultado" strokeWidth={1.5} aria-hidden="true" />
-        : <XCircle className="pa-icono-resultado" strokeWidth={1.5} aria-hidden="true" />}
+      <div className="pa-foto-marco">
+        <FotoSocio key={acceso.pulso} foto={acceso.foto} nombre={acceso.nombre} />
+        <Icono className="pa-sello" strokeWidth={2.2} aria-hidden="true" />
+      </div>
 
       {acceso.permitido ? (
         <>
           <h1 className="pa-saludo">¡Hola, {primerNombre(acceso.nombre)}!</h1>
+          <p className="pa-nombre-completo">{acceso.nombre}</p>
           <p className="pa-subtitulo">Tu asistencia quedó registrada. ¡Buen entrenamiento!</p>
-          <dl className="pa-fichas">
-            {acceso.plan && (
-              <div className="pa-ficha"><dt>Plan</dt><dd>{acceso.plan}</dd></div>
-            )}
-            {acceso.vencimiento && (
-              <div className="pa-ficha"><dt>Vence</dt><dd>{formatearFechaCorta(acceso.vencimiento)}</dd></div>
-            )}
-            {dias !== null && (
-              <div className={quedanPocos ? 'pa-ficha pa-ficha--alerta' : 'pa-ficha'}>
-                <dt>{quedanPocos ? 'Renueva pronto' : 'Te quedan'}</dt>
-                <dd>{textoDias(dias)}</dd>
-              </div>
-            )}
-          </dl>
         </>
       ) : (
         <>
-          <h1 className="pa-saludo">No pudimos registrar tu entrada</h1>
-          <p className="pa-subtitulo">
-            {acceso.nombre ? `${acceso.nombre}: ` : ''}
-            {acceso.mensaje || 'Tu acceso no está habilitado.'} Acércate a recepción.
-          </p>
+          <h1 className="pa-saludo">{acceso.nombre || 'No pudimos registrar tu entrada'}</h1>
+          <p className="pa-subtitulo">No pudimos registrar tu entrada. Acércate a recepción, por favor.</p>
         </>
       )}
 

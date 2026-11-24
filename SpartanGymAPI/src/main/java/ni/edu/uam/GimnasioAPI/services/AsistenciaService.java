@@ -119,7 +119,7 @@ public class AsistenciaService {
     }
 
     public AsistenciaQrTokenResponse generarQrValidacionWeb(String emailUsuario) {
-        buscarUsuarioAutenticado(emailUsuario);
+        Usuario creador = buscarUsuarioAutenticado(emailUsuario);
 
         Instant generado = Instant.now();
         Instant expira = generado.plusSeconds(QR_TTL_SECONDS);
@@ -129,7 +129,7 @@ public class AsistenciaService {
         String firma = firmar(datos);
         String token = QR_WEB_PREFIX + "|" + datos + "|" + firma;
         String tokenHash = hashToken(token);
-        sesionesQrWeb.guardar(sessionId, tokenHash, expira);
+        sesionesQrWeb.guardar(sessionId, tokenHash, expira, creador.getId() != null ? creador.getId().toString() : null);
 
         return AsistenciaQrTokenResponse.builder()
                 .token(token)
@@ -185,7 +185,7 @@ public class AsistenciaService {
         }
     }
 
-    public AsistenciaQrValidationResponse consultarEstadoQrValidacion(AsistenciaQrRequest request) {
+    public AsistenciaQrValidationResponse consultarEstadoQrValidacion(AsistenciaQrRequest request, String emailUsuario) {
         QrWebPayload payload = validarTokenQrWeb(request != null ? request.getToken() : null, false);
         // Pasado un margen corto tras el vencimiento, el QR ya no revela a quien lo uso: una foto
         // del QR de recepcion no sirve para consultar despues los datos del socio que entro.
@@ -197,26 +197,49 @@ public class AsistenciaService {
                     .build();
         }
         QrWebSessionStore.Session sesion = sesionesQrWeb.buscar(payload.sessionId()).orElse(null);
-
-        if (sesion != null && !sesion.tokenHash().equals(payload.tokenHash())) {
+        // Sin sesion no hay forma de saber quien genero el QR: el token solo no revela al socio.
+        if (sesion == null) {
+            return sesionNoEncontrada(payload.sessionId());
+        }
+        if (!sesion.tokenHash().equals(payload.tokenHash())) {
             throw new ReglaNegocioException("QR invalido: sesion no coincide con el token.");
         }
+        exigirCreador(sesion, emailUsuario);
 
         return consultarEstadoQrValidacion(payload.sessionId(), payload.tokenHash(), payload.expirado());
     }
 
-    public AsistenciaQrValidationResponse consultarEstadoQrValidacion(UUID sessionId) {
+    public AsistenciaQrValidationResponse consultarEstadoQrValidacion(UUID sessionId, String emailUsuario) {
 
         QrWebSessionStore.Session sesion = sesionesQrWeb.buscar(sessionId).orElse(null);
         if (sesion == null) {
-            return AsistenciaQrValidationResponse.builder()
-                    .sessionId(sessionId)
-                    .estado("Expirado")
-                    .mensaje("QR expirado o sesion no encontrada. Genera uno nuevo.")
-                    .build();
+            return sesionNoEncontrada(sessionId);
         }
+        exigirCreador(sesion, emailUsuario);
 
         return consultarEstadoQrValidacion(sessionId, sesion.tokenHash(), sesion.expirado());
+    }
+
+    private static AsistenciaQrValidationResponse sesionNoEncontrada(UUID sessionId) {
+        return AsistenciaQrValidationResponse.builder()
+                .sessionId(sessionId)
+                .estado("Expirado")
+                .mensaje("QR expirado o sesion no encontrada. Genera uno nuevo.")
+                .build();
+    }
+
+    /**
+     * Solo quien mostro el QR en recepcion ve quien lo escaneo: otra persona del personal con el
+     * token o el id de sesion (una foto de la pantalla, el historial) no obtiene datos del socio.
+     */
+    private void exigirCreador(QrWebSessionStore.Session sesion, String emailUsuario) {
+        if (sesion.creador() == null) {
+            return; // sesiones guardadas antes de registrar al creador; vencen en minutos
+        }
+        Usuario consultante = buscarUsuarioAutenticado(emailUsuario);
+        if (!sesion.creador().equals(consultante.getId().toString())) {
+            throw new AccesoDenegadoException("Este QR lo genero otra persona; genera uno propio.");
+        }
     }
 
     public List<Asistencia> obtenerHistorial(UUID socioId) {
@@ -285,6 +308,7 @@ public class AsistenciaService {
                 .sessionId(sessionId)
                 .socioId(socio.getUsuarioId())
                 .socio(socio.getNombres() + " " + socio.getApellidos())
+                .fotoUrl(socio.getUsuario() != null ? socio.getUsuario().getFotoUrl() : null)
                 .membresia(tipoMembresia)
                 .tipoMembresia(tipoMembresia)
                 .estadoAcceso(socio.getEstadoAcceso())
