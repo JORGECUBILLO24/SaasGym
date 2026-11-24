@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Un batido no tiene stock propio: al venderlo se descuenta la proteína y la leche que lleva.
  * Contra PostgreSQL real, porque lo delicado son los bloqueos de fila y la consulta de recetas.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class VentaProductoRecetaIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private InventarioService inventarioService;

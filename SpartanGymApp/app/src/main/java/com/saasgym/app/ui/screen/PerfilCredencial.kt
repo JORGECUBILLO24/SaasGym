@@ -713,7 +713,7 @@ private fun oscurecer(color: Color, pesoNegro: Float): Color {
 internal fun sucursalPrincipalTexto(appConfig: AppConfigResponse): String {
     val nombre = appConfig.nombreVisibleApp()
     return when {
-        nombre.isBlank() -> "Spartan Gym, Sede principal"
+        nombre.isBlank() -> "SaasGym, Sede principal"
         nombre.contains(",") -> nombre
         else -> "$nombre, Sede principal"
     }

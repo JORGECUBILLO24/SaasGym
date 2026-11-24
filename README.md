@@ -32,7 +32,7 @@ git clone https://github.com/JORGECUBILLO24/SaasGym.git
 cd SaasGym
 ```
 
-Crea una base de datos PostgreSQL vacía llamada `spartangym_db`. Al arrancar, la
+Crea una base de datos PostgreSQL vacía llamada `saasgym_db`. Al arrancar, la
 API crea las tablas sola con **Flyway** (migraciones en
 `SpartanGymAPI/src/main/resources/db/migration`). Hibernate está con
 `ddl-auto=none` y no toca el esquema. Reglas para cambiar la base:
@@ -49,7 +49,7 @@ Variables mínimas para desarrollo local:
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
-$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/spartangym_db"
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/saasgym_db"
 $env:SPRING_DATASOURCE_USERNAME = "postgres"
 $env:SPRING_DATASOURCE_PASSWORD = "tu-clave-local"
 $jwtBytes = New-Object byte[] 32
@@ -116,7 +116,7 @@ La URL de la API se configura mediante propiedades de Gradle:
 
 ```powershell
 .\gradlew.bat test
-.\gradlew.bat assembleDebug -PSPARTANGYM_API_BASE_URL_DEBUG=http://10.0.2.2:8080/
+.\gradlew.bat assembleDebug -PSAASGYM_API_BASE_URL_DEBUG=http://10.0.2.2:8080/
 ```
 
 `10.0.2.2` apunta al equipo anfitrión cuando se usa el emulador Android. En un
@@ -208,7 +208,7 @@ misma red que el equipo, usa la IP de red del equipo en el APK de depuración:
 
 ```powershell
 cd SpartanGymApp
-.\gradlew.bat assembleDebug "-PSPARTANGYM_API_BASE_URL_DEBUG=http://IP_DEL_EQUIPO:8080/"
+.\gradlew.bat assembleDebug "-PSAASGYM_API_BASE_URL_DEBUG=http://IP_DEL_EQUIPO:8080/"
 ```
 
 Comprueba desde el celular que la API responde en esa dirección antes de probar

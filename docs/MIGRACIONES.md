@@ -11,12 +11,13 @@ La API aplica sola los cambios de base de datos al arrancar. Ya no se corre SQL 
 | `V1__esquema_inicial.sql` | Esquema completo (antes `gimnasio_schema.sql`). |
 | `V2__biblioteca_ejercicios.sql` | Biblioteca de 536 ejercicios con GIF. |
 | `V3__seguridad_transferencias.sql` | Sesiones (`auth_version`), ajustes de stock, reservas y vencimiento de pedidos, cuentas bancarias y pagos por transferencia. |
+| `V4__correo_ejemplo_saasgym.sql` | Cambia el correo de ejemplo de la configuración a `admin@saasgym.com` (solo si no se había personalizado). |
 
 Flyway guarda en la tabla `flyway_schema_history` qué versiones ya aplicó. Al arrancar, corre en orden solo las que falten. Si una falla, la API no arranca y Render mantiene la versión anterior.
 
 ## Cómo hacer un cambio de base
 
-1. Crea un archivo **nuevo** con el número siguiente: `V3__descripcion_corta.sql` (dos guiones bajos).
+1. Crea un archivo **nuevo** con el número siguiente: `V5__descripcion_corta.sql` (dos guiones bajos).
 2. Escribe ahí el SQL (`ALTER TABLE ...`, `CREATE TABLE ...`, `INSERT ...`).
 3. Ajusta las entidades Java que correspondan.
 4. Abre el PR. La CI levanta un PostgreSQL vacío y corre **todas** las migraciones: si el SQL tiene un error, el PR sale en rojo.

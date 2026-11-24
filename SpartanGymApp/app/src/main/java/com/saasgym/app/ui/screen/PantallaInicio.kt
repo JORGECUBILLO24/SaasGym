@@ -69,7 +69,7 @@ fun PantallaInicio(
     var loginPorHuella by remember { mutableStateOf(false) }
     var huellaConfigurada by remember { mutableStateOf(CredencialesBiometricasStore.disponibles(context)) }
 
-    val spartanRed = MaterialTheme.colorScheme.primary
+    val acentoMarca = MaterialTheme.colorScheme.primary
     val darkCardBg = Color(0xED1B1B22)
     val fieldBackground = Color(0xFF222226)
     val fieldBorder = Color(0xFF3A3A3F)
@@ -194,7 +194,7 @@ fun PantallaInicio(
                 completarAcceso()
             },
             icon = {
-                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = spartanRed, modifier = Modifier.size(28.dp))
+                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = acentoMarca, modifier = Modifier.size(28.dp))
             },
             title = { Text("Acceso con huella", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
@@ -228,7 +228,7 @@ fun PantallaInicio(
                         }
                     },
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = acentoMarca)
                 ) { Text("Activar") }
             },
             dismissButton = {
@@ -324,7 +324,7 @@ fun PantallaInicio(
                         placeholder = "Ingresa tu correo",
                         fieldBackground = fieldBackground,
                         fieldBorder = fieldBorder,
-                        spartanRed = spartanRed,
+                        acentoMarca = acentoMarca,
                         textLabel = textLabel,
                         textPlaceholder = textPlaceholder,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -345,7 +345,7 @@ fun PantallaInicio(
                         placeholder = "Ingresa tu contraseña",
                         fieldBackground = fieldBackground,
                         fieldBorder = fieldBorder,
-                        spartanRed = spartanRed,
+                        acentoMarca = acentoMarca,
                         textLabel = textLabel,
                         textPlaceholder = textPlaceholder,
                         isPassword = !passwordVisible,
@@ -383,7 +383,7 @@ fun PantallaInicio(
                     ) {
                         Text(
                             text = "Recuperar contraseña",
-                            color = spartanRed,
+                            color = acentoMarca,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -394,7 +394,7 @@ fun PantallaInicio(
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFF101010),
-                            border = BorderStroke(1.dp, spartanRed.copy(alpha = 0.35f))
+                            border = BorderStroke(1.dp, acentoMarca.copy(alpha = 0.35f))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -433,7 +433,7 @@ fun PantallaInicio(
                                         placeholder = "correo@ejemplo.com",
                                         fieldBackground = fieldBackground,
                                         fieldBorder = fieldBorder,
-                                        spartanRed = spartanRed,
+                                        acentoMarca = acentoMarca,
                                         textLabel = textLabel,
                                         textPlaceholder = textPlaceholder,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -477,7 +477,7 @@ fun PantallaInicio(
                                     },
                                     enabled = !loginViewModel.isLoading,
                                     modifier = Modifier.fillMaxWidth(),
-                                    border = BorderStroke(1.dp, spartanRed),
+                                    border = BorderStroke(1.dp, acentoMarca),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
@@ -505,7 +505,7 @@ fun PantallaInicio(
                             .escalaAlPresionar(loginInteractionSource),
                         interactionSource = loginInteractionSource,
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
+                        colors = ButtonDefaults.buttonColors(containerColor = acentoMarca)
                     ) {
                         if (loginViewModel.isLoading) {
                             CircularProgressIndicator(
@@ -584,7 +584,7 @@ private fun CampoInicio(
     placeholder: String,
     fieldBackground: Color,
     fieldBorder: Color,
-    spartanRed: Color,
+    acentoMarca: Color,
     textLabel: Color,
     textPlaceholder: Color,
     isPassword: Boolean = false,
@@ -621,11 +621,11 @@ private fun CampoInicio(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = fieldBackground,
                 unfocusedContainerColor = fieldBackground,
-                focusedBorderColor = spartanRed,
+                focusedBorderColor = acentoMarca,
                 unfocusedBorderColor = fieldBorder,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                cursorColor = spartanRed
+                cursorColor = acentoMarca
             ),
             visualTransformation = if (isPassword) {
                 PasswordVisualTransformation()

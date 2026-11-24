@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
  * reutilizar, alterar y vencer. PostgreSQL (la verdad sobre "QR ya usado") va con mocks: lo que
  * se prueba acá es que Redis como almacén de sesiones no cambia ninguna regla del flujo.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_REDIS_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_REDIS_URL", matches = ".+")
 class AsistenciaQrConRedisIntegrationTest {
 
     private static final String SECRETO = "n7Qx2vLp9sTm4Ke8Rw1Yc6Hb3Zd5Fa0JuGiOeXtVnMy";
@@ -151,7 +151,7 @@ class AsistenciaQrConRedisIntegrationTest {
     @Test
     void siRedisPierdeLaSesionElSocioRecibeUnMensajeClaroYNoUnError500() {
         AsistenciaQrTokenResponse qr = servicio.generarQrValidacionWeb("recepcion@ejemplo.com");
-        redis.plantilla().delete("spartangym:qr:web:" + qr.getSessionId()); // p. ej. reinicio de Redis
+        redis.plantilla().delete("saasgym:qr:web:" + qr.getSessionId()); // p. ej. reinicio de Redis
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(qr.getToken()), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class)

@@ -16,7 +16,7 @@ public final class RedisPruebas {
 
     /** URL del Redis de pruebas (redis://host:puerto) o null si no se configuro. */
     public static String url() {
-        return System.getenv("SPARTAN_IT_REDIS_URL");
+        return System.getenv("SAASGYM_IT_REDIS_URL");
     }
 
     public static ConexionRedis conectar(String url) {

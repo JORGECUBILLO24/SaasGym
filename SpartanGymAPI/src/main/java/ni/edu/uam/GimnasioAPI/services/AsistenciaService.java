@@ -46,8 +46,6 @@ public class AsistenciaService {
     private static final int LARGO_MINIMO_SECRETO = 32;
     // Solo se usa en el perfil "local". Fuera de ese perfil, app.qr.secret es obligatorio.
     private static final String SECRETO_DESARROLLO = "secreto-qr-solo-para-desarrollo-local-no-usar-en-produccion";
-    // Valor que antes se usaba por defecto y esta publicado en el repositorio: nunca es valido en produccion.
-    private static final String SECRETO_PUBLICO_ANTIGUO = "spartan-gym-attendance-secret";
 
     private final AsistenciaRepository asistenciaRepository;
     private final SocioRepository socioRepository;
@@ -73,10 +71,10 @@ public class AsistenciaService {
                     "app.qr.secret no esta configurado (variable de entorno ATTENDANCE_QR_SECRET). "
                             + "Es obligatoria fuera del perfil 'local'.");
         }
-        if (!local && (qrSecret.length() < LARGO_MINIMO_SECRETO || SECRETO_PUBLICO_ANTIGUO.equals(qrSecret))) {
+        if (!local && qrSecret.length() < LARGO_MINIMO_SECRETO) {
             throw new IllegalStateException(
                     "ATTENDANCE_QR_SECRET es demasiado debil: debe tener al menos " + LARGO_MINIMO_SECRETO
-                            + " caracteres y no puede ser el valor publico del repositorio.");
+                            + " caracteres.");
         }
     }
 

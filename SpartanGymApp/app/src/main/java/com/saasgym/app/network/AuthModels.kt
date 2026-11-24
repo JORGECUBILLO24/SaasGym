@@ -75,10 +75,10 @@ data class AppConfigResponse(
     val sessionTimeout: String? = null
 ) {
     private fun logoValidoParaNombre(logo: String?, nombreAsociado: String?): String? {
-        val nombreActual = gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "Spartan Gym"
+        val nombreActual = gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "SaasGym"
         val logoNombre = nombreAsociado?.trim().orEmpty()
         val coincide = if (logoNombre.isEmpty()) {
-            nombreActual.equals("Spartan Gym", ignoreCase = true)
+            nombreActual.equals("SaasGym", ignoreCase = true)
         } else {
             logoNombre.equals(nombreActual, ignoreCase = true)
         }
@@ -91,13 +91,13 @@ data class AppConfigResponse(
 
     fun nombreVisibleApp(): String = appName?.trim()?.takeIf { it.isNotEmpty() }
         ?: gymName?.trim()?.takeIf { it.isNotEmpty() }
-        ?: "Spartan Gym"
+        ?: "SaasGym"
 
     fun logoAppActual(): String? {
         val nombreActual = nombreVisibleApp()
         val nombreLogo = appLogoNombre?.trim().orEmpty()
         val coincide = if (nombreLogo.isEmpty()) {
-            nombreActual.equals("Spartan Gym", ignoreCase = true)
+            nombreActual.equals("SaasGym", ignoreCase = true)
         } else {
             nombreLogo.equals(nombreActual, ignoreCase = true)
         }

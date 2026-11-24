@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Pedido del socio desde la app: aparta el stock y queda pendiente con un código; recepción lo
  * valida (y entra a caja) o lo cancela (y el stock vuelve).
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class PedidoProductoIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private VentaProductoService ventaService;

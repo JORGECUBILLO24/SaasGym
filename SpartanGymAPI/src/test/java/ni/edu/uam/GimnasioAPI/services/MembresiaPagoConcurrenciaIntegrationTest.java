@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * membresía que le corresponde, ni dos membresías activas para el mismo socio.
  */
 // La condicion va en cada clase: JUnit no la hereda de IntegracionPostgresBase.
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
 
     private static final String EMAIL = "socio-it-membresia@ejemplo.com";
