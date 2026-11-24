@@ -17,6 +17,7 @@ import ni.edu.uam.GimnasioAPI.dto.ActualizarFotoRequest;
 import ni.edu.uam.GimnasioAPI.util.FotoPerfilValidator;
 import ni.edu.uam.GimnasioAPI.services.EjercicioCompletadoService;
 import ni.edu.uam.GimnasioAPI.services.RutinaResponseMapper;
+import ni.edu.uam.GimnasioAPI.security.AlcanceSucursal;
 
 @RestController
 @RequestMapping("/api/operacion")
@@ -32,6 +33,7 @@ public class OperacionController {
     private final NotificacionRepository notificacionRepository;
     private final EjercicioCompletadoService ejercicioCompletadoService;
     private final RutinaResponseMapper rutinaResponseMapper;
+    private final AlcanceSucursal alcanceSucursal;
 
     @GetMapping("/me")
     @Transactional(readOnly = true)
@@ -73,14 +75,19 @@ public class OperacionController {
     @GetMapping("/recepcion/inicio")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     @Transactional(readOnly = true)
-    public ResponseEntity<Map<String, Object>> inicioRecepcion() {
+    public ResponseEntity<Map<String, Object>> inicioRecepcion(Authentication auth) {
+        Usuario actor = usuarioAutenticado(auth);
         LocalDate hoy = LocalDate.now();
         List<MembresiaSocio> vencimientos = membresiaRepository
-                .findByEstadoAndFechaVencimientoBetweenOrderByFechaVencimientoAsc("Activa", hoy, hoy.plusDays(15));
+                .findByEstadoAndFechaVencimientoBetweenOrderByFechaVencimientoAsc("Activa", hoy, hoy.plusDays(15)).stream()
+                .filter(m -> visible(actor, m.getSocio())).toList();
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("sociosActivos", membresiaRepository.countByEstado("Activa"));
-        data.put("membresiasActivas", membresiaRepository.countByEstado("Activa"));
-        data.put("pagosRecientes", pagoRepository.findAllByOrderByFechaTransaccionDesc().stream().limit(8).map(this::pagoMap).toList());
+        long activas = membresiaRepository.findAllByOrderByFechaVencimientoAsc().stream()
+                .filter(m -> "Activa".equals(m.getEstado()) && visible(actor, m.getSocio())).count();
+        data.put("sociosActivos", activas);
+        data.put("membresiasActivas", activas);
+        data.put("pagosRecientes", pagoRepository.findAllByOrderByFechaTransaccionDesc().stream()
+                .filter(p -> visible(actor, p.getSocio())).limit(8).map(this::pagoMap).toList());
         data.put("proximosVencimientos", vencimientos.stream().limit(8).map(this::membresiaMap).toList());
         return ResponseEntity.ok(data);
     }
@@ -88,8 +95,10 @@ public class OperacionController {
     @GetMapping("/asistencias/recientes")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> asistenciasRecientes() {
+    public ResponseEntity<List<Map<String, Object>>> asistenciasRecientes(Authentication auth) {
+        Usuario actor = usuarioAutenticado(auth);
         return ResponseEntity.ok(asistenciaRepository.findAll().stream()
+                .filter(a -> visible(actor, a.getSocio()))
                 .sorted(Comparator.comparing(Asistencia::getFechaHora).reversed())
                 .limit(50)
                 .map(this::asistenciaMap)
@@ -99,8 +108,10 @@ public class OperacionController {
     @GetMapping("/pagos")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> pagos() {
-        return ResponseEntity.ok(pagoRepository.findAllByOrderByFechaTransaccionDesc().stream().map(this::pagoMap).toList());
+    public ResponseEntity<List<Map<String, Object>>> pagos(Authentication auth) {
+        Usuario actor = usuarioAutenticado(auth);
+        return ResponseEntity.ok(pagoRepository.findAllByOrderByFechaTransaccionDesc().stream()
+                .filter(p -> visible(actor, p.getSocio())).map(this::pagoMap).toList());
     }
 
     // Historial de pagos de un socio: el personal ve el de cualquiera, el socio solo el suyo.
@@ -108,15 +119,18 @@ public class OperacionController {
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA') "
             + "or @accesoSocio.esElMismo(authentication, #socioId)")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> pagosSocio(@PathVariable UUID socioId) {
+    public ResponseEntity<List<Map<String, Object>>> pagosSocio(@PathVariable UUID socioId, Authentication auth) {
+        exigirSocioVisible(usuarioAutenticado(auth), socioId);
         return ResponseEntity.ok(pagoRepository.findBySocioUsuarioIdOrderByFechaTransaccionDesc(socioId).stream().map(this::pagoMap).toList());
     }
 
     @GetMapping("/membresias")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA')")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> membresias() {
-        return ResponseEntity.ok(membresiaRepository.findAllByOrderByFechaVencimientoAsc().stream().map(this::membresiaMap).toList());
+    public ResponseEntity<List<Map<String, Object>>> membresias(Authentication auth) {
+        Usuario actor = usuarioAutenticado(auth);
+        return ResponseEntity.ok(membresiaRepository.findAllByOrderByFechaVencimientoAsc().stream()
+                .filter(m -> visible(actor, m.getSocio())).map(this::membresiaMap).toList());
     }
 
     @GetMapping("/notificaciones")
@@ -149,7 +163,8 @@ public class OperacionController {
             + "or @accesoSocio.esElMismo(authentication, #socioId) "
             + "or @accesoSocio.entrenadorDeSucursal(authentication, #socioId)")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<Map<String, Object>>> rutinasSocio(@PathVariable UUID socioId) {
+    public ResponseEntity<List<Map<String, Object>>> rutinasSocio(@PathVariable UUID socioId, Authentication auth) {
+        exigirSocioVisible(usuarioAutenticado(auth), socioId);
         return ResponseEntity.ok(rutinaRepository.findBySocioUsuarioIdOrderByFechaAsignacionDesc(socioId).stream().map(this::rutinaMap).toList());
     }
 
@@ -220,6 +235,17 @@ public class OperacionController {
     private Usuario usuarioAutenticado(Authentication auth) {
         if (auth == null || auth.getName() == null) throw new NoAutenticadoException("Usuario no autenticado");
         return usuarioRepository.findByEmail(auth.getName()).orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
+    }
+
+    private boolean visible(Usuario actor, Socio socio) {
+        return alcanceSucursal.alcanzaSocio(actor, socio);
+    }
+
+    private void exigirSocioVisible(Usuario actor, UUID socioId) {
+        Socio socio = socioRepository.findById(socioId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Socio no encontrado"));
+        if ("ROLE_SOCIO".equals(actor.getRol().getNombre()) && actor.getId().equals(socioId)) return;
+        if (!visible(actor, socio)) throw new RecursoNoEncontradoException("Socio no encontrado");
     }
 
     private Map<String, Object> usuarioBase(Usuario usuario) {

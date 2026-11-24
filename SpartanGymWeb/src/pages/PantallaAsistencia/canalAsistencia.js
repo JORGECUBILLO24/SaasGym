@@ -15,7 +15,9 @@
  * Estado = {
  *   estadoQr: 'cargando' | 'pendiente' | 'validado' | 'expirado' | 'error',
  *   qrImagen: string (data URL), expiraMs: number, ttlSegundos: number,
- *   acceso: null | { nombre, plan, vencimiento, permitido, mensaje, pulso }
+ *   acceso: null | { nombre, foto (URL o data URL, puede ir vacía), permitido, pulso }
+ *     Solo nombre y foto: la pantalla mira al público, así que no muestra la membresía ni el
+ *     motivo de un rechazo (eso lo ve recepción en su propia pantalla).
  *     (recepción lo manda durante SEGUNDOS_RESULTADO y luego lo pone en null),
  * }
  */
@@ -34,15 +36,4 @@ export const abrirPantallaAsistencia = () => {
   const ventana = window.open(RUTA_PANTALLA, 'gimnasio-pantalla-asistencia', 'popup,width=1280,height=800');
   ventana?.focus();
   return ventana;
-};
-
-/** Días que faltan para la fecha de vencimiento (negativo si ya pasó, null si no hay fecha). */
-export const diasHasta = (fecha, hoy = new Date()) => {
-  if (!fecha) return null;
-  const texto = String(fecha).slice(0, 10);
-  const [anio, mes, dia] = texto.split('-').map(Number);
-  if (!anio || !mes || !dia) return null;
-  const objetivo = Date.UTC(anio, mes - 1, dia);
-  const base = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  return Math.round((objetivo - base) / 86_400_000);
 };

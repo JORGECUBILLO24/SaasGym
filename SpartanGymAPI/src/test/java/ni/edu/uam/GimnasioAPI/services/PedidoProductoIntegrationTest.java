@@ -196,6 +196,17 @@ class PedidoProductoIntegrationTest extends IntegracionPostgresBase {
     }
 
     @Test
+    void cancelarPedidoAntiguoSinReservas_noAdivinaInsumosConRecetaActual() {
+        VentaProductoResponse creado = ventaService.crearPedidoSocio(pedido("Transferencia", batido, 1), socio);
+        assertThat(stock(leche)).isEqualTo(700);
+        jdbc.update("DELETE FROM reservas_ventas_productos WHERE venta_id = ?", creado.getId());
+
+        ventaService.cancelarPedido(creado.getCodigoPedido(), recepcion);
+
+        assertThat(stock(leche)).isEqualTo(700);
+    }
+
+    @Test
     void soloEfectivoOTransferencia_yCodigoInexistente() {
         assertThatThrownBy(() -> ventaService.crearPedidoSocio(pedido("Tarjeta", agua, 1), socio))
                 .hasMessageContaining("efectivo o por transferencia");

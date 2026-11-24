@@ -2,7 +2,6 @@ package ni.edu.uam.GimnasioAPI.services;
 
 import ni.edu.uam.GimnasioAPI.exceptions.*;
 import lombok.RequiredArgsConstructor;
-import ni.edu.uam.GimnasioAPI.dto.CompraMembresiaRequest;
 import ni.edu.uam.GimnasioAPI.dto.TipoMembresiaRequest;
 import ni.edu.uam.GimnasioAPI.models.*;
 import ni.edu.uam.GimnasioAPI.repositories.*;
@@ -79,56 +78,6 @@ public class MembresiaService {
     @Transactional
     public void eliminarTipo(Integer id) {
         tipoMembresiaRepository.deleteById(id);
-    }
-
-    @Transactional
-    public MembresiaSocio comprarMembresia(String emailSocio, CompraMembresiaRequest request) {
-
-        // 1. Identificar al usuario a partir del email extraído de su token
-        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(emailSocio)
-                .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado en el sistema"));
-
-        Socio socio = socioRepository.findById(usuario.getId())
-                .orElseThrow(() -> new AccesoDenegadoException("El perfil de socio no existe"));
-
-        // 2. Buscar el catálogo de membresía seleccionado
-        TipoMembresia tipo = tipoMembresiaRepository.findById(request.getTipoMembresiaId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("Tipo de membresía inválido"));
-        String metodoPago = validarMetodoPago(request.getMetodoPago());
-
-        // 3. Regla de Negocio: Prevenir compras si ya tiene una activa (Evita romper el Index de BD)
-        Optional<MembresiaSocio> membresiaActiva = membresiaSocioRepository
-                .findBySocioUsuarioIdAndEstado(socio.getUsuarioId(), "Activa");
-
-        if (membresiaActiva.isPresent()) {
-            throw new ConflictoException("Error: Ya posees una membresía Activa. Espera a que caduque para renovar.");
-        }
-
-        // 4. Registrar el pago en la tabla inmutable
-        Pago pago = new Pago();
-        pago.setSocio(socio);
-        pago.setMonto(tipo.getPrecio()); // El precio es el oficial de la base de datos
-        pago.setMetodoPago(metodoPago);
-        pago = pagoRepository.save(pago);
-
-        // 5. Crear y calcular la nueva membresía
-        MembresiaSocio nuevaMembresia = new MembresiaSocio();
-        nuevaMembresia.setSocio(socio);
-        nuevaMembresia.setTipoMembresia(tipo);
-        nuevaMembresia.setPago(pago);
-        nuevaMembresia.setFechaInicio(LocalDate.now());
-
-        nuevaMembresia.setFechaVencimiento(LocalDate.now().plusDays(tipo.getDuracionDias()));
-        nuevaMembresia.setEstado("Activa");
-        MembresiaSocio guardada = membresiaSocioRepository.save(nuevaMembresia);
-
-        // Igual que en la renovación: un socio que estaba inactivo por vencimiento recupera el acceso.
-        if (!"Suspendido".equalsIgnoreCase(socio.getEstadoAcceso())) {
-            socio.setEstadoAcceso("Activo");
-            socioRepository.save(socio);
-        }
-
-        return guardada;
     }
 
     static String validarMetodoPago(String metodoPago) {

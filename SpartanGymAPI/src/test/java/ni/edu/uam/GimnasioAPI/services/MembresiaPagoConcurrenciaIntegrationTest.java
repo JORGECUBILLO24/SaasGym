@@ -1,6 +1,6 @@
 package ni.edu.uam.GimnasioAPI.services;
 
-import ni.edu.uam.GimnasioAPI.dto.CompraMembresiaRequest;
+import ni.edu.uam.GimnasioAPI.dto.PagoRequest;
 import ni.edu.uam.GimnasioAPI.integracion.IntegracionPostgresBase;
 import ni.edu.uam.GimnasioAPI.models.Rol;
 import ni.edu.uam.GimnasioAPI.models.Socio;
@@ -132,30 +132,14 @@ class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
     }
 
     @Test
-    void comprarLaMismaMembresiaVariasVecesALaVez_cobraYActivaUnaSolaVez() throws Exception {
-        CompraMembresiaRequest request = new CompraMembresiaRequest();
-        request.setTipoMembresiaId(tipo.getId());
-        request.setMetodoPago("Efectivo");
-
-        int exitos = ejecutarEnParalelo(6, () -> {
-            membresiaService.comprarMembresia(EMAIL, request);
-            return null;
-        });
-
-        assertThat(exitos).as("compras que terminaron bien").isEqualTo(1);
-        assertThat(membresiasActivas()).as("membresías activas").isEqualTo(1);
-        assertThat(pagos()).as("pagos cobrados (uno por membresía, ninguno huérfano)").isEqualTo(1);
-    }
-
-    @Test
     void renovarVariasVecesALaVez_noDejaDosMembresiasActivasNiPagosHuerfanos() throws Exception {
-        // Parte de un socio con membresía activa, como ocurre en una renovación real.
-        pagoService.renovarMembresiaSocio(EMAIL, tipo.getId(), "Efectivo");
+        // Parte de un socio con membresía activa; cada renovación la cobra recepción en mostrador.
+        pagoService.registrarPagoYMembresia(cobroEnRecepcion());
         assertThat(membresiasActivas()).isEqualTo(1);
         assertThat(pagos()).isEqualTo(1);
 
         int exitos = ejecutarEnParalelo(6, () -> {
-            pagoService.renovarMembresiaSocio(EMAIL, tipo.getId(), "Efectivo");
+            pagoService.registrarPagoYMembresia(cobroEnRecepcion());
             return null;
         });
 
@@ -164,5 +148,13 @@ class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
         assertThat(pagos()).as("pagos: el inicial + exactamente 1 de la renovación").isEqualTo(2);
         assertThat(contar("SELECT COUNT(*) FROM membresias_socio WHERE socio_id = ?"))
                 .as("membresías totales (la anterior queda 'Renovada')").isEqualTo(2);
+    }
+
+    private PagoRequest cobroEnRecepcion() {
+        PagoRequest request = new PagoRequest();
+        request.setIdSocio(socioId);
+        request.setIdTipoMembresia(tipo.getId());
+        request.setMetodoPago("Efectivo");
+        return request;
     }
 }

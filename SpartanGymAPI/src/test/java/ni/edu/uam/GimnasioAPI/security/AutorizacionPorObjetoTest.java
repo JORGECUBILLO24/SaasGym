@@ -2,9 +2,14 @@ package ni.edu.uam.GimnasioAPI.security;
 
 import ni.edu.uam.GimnasioAPI.dto.EstadoSocioResponse;
 import ni.edu.uam.GimnasioAPI.models.Notificacion;
+import ni.edu.uam.GimnasioAPI.models.Personal;
+import ni.edu.uam.GimnasioAPI.models.Socio;
+import ni.edu.uam.GimnasioAPI.models.Sucursal;
 import ni.edu.uam.GimnasioAPI.models.Rol;
 import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.repositories.NotificacionRepository;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
+import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
 import ni.edu.uam.GimnasioAPI.services.AsistenciaService;
 import ni.edu.uam.GimnasioAPI.services.CatalogoService;
@@ -53,6 +58,8 @@ class AutorizacionPorObjetoTest {
     @MockitoBean private SocioService socioService;
     @MockitoBean private NotificacionRepository notificacionRepository;
     @MockitoBean private CatalogoService catalogoService;
+    @MockitoBean private PersonalRepository personalRepository;
+    @MockitoBean private SocioRepository socioRepository;
     // marcarLeida es @Transactional: sin esto la prueba abriría una conexión real a PostgreSQL y
     // fallaría con 500 en cualquier entorno sin esa base (como la CI). Acá solo importa la autorización.
     @MockitoBean private PlatformTransactionManager transactionManager;
@@ -149,14 +156,53 @@ class AutorizacionPorObjetoTest {
 
     @Test
     @WithMockUser(username = "recepcion@ejemplo.com", roles = "RECEPCIONISTA")
-    void personal_puedeVerElEstadoDeCualquierSocio() throws Exception {
+    void recepcionSinSucursalAsignada_veElEstadoDeCualquierSocio() throws Exception {
+        personal("recepcion@ejemplo.com", "ROLE_RECEPCIONISTA", null);
+        socioEnSucursal(ID_OTRO_SOCIO, SUCURSAL_B);
         mockMvc.perform(get("/api/socios/estado/" + ID_OTRO_SOCIO)).andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "recepcion@ejemplo.com", roles = "RECEPCIONISTA")
+    void recepcion_noVeElEstadoDeUnSocioDeOtraSucursal() throws Exception {
+        personal("recepcion@ejemplo.com", "ROLE_RECEPCIONISTA", SUCURSAL_A);
+        socioEnSucursal(ID_OTRO_SOCIO, SUCURSAL_B);
+        mockMvc.perform(get("/api/socios/estado/" + ID_OTRO_SOCIO)).andExpect(status().isForbidden());
     }
 
     @Test
     @WithMockUser(username = "entrenador@ejemplo.com", roles = "ENTRENADOR")
     void entrenador_puedeVerElEstadoDeSusSocios() throws Exception {
+        personal("entrenador@ejemplo.com", "ROLE_ENTRENADOR", SUCURSAL_A);
+        socioEnSucursal(ID_OTRO_SOCIO, SUCURSAL_A);
         mockMvc.perform(get("/api/socios/estado/" + ID_OTRO_SOCIO)).andExpect(status().isOk());
+    }
+
+    private static final UUID SUCURSAL_A = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static final UUID SUCURSAL_B = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+    /** Personal autenticado con su rol; sucursalId null = sin sucursal asignada. */
+    private void personal(String email, String rolNombre, UUID sucursalId) {
+        Usuario usuario = usuario(UUID.randomUUID(), email);
+        usuario.getRol().setNombre(rolNombre);
+        when(usuarioRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(usuario));
+        Personal personal = new Personal();
+        personal.setSucursal(sucursal(sucursalId));
+        when(personalRepository.findById(usuario.getId())).thenReturn(Optional.of(personal));
+    }
+
+    private void socioEnSucursal(UUID socioId, UUID sucursalId) {
+        Socio s = new Socio();
+        s.setUsuarioId(socioId);
+        s.setSucursal(sucursal(sucursalId));
+        when(socioRepository.findById(socioId)).thenReturn(Optional.of(s));
+    }
+
+    private static Sucursal sucursal(UUID id) {
+        if (id == null) return null;
+        Sucursal sucursal = new Sucursal();
+        sucursal.setId(id);
+        return sucursal;
     }
 
     // ---------------- notificaciones: marcar como leída ----------------

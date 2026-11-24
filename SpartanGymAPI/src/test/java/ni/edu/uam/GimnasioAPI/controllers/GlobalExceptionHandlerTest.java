@@ -98,6 +98,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void registroPublico_noRevelaSiCorreoExisteAunqueFalleIndiceUnico() {
+        MockHttpServletRequest request = peticion();
+        request.setRequestURI("/api/auth/register");
+        ResponseEntity<String> r = handler.handleDataIntegrity(new DataIntegrityViolationException("dup"), request);
+
+        assertEquals(HttpStatus.CONFLICT, r.getStatusCode());
+        assertEquals("No pudimos crear la cuenta con esos datos. Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.", r.getBody());
+    }
+
+    @Test
     void excepcionNoRuntime_devuelve500Generico() {
         ResponseEntity<String> r = handler.handleGenerico(new Exception("fallo raro"), peticion());
 

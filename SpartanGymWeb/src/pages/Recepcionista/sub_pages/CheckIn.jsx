@@ -17,7 +17,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { asistenciasApi, operacionApi, sociosApi } from '../../../services/api';
+import { asistenciasApi, operacionApi, sociosApi, urlArchivoApi } from '../../../services/api';
 import { abrirPantallaAsistencia, SEGUNDOS_RESULTADO } from '../../PantallaAsistencia/canalAsistencia';
 import { usePublicadorAsistencia } from '../../PantallaAsistencia/usePublicadorAsistencia';
 
@@ -153,13 +153,12 @@ const CheckIn = () => {
       origenAcceso,
       fechaHoraValidacion: respuesta.fechaHora,
       mensajeValidacion: respuesta.mensaje || 'Asistencia validada.',
+      fotoUrl: respuesta.fotoUrl || socioApi?.fotoUrl || '',
     });
     anunciarAcceso({
       nombre: nombreCompleto,
-      plan: respuesta.tipoMembresia || respuesta.membresia || socioApi?.tipoMembresia || '',
-      vencimiento: respuesta.fechaVencimiento || socioApi?.fechaVencimiento || '',
+      foto: urlArchivoApi(respuesta.fotoUrl || socioApi?.fotoUrl) || '',
       permitido: normalizarTexto(respuesta.estado || 'Permitido') === 'permitido',
-      mensaje: respuesta.mensaje || '',
     });
   }, [anunciarAcceso, socios]);
 
@@ -328,10 +327,8 @@ const CheckIn = () => {
       });
       anunciarAcceso({
         nombre: `${socio.nombres} ${socio.apellidos}`.trim(),
-        plan: socio.tipoMembresia || '',
-        vencimiento: socio.fechaVencimiento || '',
+        foto: urlArchivoApi(socio.fotoUrl) || '',
         permitido: normalizarTexto(respuesta?.estado || 'Permitido') === 'permitido',
-        mensaje: respuesta?.mensaje || '',
       });
       setFormularioManual(formularioManualInicial);
       await cargarDatos();
@@ -346,10 +343,8 @@ const CheckIn = () => {
       setErrorManual(motivo);
       anunciarAcceso({
         nombre: `${socio.nombres} ${socio.apellidos}`.trim(),
-        plan: '',
-        vencimiento: '',
+        foto: urlArchivoApi(socio.fotoUrl) || '',
         permitido: false,
-        mensaje: motivo,
       });
     } finally {
       setValidando(false);
@@ -527,7 +522,15 @@ const CheckIn = () => {
               
               {/* Profile Photo Placeholder */}
               <div className="relative mb-4 flex h-32 w-32 items-center justify-center rounded-3xl border-2 border-red-600/40 bg-[#1a1a1a] shadow-[0_0_20px_rgba(220,38,38,0.15)]">
-                <Camera size={40} className="text-gray-500 opacity-50" />
+                {urlArchivoApi(socioValidado.fotoUrl) ? (
+                  <img
+                    src={urlArchivoApi(socioValidado.fotoUrl)}
+                    alt={`Foto de ${socioValidado.nombreCompleto || 'el socio'}`}
+                    className="h-full w-full rounded-3xl object-cover"
+                  />
+                ) : (
+                  <Camera size={40} className="text-gray-500 opacity-50" aria-hidden="true" />
+                )}
                 {esAccesoPermitido ? (
                   <div className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white shadow-lg shadow-green-900/50">
                     <CheckCircle2 size={18} />

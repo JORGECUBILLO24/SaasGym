@@ -49,17 +49,6 @@ public class PagoService {
         return procesarRenovacion(socio, request.getIdTipoMembresia(), request.getMetodoPago());
     }
 
-    // Uso interno (pruebas de concurrencia). Ningún endpoint lo expone: desde la app el socio
-    // reporta una transferencia (TransferenciaService) y la membresía se activa al aprobarla.
-    @Transactional
-    public FacturaMembresiaResponse renovarMembresiaSocio(String email, Integer tipoMembresiaId, String metodoPago) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new NoAutenticadoException("Usuario no encontrado"));
-        Socio socio = socioRepository.findById(usuario.getId())
-                .orElseThrow(() -> new AccesoDenegadoException("Perfil de socio no encontrado"));
-        return procesarRenovacion(socio, tipoMembresiaId, metodoPago);
-    }
-
     private FacturaMembresiaResponse procesarRenovacion(Socio socio, Integer tipoMembresiaId, String metodoPago) {
         String metodoPagoValidado = MembresiaService.validarMetodoPago(metodoPago);
         TipoMembresia tipoMembresia = tipoMembresiaRepository.findById(tipoMembresiaId)

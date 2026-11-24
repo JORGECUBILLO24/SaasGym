@@ -30,7 +30,7 @@ class OperacionControllerFotoTest {
     @BeforeEach
     void setUp() {
         controller = new OperacionController(
-                usuarioRepository, null, null, null, null, null, null, null, null, null);
+                usuarioRepository, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -42,12 +42,12 @@ class OperacionControllerFotoTest {
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ActualizarFotoRequest req = new ActualizarFotoRequest();
-        req.setFotoUrl("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==");
+        req.setFotoUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGM8wQACTGCSAQAKUgDMgs4KeQAAAABJRU5ErkJggg==");
 
         ResponseEntity<Map<String, Object>> resp = controller.actualizarFoto(req, auth);
 
-        assertEquals("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==", usuario.getFotoUrl());
-        assertEquals("data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==", resp.getBody().get("fotoUrl"));
+        assertEquals("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGM8wQACTGCSAQAKUgDMgs4KeQAAAABJRU5ErkJggg==", usuario.getFotoUrl());
+        assertEquals("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGM8wQACTGCSAQAKUgDMgs4KeQAAAABJRU5ErkJggg==", resp.getBody().get("fotoUrl"));
         verify(usuarioRepository).findByEmail("socio@ejemplo.com");
         verify(usuarioRepository).save(usuario);
         verifyNoMoreInteractions(usuarioRepository);

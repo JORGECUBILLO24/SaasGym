@@ -106,7 +106,7 @@ class AsistenciaQrConRedisIntegrationTest {
     void flujoNormal_pendienteLuegoPermitido() {
         AsistenciaQrTokenResponse qr = servicio.generarQrValidacionWeb("recepcion@ejemplo.com");
 
-        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId()).getEstado()).isEqualTo("Pendiente");
+        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId(), "recepcion@ejemplo.com").getEstado()).isEqualTo("Pendiente");
 
         var resultado = servicio.registrarEntradaQrWeb(request(qr.getToken()), "socio@ejemplo.com");
         assertThat(resultado.getEstado()).isEqualTo("Permitido");
@@ -145,7 +145,7 @@ class AsistenciaQrConRedisIntegrationTest {
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(token), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class).hasMessageContaining("sesion no encontrada");
-        assertThat(servicio.consultarEstadoQrValidacion(sessionId).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(sessionId, "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test
@@ -156,7 +156,7 @@ class AsistenciaQrConRedisIntegrationTest {
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(qr.getToken()), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessageContaining("Genera uno nuevo");
-        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId()).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId(), "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test
@@ -167,7 +167,7 @@ class AsistenciaQrConRedisIntegrationTest {
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(token), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class).hasMessageContaining("expirado");
-        assertThat(servicio.consultarEstadoQrValidacion(sessionId).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(sessionId, "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test
