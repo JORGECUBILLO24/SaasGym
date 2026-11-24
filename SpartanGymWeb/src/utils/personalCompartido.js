@@ -1,6 +1,6 @@
 export const EVENTO_PERSONAL = 'evento_personal';
 
-const clavePersonal = 'spartan_gym_personal';
+const clavePersonal = 'saasgym_personal';
 
 export const leerPersonalCompartido = () => {
   const data = localStorage.getItem(clavePersonal);

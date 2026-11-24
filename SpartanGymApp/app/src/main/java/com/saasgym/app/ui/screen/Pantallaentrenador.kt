@@ -2,6 +2,9 @@ package com.saasgym.app.ui.screen
 
 import com.saasgym.app.ui.theme.FuenteTitulo
 import android.app.DatePickerDialog
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -46,6 +49,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.saasgym.app.util.comprimirParaPerfil
 import com.saasgym.app.R
 import com.saasgym.app.network.*
 import com.saasgym.app.ui.components.escalaAlPresionar
@@ -111,13 +117,16 @@ fun PantallaEntrenador(
 ) {
     var seccion     by rememberSaveable { mutableIntStateOf(0) }
     var subPantalla by rememberSaveable { mutableStateOf("") }
+    var rutinaSeleccionada by remember { mutableStateOf<RutinaResumenResponse?>(null) }
 
     var dash      by remember { mutableStateOf<EntrenadorDashboardResponse?>(null) }
     var clientes  by remember { mutableStateOf<List<EntrenadorClienteResponse>>(emptyList()) }
     var perfil    by remember { mutableStateOf<EntrenadorPerfilResponse?>(null) }
+    var rutinas   by remember { mutableStateOf<List<RutinaResumenResponse>>(emptyList()) }
     val ejercicios = remember { mutableStateListOf<EjercicioCatalogoResponse>() }
     var cargando  by remember { mutableStateOf(true) }
     var error     by remember { mutableStateOf<String?>(null) }
+    val erroresSeccion = remember { mutableStateMapOf<Int, String>() }
     val scope     = rememberCoroutineScope()
 
     val ap = remember(appConfig.accentColor, appConfig.accentHoverColor, appConfig.accentSoftColor) {
@@ -126,22 +135,35 @@ fun PantallaEntrenador(
 
     fun recargar() {
         scope.launch {
-            cargando = true; error = null
-            try {
-                dash     = RetrofitClient.apiService.obtenerDashboardEntrenador().body()
-                clientes = RetrofitClient.apiService.obtenerClientesEntrenador().body().orEmpty()
-                perfil   = RetrofitClient.apiService.obtenerPerfilEntrenador().body()
-                ejercicios.clear()
-                ejercicios.addAll(RetrofitClient.apiService.listarEjercicios().body().orEmpty())
-            } catch (e: Exception) { error = e.message }
-            finally { cargando = false }
+            cargando = true; error = null; erroresSeccion.clear()
+            suspend fun <T> cargar(seccion: Int, llamada: suspend () -> retrofit2.Response<T>, aplicar: (T) -> Unit) {
+                try {
+                    val r = llamada(); val cuerpo = r.body()
+                    if (!r.isSuccessful || cuerpo == null) erroresSeccion[seccion] = "Error HTTP ${r.code()}"
+                    else aplicar(cuerpo)
+                } catch (e: Exception) { erroresSeccion[seccion] = e.message ?: "Sin conexión" }
+            }
+            cargar(0, { RetrofitClient.apiService.obtenerDashboardEntrenador() }) { dash = it }
+            cargar(1, { RetrofitClient.apiService.obtenerClientesEntrenador() }) { clientes = it }
+            cargar(4, { RetrofitClient.apiService.obtenerPerfilEntrenador() }) { perfil = it }
+            erroresSeccion[4]?.let { erroresSeccion[0] = "Perfil: $it" }
+            cargar(3, { RetrofitClient.apiService.listarRutinas() }) { rutinas = it }
+            cargar(3, { RetrofitClient.apiService.listarEjercicios() }) { ejercicios.clear(); ejercicios.addAll(it) }
+            cargando = false
         }
     }
-    LaunchedEffect(Unit) { recargar() }
+    LaunchedEffect(seccion) { recargar() }
 
     // Modo crear rutina: ocupa toda la pantalla sin scaffold
-    if (subPantalla == "crear_rutina") {
+    if (subPantalla == "detalle_rutina") {
+        rutinaSeleccionada?.let { rutina ->
+            DetalleRutinaEntrenador(rutina, ap, { subPantalla = "" }, { subPantalla = "editar_rutina" })
+        }
+        return
+    }
+    if (subPantalla == "crear_rutina" || subPantalla == "editar_rutina") {
         PantallaCrearRutina(
+            rutinaInicial = if (subPantalla == "editar_rutina") rutinaSeleccionada else null,
             perfil     = perfil,
             clientes   = clientes,
             ejercicios = ejercicios,
@@ -166,7 +188,7 @@ fun PantallaEntrenador(
             Box(Modifier.fillMaxWidth().widthIn(max = 640.dp).fillMaxHeight()) {
                 when {
                     cargando    -> EntCargando(ap.accent, appConfig.nombreVisibleApp())
-                    error != null -> EntError(error!!, ap)
+                    erroresSeccion[seccion] != null -> EntError(erroresSeccion[seccion]!!, ap, ::recargar)
                     else -> when (seccion) {
                         0 -> TabInicio(
                             dash = dash,
@@ -178,8 +200,8 @@ fun PantallaEntrenador(
                         )
                         1 -> TabClientes(clientes, ap, appConfig)
                         2 -> TabVenderEntrenador(appConfig, ap.accent)
-                        3 -> TabRutinas(dash?.rutinasRecientes.orEmpty(), ap) { subPantalla = "crear_rutina" }
-                        4 -> TabPerfil(perfil, appConfig, ap, onCerrarSesion)
+                        3 -> TabRutinas(rutinas, ap, { subPantalla = "crear_rutina" }, { rutinaSeleccionada = it; subPantalla = "detalle_rutina" })
+                        4 -> TabPerfil(perfil, appConfig, ap, onCerrarSesion, ::recargar)
                     }
                 }
             }
@@ -225,13 +247,14 @@ private fun EntCargando(accent: Color, nombreGimnasio: String) {
     }
 }
 @Composable
-private fun EntError(msg: String, ap: EntAp) {
+private fun EntError(msg: String, ap: EntAp, onReintentar: () -> Unit) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
             Column(Modifier.padding(20.dp)) {
                 Text("Error de conexión", color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Black)
                 Spacer(Modifier.height(6.dp))
                 Text(msg, color = ENT_GRIS2, fontSize = 13.sp)
+                TextButton(onClick = onReintentar, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
             }
         }
     }
@@ -322,6 +345,7 @@ private fun TabInicio(
 // ═══════════════════════════════════════════════════════════════════════════
 @Composable
 private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, appConfig: AppConfigResponse) {
+    var elegido by remember { mutableStateOf<EntrenadorClienteResponse?>(null) }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(120.dp)) {
             ImagenMarca(
@@ -333,8 +357,8 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
             )
             Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.7f), ENT_BG))))
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                Text("Mis Clientes", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
-                Text("${clientes.size} socios del gym asignados", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Socios de mi sucursal", color = Color.White, fontSize = 24.sp, fontFamily = FuenteTitulo, fontWeight = FontWeight.Bold)
+                Text("${clientes.size} socios de mi sucursal", color = ap.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
         if (clientes.isEmpty()) {
@@ -342,7 +366,7 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Rounded.PeopleAlt, null, tint = ENT_GRIS, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(10.dp))
-                    Text("Sin clientes asignados", color = ENT_GRIS, fontSize = 13.sp)
+                    Text("Sin socios en esta sucursal", color = ENT_GRIS, fontSize = 13.sp)
                 }
             }
         } else {
@@ -350,7 +374,7 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
                 items(clientes) { c ->
                     val ini = "${c.nombres?.firstOrNull() ?: ""}${c.apellidos?.firstOrNull() ?: ""}".uppercase().ifBlank { "?" }
                     val activo = c.estadoAcceso?.lowercase()?.contains("activ") == true
-                    Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
+                    Surface(Modifier.fillMaxWidth().clickable { elegido = c }.heightIn(min = 48.dp), RoundedCornerShape(16.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(44.dp).background(ap.soft, CircleShape), contentAlignment = Alignment.Center) {
                                 FotoPerfilCredencial(
@@ -377,13 +401,57 @@ private fun TabClientes(clientes: List<EntrenadorClienteResponse>, ap: EntAp, ap
             }
         }
     }
+    elegido?.let { socio -> DetalleSocioEntrenador(socio, ap) { elegido = null } }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DetalleSocioEntrenador(socio: EntrenadorClienteResponse, ap: EntAp, onCerrar: () -> Unit) {
+    var rutinas by remember(socio.id) { mutableStateOf<List<RutinaResumenResponse>>(emptyList()) }
+    var asistencias by remember(socio.id) { mutableStateOf<List<AsistenciaHistorialResponse>>(emptyList()) }
+    var error by remember(socio.id) { mutableStateOf<String?>(null) }
+    var cargando by remember(socio.id) { mutableStateOf(true) }
+    var intento by remember(socio.id) { mutableIntStateOf(0) }
+    LaunchedEffect(socio.id, intento) {
+        cargando = true; error = null
+        try {
+            val id = socio.id ?: throw IllegalStateException("Socio sin identificador")
+            val r = RetrofitClient.apiService.obtenerRutinasSocio(id)
+            val a = RetrofitClient.apiService.obtenerAsistenciasSocio(id)
+            rutinas = r.body().takeIf { r.isSuccessful } ?: throw IllegalStateException("No se pudieron cargar las rutinas (${r.code()})")
+            asistencias = a.body().takeIf { a.isSuccessful } ?: throw IllegalStateException("No se pudo cargar la asistencia (${a.code()})")
+        } catch (e: Exception) { error = e.message ?: "No se pudo cargar el socio" }
+        finally { cargando = false }
+    }
+    ModalBottomSheet(onDismissRequest = onCerrar, containerColor = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp)) {
+            Text("${socio.nombres.orEmpty()} ${socio.apellidos.orEmpty()}", style = MaterialTheme.typography.titleLarge)
+            Text("Socio de mi sucursal", color = MaterialTheme.colorScheme.primary)
+            if (cargando) CircularProgressIndicator()
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { intento++ }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
+            }
+            if (!cargando && error == null) {
+                Text("Rutinas", style = MaterialTheme.typography.titleMedium)
+                if (rutinas.isEmpty()) Text("Sin rutinas")
+                rutinas.forEach { Text(it.nombre ?: "Rutina sin nombre", modifier = Modifier.padding(vertical = 8.dp)) }
+                Spacer(Modifier.height(16.dp))
+                Text("Asistencia reciente", style = MaterialTheme.typography.titleMedium)
+                if (asistencias.isEmpty()) Text("Sin asistencias registradas")
+                asistencias.take(10).forEach { Text(it.fechaHora ?: "Fecha desconocida", modifier = Modifier.padding(vertical = 8.dp)) }
+            }
+            Spacer(Modifier.height(32.dp))
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  TAB RUTINAS
 // ═══════════════════════════════════════════════════════════════════════════
 @Composable
-private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear: () -> Unit) {
+private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear: () -> Unit, onAbrir: (RutinaResumenResponse) -> Unit) {
+    var limiteVisible by remember(rutinas) { mutableIntStateOf(30) }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(120.dp)) {
             Image(painterResource(R.drawable.image_03453d), null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
@@ -416,9 +484,38 @@ private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear:
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(rutinas) { r -> EntRutinaItem(r, ap) }
+                items(rutinas.take(limiteVisible)) { r -> Box(Modifier.clickable { onAbrir(r) }.heightIn(min = 48.dp)) { EntRutinaItem(r, ap) } }
+                if (limiteVisible < rutinas.size) item {
+                    TextButton(onClick = { limiteVisible += 30 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Cargar más")
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DetalleRutinaEntrenador(r: RutinaResumenResponse, ap: EntAp, onVolver: () -> Unit, onEditar: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding()
+        .verticalScroll(rememberScrollState()).padding(20.dp)) {
+        TextButton(onClick = onVolver, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver") }
+        Text(r.nombre ?: "Rutina sin nombre", style = MaterialTheme.typography.headlineSmall)
+        Text("Socio: ${r.socio ?: "Sin socio"}")
+        Text("Del ${r.fechaInicio ?: "Sin fecha"} al ${r.fechaFin ?: "Sin fecha"}")
+        Text(r.objetivo.orEmpty())
+        Spacer(Modifier.height(16.dp))
+        Text("Ejercicios", style = MaterialTheme.typography.titleMedium)
+        r.ejercicios.orEmpty().forEach { ej ->
+            Card(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(ej.ejercicio ?: "Ejercicio", style = MaterialTheme.typography.titleSmall)
+                    Text("${ej.series ?: 0} series · ${ej.repeticiones ?: 0} repeticiones")
+                    ej.diaProgramado?.let { Text("Fecha: $it") }
+                }
+            }
+        }
+        Button(onClick = onEditar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Editar rutina") }
     }
 }
 
@@ -426,7 +523,48 @@ private fun TabRutinas(rutinas: List<RutinaResumenResponse>, ap: EntAp, onCrear:
 //  TAB PERFIL
 // ═══════════════════════════════════════════════════════════════════════════
 @Composable
-private fun TabPerfil(perfil: EntrenadorPerfilResponse?, appConfig: AppConfigResponse, ap: EntAp, onCerrarSesion: () -> Unit) {
+private fun TabPerfil(perfil: EntrenadorPerfilResponse?, appConfig: AppConfigResponse, ap: EntAp, onCerrarSesion: () -> Unit, onRecargar: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var editando by remember { mutableStateOf(false) }
+    var nombres by remember(perfil?.id, perfil?.nombres) { mutableStateOf(perfil?.nombres.orEmpty()) }
+    var apellidos by remember(perfil?.id, perfil?.apellidos) { mutableStateOf(perfil?.apellidos.orEmpty()) }
+    var telefono by remember(perfil?.id, perfil?.telefono) { mutableStateOf(perfil?.telefono.orEmpty()) }
+    var especialidad by remember(perfil?.id, perfil?.especialidad) { mutableStateOf(perfil?.especialidad.orEmpty()) }
+    var errorPerfil by remember { mutableStateOf<String?>(null) }
+    val foto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            try {
+                val data = withContext(Dispatchers.IO) {
+                    val bitmap = context.contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it) }
+                        ?: throw IllegalStateException("No se pudo leer la foto")
+                    comprimirParaPerfil(bitmap)
+                }
+                val r = RetrofitClient.apiService.actualizarFotoPerfil(ActualizarFotoRequest(data))
+                if (!r.isSuccessful || r.body() == null) throw IllegalStateException("No se pudo guardar la foto (${r.code()})")
+                onRecargar()
+            } catch (e: Exception) { errorPerfil = e.message ?: "No se pudo guardar la foto" }
+        }
+    }
+    if (editando) AlertDialog(onDismissRequest = { editando = false }, title = { Text("Editar perfil") },
+        text = { Column {
+            OutlinedTextField(nombres, { nombres = it }, label = { Text("Nombre") })
+            OutlinedTextField(apellidos, { apellidos = it }, label = { Text("Apellidos") })
+            OutlinedTextField(telefono, { telefono = it }, label = { Text("Teléfono") })
+            OutlinedTextField(especialidad, { especialidad = it }, label = { Text("Especialidad") })
+            errorPerfil?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        } },
+        confirmButton = { TextButton(onClick = {
+            scope.launch {
+                try {
+                    val r = RetrofitClient.apiService.actualizarPerfilEntrenador(
+                        ActualizarPerfilEntrenadorRequest(nombres.trim(), apellidos.trim(), telefono.trim(), especialidad.trim()))
+                    if (!r.isSuccessful || r.body() == null) throw IllegalStateException("No se pudo guardar el perfil (${r.code()})")
+                    editando = false; onRecargar()
+                } catch (e: Exception) { errorPerfil = e.message ?: "No se pudo guardar" }
+            }
+        }, enabled = nombres.isNotBlank()) { Text("Guardar") } },
+        dismissButton = { TextButton(onClick = { editando = false }) { Text("Cancelar") } })
     val nombre   = listOfNotNull(perfil?.nombres, perfil?.apellidos).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Entrenador" }
     val correo   = perfil?.email?.ifBlank { null } ?: "—"
     val sucursal = perfil?.sucursal?.ifBlank { null } ?: sucursalPrincipalTexto(appConfig)
@@ -445,6 +583,14 @@ private fun TabPerfil(perfil: EntrenadorPerfilResponse?, appConfig: AppConfigRes
             detalles = detalles, integradaPantalla = true, appConfig = appConfig
         )
         Column(Modifier.padding(20.dp)) {
+            FotoPerfilCredencial(fotoUrl = perfil?.fotoUrl, modifier = Modifier.size(80.dp).clip(CircleShape)) {
+                Icon(Icons.Rounded.Person, "Foto de perfil", modifier = Modifier.size(40.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            errorPerfil?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(onClick = { editando = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Editar perfil") }
+            TextButton(onClick = { foto.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cambiar foto") }
             Button(onClick = onCerrarSesion, modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ap.accent), shape = RoundedCornerShape(16.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.Logout, null, modifier = Modifier.size(18.dp))
@@ -475,40 +621,50 @@ private fun EjEd.toReq() = RutinaDetalleRequest(
 
 @Composable
 private fun PantallaCrearRutina(
+    rutinaInicial: RutinaResumenResponse? = null,
     perfil:     EntrenadorPerfilResponse?,
     clientes:   List<EntrenadorClienteResponse>,
-    ejercicios: List<EjercicioCatalogoResponse>,
+    ejercicios: androidx.compose.runtime.snapshots.SnapshotStateList<EjercicioCatalogoResponse>,
     ap:         EntAp,
     onVolver:   () -> Unit,
     onGuardado: () -> Unit
 ) {
     val ctx = LocalContext.current
 
-    var esGlobal   by remember { mutableStateOf(false) }
-    var clienteId  by remember { mutableStateOf(clientes.firstOrNull()?.id ?: "") }
-    var nombre     by remember { mutableStateOf("") }
-    var tipo       by remember { mutableStateOf(TIPOS_RUTINA[0]) }
-    var genero     by remember { mutableStateOf(GENEROS[2]) }
-    var objetivo   by remember { mutableStateOf("") }
-    var notasRut   by remember { mutableStateOf("") }
-    var fInicio    by remember { mutableStateOf(calToIso(calHoy())) }
-    var fFin       by remember { mutableStateOf(calMas(28)) }
+    var esGlobal   by remember { mutableStateOf(rutinaInicial?.esGlobal == true) }
+    var clienteId  by remember { mutableStateOf(rutinaInicial?.socioId.orEmpty()) }
+    var nombre     by remember { mutableStateOf(rutinaInicial?.nombre.orEmpty()) }
+    var tipo       by remember { mutableStateOf(rutinaInicial?.tipoRutina ?: TIPOS_RUTINA[0]) }
+    var genero     by remember { mutableStateOf(rutinaInicial?.generoObjetivo ?: GENEROS[2]) }
+    var objetivo   by remember { mutableStateOf(rutinaInicial?.objetivo.orEmpty()) }
+    var notasRut   by remember { mutableStateOf(rutinaInicial?.notas.orEmpty()) }
+    var fInicio    by remember { mutableStateOf(rutinaInicial?.fechaInicio ?: calToIso(calHoy())) }
+    var fFin       by remember { mutableStateOf(rutinaInicial?.fechaFin ?: calMas(28)) }
     val listaEj    = remember { mutableStateListOf<EjEd>() }
+    LaunchedEffect(rutinaInicial?.id) {
+        rutinaInicial?.ejercicios.orEmpty().forEachIndexed { i, e ->
+            listaEj.add(EjEd(id = e.ejercicioId ?: 0L, nombre = e.ejercicio.orEmpty(),
+                tipo = e.tipoEjercicio ?: "Fuerza", series = e.series ?: 3, reps = e.repeticiones ?: 12,
+                peso = e.pesoSugeridoKg?.toString().orEmpty(),
+                descanso = e.tiempoDescansoSegundos?.toString() ?: "60", nota = e.notas.orEmpty(), orden = i + 1))
+        }
+    }
 
     var openTipo   by remember { mutableStateOf(false) }
     var openGenero by remember { mutableStateOf(false) }
     var guardando  by remember { mutableStateOf(false) }
     var buscarParaIndice by remember { mutableStateOf<Int?>(null) }
     var errMsg     by remember { mutableStateOf<String?>(null) }
+    var errorBiblioteca by remember { mutableStateOf(false) }
     val scope      = rememberCoroutineScope()
 
     // Auto-completar nombre y objetivo al cambiar tipo/género
     LaunchedEffect(tipo, genero) {
-        if (nombre.isBlank() || nombre.startsWith("Rutina"))
+        if (rutinaInicial == null && (nombre.isBlank() || nombre.startsWith("Rutina")))
             nombre = when (genero) { "Hombres" -> "Rutina hombre - $tipo"; "Mujeres" -> "Rutina mujer - $tipo"; else -> "Rutina mixta - $tipo" }
     }
     LaunchedEffect(genero) {
-        if (objetivo.isBlank()) objetivo = when (genero) {
+        if (rutinaInicial == null && objetivo.isBlank()) objetivo = when (genero) {
             "Hombres" -> "Hipertrofia, fuerza progresiva y control tecnico."
             "Mujeres" -> "Tonificacion, gluteos, fuerza funcional y resistencia."
             else      -> "Plan equilibrado adaptable para cualquier socio."
@@ -523,14 +679,14 @@ private fun PantallaCrearRutina(
 
     val valido = nombre.isNotBlank() && objetivo.isNotBlank() &&
             listaEj.isNotEmpty() && listaEj.all { it.id != 0L } &&
-            (esGlobal || clienteId.isNotBlank())
+            (esGlobal || clienteId.isNotBlank()) && fFin > fInicio
 
     fun guardar() {
         if (!valido || guardando) return
         guardando = true; errMsg = null
         scope.launch {
             try {
-                val respuesta = RetrofitClient.apiService.crearRutina(RutinaRequest(
+                val request = RutinaRequest(
                     idSocio = if (esGlobal) null else clienteId.ifBlank { null },
                     idEntrenador = perfil?.id ?: "",
                     esGlobal = esGlobal, nombre = nombre.trim(),
@@ -538,13 +694,23 @@ private fun PantallaCrearRutina(
                     fechaInicio = fInicio, fechaFin = fFin,
                     objetivo = objetivo.trim(), notas = notasRut.ifBlank { null },
                     detalles = listaEj.map { it.toReq() }
-                ))
-                if (respuesta.isSuccessful) {
+                )
+                val correcto = if (rutinaInicial?.id != null) {
+                    val respuesta = RetrofitClient.apiService.actualizarRutina(rutinaInicial.id.orEmpty(), request)
+                    if (!respuesta.isSuccessful || respuesta.body() == null) {
+                        errMsg = mensajeDeError(respuesta.errorBody()?.string()) ?: "No se pudo actualizar (${respuesta.code()})"
+                        false
+                    } else true
+                } else {
+                    val respuesta = RetrofitClient.apiService.crearRutina(request)
+                    if (!respuesta.isSuccessful || respuesta.body() == null) {
+                        errMsg = mensajeDeError(respuesta.errorBody()?.string()) ?: "No se pudo crear (${respuesta.code()})"
+                        false
+                    } else true
+                }
+                if (correcto) {
                     onGuardado()
                 } else {
-                    // Se queda en el formulario para no perder lo escrito.
-                    errMsg = mensajeDeError(respuesta.errorBody()?.string())
-                        ?: "No se pudo guardar la rutina (${respuesta.code()})"
                     guardando = false
                 }
             } catch (e: Exception) { errMsg = e.message ?: "Error al guardar"; guardando = false }
@@ -580,7 +746,20 @@ private fun PantallaCrearRutina(
             // Banner error
             if (errMsg != null) {
                 Surface(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), color = ap.soft, border = BorderStroke(1.dp, ap.accent.copy(.3f))) {
-                    Text(errMsg!!, color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp))
+                    Column(Modifier.padding(12.dp)) {
+                        Text(errMsg!!, color = ap.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = {
+                            if (!errorBiblioteca) { guardar(); return@TextButton }
+                            scope.launch {
+                                try {
+                                    val r = RetrofitClient.apiService.listarEjercicios()
+                                    val cuerpo = r.body().takeIf { r.isSuccessful }
+                                        ?: throw IllegalStateException("No se pudo cargar la biblioteca (${r.code()})")
+                                    ejercicios.clear(); ejercicios.addAll(cuerpo); errMsg = null; errorBiblioteca = false
+                                } catch (e: Exception) { errMsg = e.message ?: "Sin conexión" }
+                            }
+                        }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -697,7 +876,7 @@ private fun PantallaCrearRutina(
                         listaEj.add(EjEd(id = 0L, nombre = "", orden = listaEj.size + 1))
                         buscarParaIndice = listaEj.lastIndex
                     },
-                    enabled = ejercicios.isNotEmpty(),
+                    enabled = true,
                     border  = BorderStroke(1.dp, ap.accent.copy(.5f)),
                     shape   = RoundedCornerShape(12.dp),
                     colors  = ButtonDefaults.outlinedButtonColors(contentColor = ap.accent)
@@ -711,7 +890,7 @@ private fun PantallaCrearRutina(
             if (ejercicios.isEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Surface(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), color = ENT_CARD, border = BorderStroke(1.dp, ENT_BORDE)) {
-                    Text("⚠ Sin ejercicios en catálogo. Regístralos desde la web.", color = ENT_GRIS, fontSize = 12.sp, modifier = Modifier.padding(14.dp))
+                    Text("Sin ejercicios en catálogo. Crea uno desde la biblioteca.", color = ENT_GRIS, fontSize = 12.sp, modifier = Modifier.padding(14.dp))
                 }
             }
 
@@ -733,6 +912,19 @@ private fun PantallaCrearRutina(
                     onElegir = { e ->
                         listaEj.getOrNull(indice)?.let { actual -> listaEj[indice] = actual.copy(id = e.id ?: 0L, nombre = e.nombre.orEmpty()) }
                         buscarParaIndice = null
+                    },
+                    onCatalogoActualizado = {
+                        scope.launch {
+                            try {
+                                val r = RetrofitClient.apiService.listarEjercicios()
+                                val cuerpo = r.body().takeIf { r.isSuccessful }
+                                    ?: throw IllegalStateException("No se pudo actualizar la biblioteca (${r.code()})")
+                                ejercicios.clear(); ejercicios.addAll(cuerpo)
+                            } catch (e: Exception) {
+                                errMsg = e.message ?: "No se pudo actualizar la biblioteca"
+                                errorBiblioteca = true
+                            }
+                        }
                     },
                     onCerrar = { buscarParaIndice = null }
                 )
@@ -773,8 +965,8 @@ private fun EjBloque(idx: Int, ej: EjEd, ap: EntAp, onChange: (EjEd) -> Unit, on
                     Spacer(Modifier.width(8.dp))
                     Text("EJERCICIO ${idx + 1}", color = ap.accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 }
-                IconButton(onClick = onDel, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Rounded.Delete, null, tint = ENT_GRIS, modifier = Modifier.size(16.dp))
+                IconButton(onClick = onDel, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Rounded.Delete, "Eliminar ejercicio", tint = ENT_GRIS, modifier = Modifier.size(16.dp))
                 }
             }
             Spacer(Modifier.height(10.dp))

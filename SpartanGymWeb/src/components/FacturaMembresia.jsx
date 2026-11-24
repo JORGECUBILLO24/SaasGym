@@ -87,7 +87,7 @@ const crearHtmlFacturaMembresia = (factura, configuracion, formatearMonto) => {
               ${logoFactura ? `<img class="logo" src="${escaparHtml(logoFactura)}" alt="${escaparHtml(nombreGimnasio)}" />` : ''}
               <div>
                 <h2>${escaparHtml(nombreGimnasio)}</h2>
-                <p class="muted">${escaparHtml(configuracion.email || 'admin@spartangym.com')}</p>
+                <p class="muted">${escaparHtml(configuracion.email || 'admin@saasgym.com')}</p>
                 <p class="muted">${escaparHtml(configuracion.phone || '+505 0000 0000')}</p>
               </div>
             </div>
@@ -243,7 +243,7 @@ export const descargarFacturaMembresiaPdf = async (factura, configuracion, forma
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(75, 75, 75);
-  pdf.text(configuracion.email || 'admin@spartangym.com', margen, y + 16);
+  pdf.text(configuracion.email || 'admin@saasgym.com', margen, y + 16);
   pdf.text(configuracion.phone || '+505 0000 0000', margen, y + 31);
   pdf.text(factura.socio || 'Socio', margen + 285, y + 16, { maxWidth: 220 });
   pdf.text(`Membresia: ${factura.tipoMembresia || '—'}`, margen + 285, y + 31, { maxWidth: 220 });
@@ -385,7 +385,7 @@ export const FacturaMembresiaModal = ({
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-neutral-950">{nombreGimnasio}</h2>
-                  <p className="mt-1 text-sm text-neutral-600">{configuracion.email || 'admin@spartangym.com'}</p>
+                  <p className="mt-1 text-sm text-neutral-600">{configuracion.email || 'admin@saasgym.com'}</p>
                   <p className="text-sm text-neutral-600">{configuracion.phone || '+505 0000 0000'}</p>
                 </div>
               </div>

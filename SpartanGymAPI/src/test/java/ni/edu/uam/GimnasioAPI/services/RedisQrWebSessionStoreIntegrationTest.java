@@ -19,13 +19,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * RedisQrWebSessionStore contra un Redis REAL (la CI lo levanta como servicio; en local:
- * docker run -d -p 127.0.0.1:6390:6379 redis:7-alpine y SPARTAN_IT_REDIS_URL=redis://localhost:6390).
+ * docker run -d -p 127.0.0.1:6390:6379 redis:7-alpine y SAASGYM_IT_REDIS_URL=redis://localhost:6390).
  * Cada ConexionRedis simula una instancia distinta de la API.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_REDIS_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_REDIS_URL", matches = ".+")
 class RedisQrWebSessionStoreIntegrationTest {
 
-    private static final String PREFIJO = "spartangym:qr:web:";
+    private static final String PREFIJO = "saasgym:qr:web:";
 
     private final List<ConexionRedis> abiertas = new ArrayList<>();
     private final List<UUID> sesiones = new ArrayList<>();

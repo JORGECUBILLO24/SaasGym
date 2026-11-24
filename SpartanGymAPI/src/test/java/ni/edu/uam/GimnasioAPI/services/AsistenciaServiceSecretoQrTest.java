@@ -27,13 +27,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * El secreto que firma los QR de asistencia ya no puede ser el valor fijo del repositorio
- * ("spartan-gym-attendance-secret"): cualquiera que lea el código podría fabricar QR válidos.
+ * El secreto que firma los QR de asistencia no puede ser un valor corto o publicado en el
+ * repositorio: cualquiera que lea el código podría fabricar QR válidos.
  */
 class AsistenciaServiceSecretoQrTest {
 
-    /** El valor público que antes se usaba cuando ATTENDANCE_QR_SECRET no estaba definida. */
-    private static final String SECRETO_PUBLICO_ANTIGUO = "spartan-gym-attendance-secret";
+    /** Un valor corto y público, como el que antes se usaba cuando ATTENDANCE_QR_SECRET no estaba definida. */
+    private static final String SECRETO_PUBLICO_ANTIGUO = "secreto-publico-de-ejemplo";
     private static final String SECRETO_FUERTE = "n7Qx2vLp9sTm4Ke8Rw1Yc6Hb3Zd5Fa0JuGiOeXtVnMy";
 
     private static final UUID ID_SOCIO = UUID.fromString("11111111-1111-1111-1111-111111111111");

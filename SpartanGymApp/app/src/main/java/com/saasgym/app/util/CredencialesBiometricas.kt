@@ -18,12 +18,21 @@ data class CredencialesBiometricas(val correo: String, val contrasena: String)
 
 object CredencialesBiometricasStore {
     private const val PREFERENCIAS = "acceso_biometrico"
-    private const val ALIAS = "spartangym_biometric_credentials"
+    private const val ALIAS = "saasgym_biometric_credentials"
     private const val CLAVE_CIFRADO = "credentials_ciphertext"
     private const val CLAVE_IV = "credentials_iv"
     private const val CLAVE_CORREO_HASH = "credentials_email_hash"
 
-    fun disponibles(context: Context): Boolean = preferencias(context).contains(CLAVE_CIFRADO)
+    fun disponibles(context: Context): Boolean {
+        if (!preferencias(context).contains(CLAVE_CIFRADO)) return false
+        // Datos cifrados sin su clave (p. ej. la clave se guardaba con otro alias): no se pueden
+        // descifrar, así que se borran y el usuario vuelve a activar la huella tras iniciar sesión.
+        if (runCatching { obtenerClave() }.isFailure) {
+            preferencias(context).edit().clear().apply()
+            return false
+        }
+        return true
+    }
 
     fun correspondenA(context: Context, correo: String): Boolean {
         val hashGuardado = preferencias(context).getString(CLAVE_CORREO_HASH, null) ?: return false

@@ -3,7 +3,7 @@ import { guardarDatoLocal, leerDatoLocal } from './almacenamientoLocal';
 import { aplicarPreferenciaTema, CLAVE_CONFIGURACION } from './tema';
 import { configuracionApi } from '../services/api';
 
-export const EVENTO_CONFIGURACION = 'spartanGym.settingsChanged';
+export const EVENTO_CONFIGURACION = 'saasGym.settingsChanged';
 
 export const COLORES_APARIENCIA_DEFECTO = {
   accentColor: '#e50914',
@@ -23,8 +23,8 @@ export const MONEDAS_DISPONIBLES = [
 ];
 
 export const CONFIGURACION_DEFECTO = {
-  gymName: 'Spartan Gym',
-  email: 'admin@spartangym.com',
+  gymName: 'SaasGym',
+  email: 'admin@saasgym.com',
   phone: '+505 0000 0000',
   currency: 'USD',
   taxRate: '15',

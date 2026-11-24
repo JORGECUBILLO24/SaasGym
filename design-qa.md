@@ -1,10 +1,10 @@
-# Design QA · Galería & Experiencia Spartan Gym
+# Design QA · Galería & Experiencia SaasGym
 
 final result: passed
 
 ## Resumen de Mejoras Aplicadas (Diseño iOS, Monocromo Obsidian & Paralaje)
 
-Se implementaron habilidades avanzadas de diseño de interfaz inspiradas en los estándares de **Apple Human Interface Guidelines (iOS)**, estética **Obsidian Space Black** (eliminación de rojos en favor de negro premium, platino y cristal) y técnicas de **diseño con paralaje cinematográfico y animación física reactiva (Apple Product Showcase)** sobre la portada pública, la galería de entrenamiento (`GaleriaSpartan`), la sección de ingeniería biomecánica (`BarraEnsamblada`), el encabezado flotante y el Bento Grid de beneficios.
+Se implementaron habilidades avanzadas de diseño de interfaz inspiradas en los estándares de **Apple Human Interface Guidelines (iOS)**, estética **Obsidian Space Black** (eliminación de rojos en favor de negro premium, platino y cristal) y técnicas de **diseño con paralaje cinematográfico y animación física reactiva (Apple Product Showcase)** sobre la portada pública, la galería de entrenamiento (`GaleriaGimnasio`), la sección de ingeniería biomecánica (`BarraEnsamblada`), el encabezado flotante y el Bento Grid de beneficios.
 
 ---
 

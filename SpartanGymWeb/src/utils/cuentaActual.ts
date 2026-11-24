@@ -1,8 +1,8 @@
 import { guardarDatoLocal, leerDatoLocal } from './almacenamientoLocal';
 
-export const CLAVE_CUENTA_ACTUAL = 'spartanGym.currentAccount';
-export const EVENTO_CUENTA_ACTUAL = 'spartanGym.currentAccountChanged';
-export const CLAVE_ULTIMO_CIERRE = 'spartanGym.lastLogout';
+export const CLAVE_CUENTA_ACTUAL = 'saasGym.currentAccount';
+export const EVENTO_CUENTA_ACTUAL = 'saasGym.currentAccountChanged';
+export const CLAVE_ULTIMO_CIERRE = 'saasGym.lastLogout';
 
 /** Cuenta que la interfaz muestra como "sesión actual". Todos los campos son opcionales. */
 export interface CuentaActual {
@@ -30,7 +30,7 @@ const leerCuentaApi = (): CuentaActual | null => {
   if (typeof window === 'undefined') return null;
 
   try {
-    const bruto = window.localStorage.getItem('spartan_user');
+    const bruto = window.localStorage.getItem('saasgym_user');
     if (!bruto) return null;
     const usuario = JSON.parse(bruto) as UsuarioApiGuardado | null;
     if (!usuario) return null;
@@ -68,8 +68,8 @@ export const cerrarSesionActual = (motivo = 'manual'): void => {
   if (typeof window === 'undefined') return;
 
   window.localStorage.removeItem(CLAVE_CUENTA_ACTUAL);
-  window.localStorage.removeItem('spartan_token');
-  window.localStorage.removeItem('spartan_user');
+  window.localStorage.removeItem('saasgym_token');
+  window.localStorage.removeItem('saasgym_user');
   window.localStorage.setItem(
     CLAVE_ULTIMO_CIERRE,
     JSON.stringify({ motivo, fecha: new Date().toISOString() })

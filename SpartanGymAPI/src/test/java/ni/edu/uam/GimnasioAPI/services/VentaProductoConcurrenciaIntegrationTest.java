@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * y dos ventas con los mismos productos en orden opuesto terminaban en deadlock.
  */
 // La condicion va en cada clase: JUnit no la hereda de IntegracionPostgresBase.
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class VentaProductoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private VentaProductoService ventaProductoService;

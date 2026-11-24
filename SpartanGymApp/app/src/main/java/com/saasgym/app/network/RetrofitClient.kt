@@ -43,12 +43,12 @@ object RetrofitClient {
             .build()
     }
 
-    val apiService: SpartanGymApi by lazy {
+    val apiService: SaasGymApi by lazy {
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create()) // Convierte de JSON a Kotlin automatico
             .build()
-            .create(SpartanGymApi::class.java)
+            .create(SaasGymApi::class.java)
     }
 }

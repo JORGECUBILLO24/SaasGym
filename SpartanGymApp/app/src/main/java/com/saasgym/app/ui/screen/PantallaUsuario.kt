@@ -224,6 +224,7 @@ fun PantallaUsuario(
     var refreshKey by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    val erroresCarga = remember { mutableStateMapOf<String, String>() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     // Mensaje local para el flujo de foto de perfil: NO reutiliza `error`, ya que
@@ -276,28 +277,25 @@ fun PantallaUsuario(
     LaunchedEffect(socioId, refreshKey) {
         cargando = true
         error = null
-        rutinas.clear()
-        try {
-            val d = RetrofitClient.apiService.obtenerDashboardSocio(socioId)
-            val p = RetrofitClient.apiService.obtenerPerfilActual()
-            val r = RetrofitClient.apiService.obtenerRutinasSocio(socioId)
-            val pg = RetrofitClient.apiService.obtenerPagosSocio(socioId)
-            val pr = RetrofitClient.apiService.listarProductosCatalogo()
-            val bio = RetrofitClient.apiService.obtenerProgresoSocio(socioId)
-            val tm = RetrofitClient.apiService.listarTiposMembresia()
-
-            dashboard = d.body()
-            perfilActual = p.body()
-            rutinas.addAll(r.body().orEmpty().mapIndexed { i, it -> it.toRutinaSocio(i) })
-            pagos = pg.body().orEmpty()
-            productos = pr.body().orEmpty()
-            progreso = bio.body().orEmpty()
-            tiposMembresia = tm.body().orEmpty()
-        } catch (e: Exception) {
-            error = e.message
-        } finally {
-            cargando = false
+        erroresCarga.clear()
+        suspend fun <T> cargar(nombre: String, llamada: suspend () -> retrofit2.Response<T>, aplicar: (T) -> Unit) {
+            try {
+                val r = llamada()
+                val cuerpo = r.body()
+                if (!r.isSuccessful || cuerpo == null) erroresCarga[nombre] = "Error HTTP ${r.code()}"
+                else aplicar(cuerpo)
+            } catch (e: Exception) { erroresCarga[nombre] = e.message ?: "Sin conexión" }
         }
+        cargar("Inicio", { RetrofitClient.apiService.obtenerDashboardSocio(socioId) }) { dashboard = it }
+        cargar("Perfil", { RetrofitClient.apiService.obtenerPerfilActual() }) { perfilActual = it }
+        cargar("Rutinas", { RetrofitClient.apiService.obtenerRutinasSocio(socioId) }) {
+            rutinas.clear(); rutinas.addAll(it.mapIndexed { i, rutina -> rutina.toRutinaSocio(i) })
+        }
+        cargar("Pagos", { RetrofitClient.apiService.obtenerPagosSocio(socioId) }) { pagos = it }
+        cargar("Productos", { RetrofitClient.apiService.listarProductosCatalogo() }) { productos = it }
+        cargar("Progreso", { RetrofitClient.apiService.obtenerProgresoSocio(socioId) }) { progreso = it }
+        cargar("Membresías", { RetrofitClient.apiService.listarTiposMembresia() }) { tiposMembresia = it }
+        cargando = false
     }
 
     LaunchedEffect(rutinas.size) {
@@ -307,8 +305,12 @@ fun PantallaUsuario(
     LaunchedEffect(seccionActual) {
         if (seccionActual == 2) {
             while (true) {
-                runCatching { RetrofitClient.apiService.listarTiposMembresia() }
-                    .getOrNull()?.body()?.let { tiposMembresia = it }
+                try {
+                    val r = RetrofitClient.apiService.listarTiposMembresia()
+                    val cuerpo = r.body()
+                    if (r.isSuccessful && cuerpo != null) { tiposMembresia = cuerpo; erroresCarga.remove("Membresías") }
+                    else erroresCarga["Membresías"] = "Error HTTP ${r.code()}"
+                } catch (e: Exception) { erroresCarga["Membresías"] = e.message ?: "Sin conexión" }
                 delay(30_000)
             }
         }
@@ -345,6 +347,16 @@ fun PantallaUsuario(
                     .fillMaxHeight()
                     .verticalScroll(scrollPantalla)
             ) {
+                if (erroresCarga.isNotEmpty() && !cargando) {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Column(Modifier.padding(12.dp)) {
+                            erroresCarga.forEach { (seccion, detalle) ->
+                                Text("$seccion: $detalle", color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                            TextButton(onClick = { refreshKey++ }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
+                        }
+                    }
+                }
                 when {
                     cargando -> PantallaCargando(appConfig.nombreVisibleApp())
                     error != null -> PantallaError(error!!)
@@ -1040,12 +1052,14 @@ private fun ProgresoUsuario(
                 val respuesta = RetrofitClient.apiService.registrarProgreso(
                     RegistroProgresoRequest(idSocio = socioId, pesoKg = pesoNum, medidasNotas = notas.trim().ifBlank { null })
                 )
-                if (!respuesta.isSuccessful) {
+                if (!respuesta.isSuccessful || respuesta.body() == null) {
                     mensaje = mensajeDeError(respuesta.errorBody()?.string())
                         ?: "No se pudo registrar el progreso (${respuesta.code()})."
                     return@launch
                 }
-                val actualizado = RetrofitClient.apiService.obtenerProgresoSocio(socioId).body().orEmpty()
+                val recarga = RetrofitClient.apiService.obtenerProgresoSocio(socioId)
+                val actualizado = recarga.body().takeIf { recarga.isSuccessful }
+                    ?: throw IllegalStateException("No se pudo actualizar el progreso (${recarga.code()})")
                 onActualizado(actualizado)
                 peso = ""
                 notas = ""
@@ -1197,16 +1211,20 @@ private fun RenovarMembresiaUsuario(
     var error by remember { mutableStateOf<String?>(null) }
     var enviada by remember { mutableStateOf<SolicitudPagoAppResponse?>(null) }
     var copiado by remember { mutableStateOf<String?>(null) }
+    var intentoCarga by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(intentoCarga) {
+        cargando = true; error = null
         try {
             val respCuentas = RetrofitClient.apiService.cuentasBancarias()
-            if (respCuentas.isSuccessful) cuentas = respCuentas.body().orEmpty()
+            cuentas = respCuentas.body().takeIf { respCuentas.isSuccessful }
+                ?: throw IllegalStateException("No se pudieron cargar las cuentas (${respCuentas.code()})")
             val respSolicitudes = RetrofitClient.apiService.misSolicitudesPago()
-            if (respSolicitudes.isSuccessful) solicitudes = respSolicitudes.body().orEmpty()
+            solicitudes = respSolicitudes.body().takeIf { respSolicitudes.isSuccessful }
+                ?: throw IllegalStateException("No se pudieron cargar las solicitudes (${respSolicitudes.code()})")
             if (cuentas.size == 1) cuentaId = cuentas.first().id
         } catch (e: Exception) {
-            error = "No se pudieron cargar las cuentas del gimnasio. Revisa tu conexión."
+            error = e.message ?: "No se pudieron cargar las cuentas del gimnasio. Revisa tu conexión."
         } finally {
             cargando = false
         }
@@ -1283,6 +1301,11 @@ private fun RenovarMembresiaUsuario(
             }
         } else if (cargando) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        } else if (error != null) {
+            Column {
+                Text(error!!, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { intentoCarga++ }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Reintentar") }
+            }
         } else if (tipos.isEmpty()) {
             EstadoVacioAPI("Sin planes", "No hay planes de membresía disponibles.")
         } else if (cuentas.isEmpty()) {
@@ -1399,7 +1422,7 @@ private fun RenovarMembresiaUsuario(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { enviar() },
-                enabled = !procesando && seleccionId != null && cuentaId != null && referencia.trim().length >= 3,
+                enabled = !procesando && error == null && seleccionId != null && cuentaId != null && referencia.trim().length >= 3,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -1512,7 +1535,11 @@ private fun ProductosUsuario(
     val tasa = (appConfig.taxRate?.toDoubleOrNull() ?: 0.0) / 100.0
 
     suspend fun cargarPedidos() {
-        pedidos = runCatching { RetrofitClient.apiService.misPedidos().body().orEmpty() }.getOrDefault(pedidos)
+        try {
+            val r = RetrofitClient.apiService.misPedidos()
+            pedidos = r.body().takeIf { r.isSuccessful }
+                ?: throw IllegalStateException("No se pudieron cargar los pedidos (${r.code()})")
+        } catch (e: Exception) { mensaje = e.message ?: "No se pudieron cargar los pedidos" }
     }
     LaunchedEffect(Unit) { cargarPedidos() }
 
@@ -1545,7 +1572,9 @@ private fun ProductosUsuario(
                 } else {
                     pedidoNuevo = cuerpo
                     carrito.clear()
-                    onActualizado(RetrofitClient.apiService.listarProductosCatalogo().body().orEmpty())
+                    val catalogo = RetrofitClient.apiService.listarProductosCatalogo()
+                    onActualizado(catalogo.body().takeIf { catalogo.isSuccessful }
+                        ?: throw IllegalStateException("No se pudo actualizar el catálogo (${catalogo.code()})"))
                     cargarPedidos()
                 }
             } catch (e: Exception) {
@@ -1655,7 +1684,12 @@ private fun TabQrAsistencia(appConfig: AppConfigResponse) {
                 } else {
                     validacion = cuerpo
                     errorQr = null
-                    mensajeQr = cuerpo.mensaje?.takeIf { it.isNotBlank() } ?: "Asistencia validada"
+                    if (cuerpo.estado == "Permitido") {
+                        mensajeQr = cuerpo.mensaje?.takeIf { it.isNotBlank() } ?: "Asistencia validada"
+                    } else {
+                        errorQr = cuerpo.mensaje?.takeIf { it.isNotBlank() } ?: cuerpo.estado ?: "Acceso no permitido"
+                        mensajeQr = null
+                    }
                 }
             } catch (e: Exception) {
                 errorQr = e.message ?: "No se pudo conectar con la API."
@@ -2169,7 +2203,7 @@ private fun ItemEjercicio(
 @Composable
 private fun Chip(texto: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.height(36.dp).clickable { onClick() },
+        modifier = Modifier.heightIn(min = 48.dp).clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         color = if (selected) MaterialTheme.colorScheme.primary else Superficie,
         border = if (!selected) BorderStroke(1.dp, BordeSutil) else null

@@ -143,10 +143,11 @@ public class OperacionController {
         return ResponseEntity.ok(notificacionMap(notificacionRepository.save(notificacion)));
     }
 
-    // Rutinas de un socio: se suma ENTRENADOR, que sí necesita ver las de sus clientes.
+    // El entrenador solo consulta rutinas de socios de su sucursal.
     @GetMapping("/socio/{socioId}/rutinas")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
-            + "or @accesoSocio.esElMismo(authentication, #socioId)")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA') "
+            + "or @accesoSocio.esElMismo(authentication, #socioId) "
+            + "or @accesoSocio.entrenadorDeSucursal(authentication, #socioId)")
     @Transactional(readOnly = true)
     public ResponseEntity<List<Map<String, Object>>> rutinasSocio(@PathVariable UUID socioId) {
         return ResponseEntity.ok(rutinaRepository.findBySocioUsuarioIdOrderByFechaAsignacionDesc(socioId).stream().map(this::rutinaMap).toList());

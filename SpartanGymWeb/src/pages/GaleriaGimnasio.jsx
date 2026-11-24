@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import VideoSpartan from './VideoSpartan';
+import VideoGimnasio from './VideoGimnasio';
 import { usePrefersReducedMotion } from '../utils/useParallax';
-import './GaleriaSpartan.css';
+import './GaleriaGimnasio.css';
 
 const numero = new Intl.NumberFormat('es');
 const tituloEscena = (escena) => escena?.titulo?.trim() || 'Escena de entrenamiento';
 
-export default function GaleriaSpartan({ escenas = [] }) {
+export default function GaleriaGimnasio({ escenas = [] }) {
   const [params] = useSearchParams();
   const { hash } = useLocation();
   const navegar = useNavigate();
@@ -226,7 +226,7 @@ function VisorGaleria({ escenas }) {
                   />
                 )}
                 {escena.video && indice === seleccion && (
-                  <VideoSpartan className="sp-gallery-video" src={escena.video} poster={escena.src} />
+                  <VideoGimnasio className="sp-gallery-video" src={escena.video} poster={escena.src} />
                 )}
               </figure>
             );

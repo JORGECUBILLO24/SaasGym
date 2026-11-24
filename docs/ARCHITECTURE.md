@@ -1,4 +1,4 @@
-# Arquitectura y ruta SaaS — SpartanGym
+# Arquitectura y ruta SaaS — SaasGym
 
 Estado: propuesta de evolución, no arquitectura multiempresa ya implementada.
 

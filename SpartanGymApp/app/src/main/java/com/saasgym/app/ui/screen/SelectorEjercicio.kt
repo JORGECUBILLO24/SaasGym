@@ -34,6 +34,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +45,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,9 +56,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.saasgym.app.R
 import com.saasgym.app.network.EjercicioCatalogoResponse
 import com.saasgym.app.network.GrupoMuscularResponse
+import com.saasgym.app.network.RetrofitClient
+import com.saasgym.app.network.CrearGrupoRequest
+import com.saasgym.app.network.CrearEjercicioRequest
+import kotlinx.coroutines.launch
 
 private val SEL_FONDO = Color(0xFF0C0C0C)
 private val SEL_CAMPO = Color(0xFF181818)
@@ -72,21 +82,77 @@ internal fun SelectorEjercicioSheet(
     seleccionadoId: Long?,
     acento: Color,
     onElegir: (EjercicioCatalogoResponse) -> Unit,
+    onCatalogoActualizado: () -> Unit = {},
     onCerrar: () -> Unit
 ) {
     val estado = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var consulta by rememberSaveable { mutableStateOf("") }
     var grupoId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var creando by remember { mutableStateOf("") }
+    var nuevoNombre by remember { mutableStateOf("") }
+    var errorCreacion by remember { mutableStateOf<String?>(null) }
+    var guardando by remember { mutableStateOf(false) }
+    var gruposCatalogo by remember { mutableStateOf<List<GrupoMuscularResponse>>(emptyList()) }
+    var errorGrupos by remember { mutableStateOf<String?>(null) }
+    var intentoGrupos by remember { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(intentoGrupos) {
+        try {
+            val respuesta = RetrofitClient.apiService.listarGrupos()
+            gruposCatalogo = respuesta.body().takeIf { respuesta.isSuccessful }
+                ?: throw IllegalStateException("No se pudieron cargar los grupos (${respuesta.code()})")
+            errorGrupos = null
+        } catch (e: Exception) { errorGrupos = e.message ?: "Sin conexión" }
+    }
 
-    val grupos = remember(ejercicios) {
-        ejercicios.mapNotNull { it.grupoMuscular }
+    val grupos = ejercicios.mapNotNull { it.grupoMuscular }
             .filter { it.id != null && !it.nombre.isNullOrBlank() }
             .distinctBy { it.id }
             .sortedBy { normalizarBusqueda(it.nombre) }
-    }
-    val resultados = remember(ejercicios, consulta, grupoId) { buscarEjercicios(ejercicios, consulta, grupoId) }
+    val resultados = buscarEjercicios(ejercicios, consulta, grupoId)
     val lista = rememberLazyListState()
     LaunchedEffect(consulta, grupoId) { lista.scrollToItem(0) }
+
+    if (creando.isNotEmpty()) AlertDialog(
+        onDismissRequest = { creando = "" },
+        title = { Text(if (creando == "grupo") "Crear grupo" else "Crear ejercicio") },
+        text = {
+            Column {
+                OutlinedTextField(nuevoNombre, { nuevoNombre = it }, label = { Text("Nombre") }, singleLine = true)
+                if (creando == "ejercicio") {
+                    Text("Grupo muscular")
+                    (gruposCatalogo.ifEmpty { grupos }).forEach { grupo ->
+                        TextButton(onClick = { grupoId = grupo.id }, modifier = Modifier.height(48.dp)) {
+                            Text((if (grupoId == grupo.id) "✓ " else "") + grupo.nombre.orEmpty())
+                        }
+                    }
+                }
+                errorCreacion?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                guardando = true; errorCreacion = null
+                scope.launch {
+                    try {
+                        if (creando == "grupo") {
+                            val r = RetrofitClient.apiService.crearGrupo(CrearGrupoRequest(nuevoNombre.trim()))
+                            if (!r.isSuccessful || r.body() == null) throw IllegalStateException("No se pudo crear el grupo (${r.code()})")
+                            gruposCatalogo = gruposCatalogo + r.body()!!
+                        } else {
+                            val grupo = (gruposCatalogo.ifEmpty { grupos }).firstOrNull { it.id == grupoId }
+                                ?: throw IllegalStateException("Selecciona un grupo")
+                            val r = RetrofitClient.apiService.crearEjercicio(CrearEjercicioRequest(nuevoNombre.trim(), grupo))
+                            if (!r.isSuccessful || r.body() == null) throw IllegalStateException("No se pudo crear el ejercicio (${r.code()})")
+                        }
+                        creando = ""; nuevoNombre = ""; onCatalogoActualizado()
+                    } catch (e: Exception) { errorCreacion = e.message ?: "No se pudo guardar" }
+                    finally { guardando = false }
+                }
+            }, enabled = nuevoNombre.isNotBlank() && !guardando) { Text("Guardar") }
+        },
+        dismissButton = { TextButton(onClick = { creando = "" }) { Text("Cancelar") } }
+    )
 
     ModalBottomSheet(onDismissRequest = onCerrar, sheetState = estado, containerColor = SEL_FONDO) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding()) {
@@ -111,7 +177,7 @@ internal fun SelectorEjercicioSheet(
                         Icon(Icons.Rounded.Close, "Borrar búsqueda", tint = SEL_GRIS)
                     }
                 },
-                placeholder = { Text("Sentadilla, curl bíceps, bench press…", color = SEL_GRIS, fontSize = 14.sp) },
+                placeholder = { Text(stringResource(R.string.buscar_ejercicio_ejemplo), color = SEL_GRIS, fontSize = 14.sp) },
                 textStyle = TextStyle(fontSize = 15.sp, color = Color.White),
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -133,6 +199,14 @@ internal fun SelectorEjercicioSheet(
                         grupoId = if (grupoId == grupo.id) null else grupo.id
                     }
                 }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                TextButton(onClick = { creando = "ejercicio"; nuevoNombre = ""; errorCreacion = null }, modifier = Modifier.height(48.dp)) { Text("Crear ejercicio") }
+                TextButton(onClick = { creando = "grupo"; nuevoNombre = ""; errorCreacion = null }, modifier = Modifier.height(48.dp)) { Text("Crear grupo") }
+            }
+            errorGrupos?.let {
+                Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                TextButton(onClick = { intentoGrupos++ }, modifier = Modifier.height(48.dp)) { Text("Reintentar") }
             }
             Spacer(Modifier.height(8.dp))
 

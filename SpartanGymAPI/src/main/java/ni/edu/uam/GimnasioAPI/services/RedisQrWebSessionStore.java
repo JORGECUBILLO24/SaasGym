@@ -22,7 +22,7 @@ import java.util.UUID;
 @Component
 @ConditionalOnProperty(name = "app.qr.session-store", havingValue = "redis")
 public class RedisQrWebSessionStore implements QrWebSessionStore {
-    private static final String PREFIX = "spartangym:qr:web:";
+    private static final String PREFIX = "saasgym:qr:web:";
     private static final Duration RETENCION_POR_DEFECTO = Duration.ofSeconds(600);
 
     private final StringRedisTemplate redis;
