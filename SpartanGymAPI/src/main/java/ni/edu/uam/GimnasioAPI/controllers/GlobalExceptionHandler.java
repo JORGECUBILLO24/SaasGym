@@ -86,6 +86,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<String> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
         log.warn("Violación de integridad de datos en {}: {}", origen(request), ex.getMostSpecificCause().getMessage());
+        if ("/api/auth/register".equals(request.getRequestURI())) {
+            return respuestaError.construir(HttpStatus.CONFLICT, "CONFLICTO",
+                    "No pudimos crear la cuenta con esos datos. Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.", request);
+        }
         return respuestaError.construir(HttpStatus.CONFLICT, "CONFLICTO",
                 "Ya existe un registro con esos datos (por ejemplo, el correo ya está en uso).", request);
     }

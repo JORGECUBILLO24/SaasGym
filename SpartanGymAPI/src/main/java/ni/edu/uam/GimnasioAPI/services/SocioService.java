@@ -28,25 +28,17 @@ public class SocioService {
     private final UsuarioRepository usuarioRepository;
     private final AlcanceSucursal alcanceSucursal;
 
-    @Transactional(readOnly = true)
-    public List<SocioResponse> listarSocios() {
-        return socioRepository.findAll().stream()
-                .map(this::mapearSocio)
-                .toList();
-    }
-
     /**
-     * Listado para el panel. El entrenador solo ve socios de su sucursal (igual que en sus
-     * pantallas de la app). Recepción ve a todos para poder registrar la entrada de un socio de
-     * otra sede, pero las acciones sobre la cuenta (contraseña, progreso) siguen limitadas a la suya.
+     * Listado para el panel. Recepción y entrenadores solo ven los socios de su sucursal; admin y
+     * superadmin, todos. El socio de otra sede igual puede entrar escaneando el QR de recepción.
      */
     @Transactional(readOnly = true)
     public List<SocioResponse> listarSocios(Authentication auth) {
         Usuario actor = auth == null || auth.getName() == null ? null
                 : usuarioRepository.findByEmailIgnoreCase(auth.getName()).orElse(null);
-        boolean esEntrenador = actor != null && actor.getRol() != null
-                && "ROLE_ENTRENADOR".equals(actor.getRol().getNombre());
-        Optional<UUID> sucursal = esEntrenador ? alcanceSucursal.sucursalRestringida(actor) : Optional.empty();
+        boolean esPersonalDeSucursal = actor != null && actor.getRol() != null
+                && AlcanceSucursal.esRolDeSucursal(actor.getRol().getNombre());
+        Optional<UUID> sucursal = esPersonalDeSucursal ? alcanceSucursal.sucursalRestringida(actor) : Optional.empty();
         return socioRepository.findAll().stream()
                 .filter(socio -> sucursal.isEmpty()
                         || (socio.getSucursal() != null && sucursal.get().equals(socio.getSucursal().getId())))

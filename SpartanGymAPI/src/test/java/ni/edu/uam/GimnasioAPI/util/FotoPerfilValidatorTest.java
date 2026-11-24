@@ -1,6 +1,10 @@
 package ni.edu.uam.GimnasioAPI.util;
 
 import org.junit.jupiter.api.Test;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
+import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -8,16 +12,27 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FotoPerfilValidatorTest {
 
-    // Cabeceras reales (los primeros bytes) de cada formato, en base64.
+    // Cabeceras solas no son imágenes válidas.
     private static final String WEBP = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4IA==";
     private static final String PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==";
     private static final String JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
 
     @Test
-    void validar_aceptaDataUrlDeImagen() {
-        assertEquals(WEBP, FotoPerfilValidator.validar(WEBP));
-        assertEquals(PNG, FotoPerfilValidator.validar(PNG));
-        assertEquals(JPEG, FotoPerfilValidator.validar(JPEG));
+    void validar_aceptaPngYJpegCompletos() throws Exception {
+        BufferedImage imagen = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
+        for (String formato : new String[]{"png", "jpeg"}) {
+            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            ImageIO.write(imagen, formato, salida);
+            String url = "data:image/" + formato + ";base64," + Base64.getEncoder().encodeToString(salida.toByteArray());
+            assertEquals(url, FotoPerfilValidator.validar(url));
+        }
+    }
+
+    @Test
+    void validar_rechazaFirmasConCuerpoIncompleto() {
+        assertThrows(RuntimeException.class, () -> FotoPerfilValidator.validar(PNG));
+        assertThrows(RuntimeException.class, () -> FotoPerfilValidator.validar(JPEG));
+        assertThrows(RuntimeException.class, () -> FotoPerfilValidator.validar(WEBP));
     }
 
     @Test

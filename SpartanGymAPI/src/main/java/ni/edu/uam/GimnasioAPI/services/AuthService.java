@@ -43,7 +43,7 @@ public class AuthService {
         String nombres = ValidacionCuenta.requerido(request.getNombres(), "nombres");
         String apellidos = ValidacionCuenta.requerido(request.getApellidos(), "apellidos");
         if (usuarioRepository.findByEmailIgnoreCase(email).isPresent()) {
-            throw new ConflictoException("El correo ya está en uso.");
+            throw new ConflictoException("No pudimos crear la cuenta con esos datos. Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.");
         }
 
         Rol rolSocio = rolRepository.findByNombre("ROLE_SOCIO")
