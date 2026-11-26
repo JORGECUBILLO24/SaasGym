@@ -51,8 +51,11 @@ const Login = () => {
   const completarSesion = (session) => {
     const apiRole = session.rol?.toUpperCase();
     const selectedRole = role?.toUpperCase();
+    // El superadmin no aparece en el selector: entra eligiendo "Administrador" o la detección automática.
+    const coincideRol = apiRole === selectedRole
+      || (selectedRole === 'ROLE_ADMIN' && apiRole === 'ROLE_SUPERADMIN');
 
-    if (selectedRole && apiRole !== selectedRole) {
+    if (selectedRole && !coincideRol) {
       setError('El rol seleccionado no coincide con el usuario autenticado.');
       authStorage.clear();
       return;
@@ -248,7 +251,6 @@ const Login = () => {
                   <option value="">Detectar automáticamente</option>
                   <option value="ROLE_RECEPCIONISTA">Recepcionista</option>
                   <option value="ROLE_ADMIN">Administrador</option>
-                  <option value="ROLE_SUPERADMIN">Superadmin</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-neutral-500">
                   <span className="text-xs">▼</span>
