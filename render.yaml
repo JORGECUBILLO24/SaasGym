@@ -10,6 +10,10 @@ services:
     plan: free
     region: ohio
     healthCheckPath: /api/configuracion
+    # Solo redesplegar cuando cambia la API (no por cambios en la web, la app o la documentación).
+    buildFilter:
+      paths:
+        - SpartanGymAPI/**
     envVars:
       # No usar el perfil "local" en la nube (ese carga application-local.properties de Neon local)
       - key: SPRING_PROFILES_ACTIVE
