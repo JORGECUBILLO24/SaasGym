@@ -63,7 +63,7 @@ public class NotificacionService {
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
-            helper.setFrom(correoEmisor);
+            helper.setFrom(correoEmisor, marca.nombreGimnasio());
             helper.setTo(correoDestino);
             helper.setSubject("Tu membresía en " + marca.nombreGimnasio() + " ha vencido");
             helper.setText(
@@ -91,7 +91,7 @@ public class NotificacionService {
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
-            helper.setFrom(correoEmisor);
+            helper.setFrom(correoEmisor, marca.nombreGimnasio());
             helper.setTo(correoDestino);
             helper.setSubject("Bienvenido a " + marca.nombreGimnasio() + " · cuenta creada");
             helper.setText(
@@ -129,7 +129,7 @@ public class NotificacionService {
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
-            helper.setFrom(correoEmisor);
+            helper.setFrom(correoEmisor, marca.nombreGimnasio());
             helper.setTo(correoDestino);
             helper.setSubject("Nueva rutina en " + marca.nombreGimnasio());
             helper.setText(
@@ -173,7 +173,7 @@ public class NotificacionService {
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
-            helper.setFrom(correoEmisor);
+            helper.setFrom(correoEmisor, marca.nombreGimnasio());
             helper.setTo(correoDestino);
             helper.setSubject("Restablece tu contraseña de " + marca.nombreGimnasio());
             helper.setText(
@@ -233,7 +233,7 @@ public class NotificacionService {
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
-            helper.setFrom(correoEmisor);
+            helper.setFrom(correoEmisor, marca.nombreGimnasio());
             helper.setTo(correoEmisor);
             helper.setBcc(correosDestino.toArray(new String[0]));
             helper.setSubject(asunto);
