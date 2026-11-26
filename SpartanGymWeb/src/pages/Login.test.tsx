@@ -88,10 +88,26 @@ describe('Login: mensajes de error', () => {
     fetchMock.mockResolvedValue(json({ id: '1', token: 't', email: 'admin@saasgym.com', rol: 'ROLE_ADMIN' }));
 
     renderizar();
-    await completarYEnviar('ROLE_SUPERADMIN');
+    await completarYEnviar('ROLE_RECEPCIONISTA');
 
     expect(await screen.findByText('El rol seleccionado no coincide con el usuario autenticado.')).toBeInTheDocument();
     expect(localStorage.getItem('saasgym_token')).toBeNull();
+  });
+
+  it('el selector no ofrece Superadmin', () => {
+    renderizar();
+
+    expect(screen.queryByRole('option', { name: 'Superadmin' })).not.toBeInTheDocument();
+  });
+
+  it('una cuenta superadmin entra eligiendo "Administrador"', async () => {
+    fetchMock.mockResolvedValue(json({ id: '9', token: 'tok', email: 'super@saasgym.com', rol: 'ROLE_SUPERADMIN' }));
+
+    renderizar();
+    await completarYEnviar('ROLE_ADMIN');
+
+    expect(await screen.findByText('Panel de administración')).toBeInTheDocument();
+    expect(localStorage.getItem('saasgym_token')).toBe('tok');
   });
 
   it('un rol sin acceso al panel web (socio) se rechaza', async () => {
