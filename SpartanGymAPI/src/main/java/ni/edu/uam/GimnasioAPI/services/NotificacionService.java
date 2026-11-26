@@ -38,7 +38,9 @@ public class NotificacionService {
     private final ConfiguracionAppService configuracionAppService;
     private final Environment environment;
 
-    @Value("${spring.mail.username:}")
+    // Remitente visible. En Brevo el usuario SMTP (xxx@smtp-brevo.com) no es un remitente válido:
+    // se usa MAIL_FROM, que debe ser un remitente verificado en Brevo.
+    @Value("${app.mail.from:}")
     private String correoEmisor;
 
     public Notificacion registrarNotificacion(Usuario usuario, String tipo, String titulo, String mensaje) {
