@@ -45,3 +45,6 @@ services:
         sync: false
       - key: MAIL_PASSWORD
         sync: false
+      # Correo remitente verificado en Brevo (no el usuario SMTP xxx@smtp-brevo.com).
+      - key: MAIL_FROM
+        sync: false
