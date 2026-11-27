@@ -5,7 +5,12 @@ import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.repositories.MembresiaSocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import ni.edu.uam.GimnasioAPI.services.NotificacionService;
+import ni.edu.uam.GimnasioAPI.services.TenantLookupService;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,9 +31,24 @@ class MembresiaSchedulerTest {
     @Mock private MembresiaSocioRepository membresiaRepository;
     @Mock private SocioRepository socioRepository;
     @Mock private NotificacionService notificacionService;
+    @Mock private TenantLookupService tenantLookupService;
+    @Mock private PlatformTransactionManager transactionManager;
 
     @InjectMocks
     private MembresiaScheduler scheduler;
+    private final UUID gimnasioId = UUID.randomUUID();
+
+    @org.junit.jupiter.api.BeforeEach
+    void prepararTenant() {
+        when(tenantLookupService.listarGimnasiosActivos()).thenReturn(List.of(gimnasioId));
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenReturn(new SimpleTransactionStatus());
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void limpiarTenant() {
+        TenantContext.clear();
+    }
 
     private MembresiaSocio membresiaCon(Socio socio) {
         MembresiaSocio membresia = new MembresiaSocio();
@@ -73,8 +93,8 @@ class MembresiaSchedulerTest {
         verify(membresiaRepository).save(membresiaSana2);
         verify(socioRepository).save(socioSano1);
         verify(socioRepository).save(socioSano2);
-        verify(notificacionService).enviarCorreoVencimiento(socioSano1.getUsuario().getEmail(), "Sano1");
-        verify(notificacionService).enviarCorreoVencimiento(socioSano2.getUsuario().getEmail(), "Sano2");
+        verify(notificacionService).enviarCorreoVencimiento(gimnasioId, socioSano1.getUsuario().getEmail(), "Sano1");
+        verify(notificacionService).enviarCorreoVencimiento(gimnasioId, socioSano2.getUsuario().getEmail(), "Sano2");
 
         // El socio roto nunca llego a bloquearsele el acceso, porque el guardado de su
         // membresia fallo antes de esa linea.
@@ -93,6 +113,6 @@ class MembresiaSchedulerTest {
 
         assertEquals("Vencida", membresia.getEstado());
         assertEquals("Inactivo", socio.getEstadoAcceso());
-        verify(notificacionService).enviarCorreoVencimiento(socio.getUsuario().getEmail(), "Ana");
+        verify(notificacionService).enviarCorreoVencimiento(gimnasioId, socio.getUsuario().getEmail(), "Ana");
     }
 }

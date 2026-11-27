@@ -10,6 +10,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "notificaciones")
 public class Notificacion {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;

@@ -133,6 +133,7 @@ public class PasswordResetService {
 
         String enlace = construirEnlace(tokenPlano);
         notificacionService.enviarCorreoRecuperacionPassword(
+                usuario.getGimnasioId(),
                 usuario.getEmail(),
                 obtenerNombreUsuario(usuario),
                 enlace,

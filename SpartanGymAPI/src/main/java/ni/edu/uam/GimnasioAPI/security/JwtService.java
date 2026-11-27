@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -51,12 +52,18 @@ public class JwtService {
 
     /** Claim con la versión de credenciales del usuario (ver Usuario.authVersion). */
     static final String CLAIM_VERSION = "av";
+    static final String CLAIM_GYM_ID = "gimnasioId";
 
     // Genera el token a partir de los datos del usuario
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         if (userDetails instanceof UserDetailsImpl detalles && detalles.getUsuario() != null) {
             claims.put(CLAIM_VERSION, versionDe(detalles));
+            UUID gimnasioId = detalles.getUsuario().getGimnasioId();
+            if (gimnasioId == null) {
+                throw new IllegalStateException("El usuario no tiene un gimnasio asignado.");
+            }
+            claims.put(CLAIM_GYM_ID, gimnasioId.toString());
         }
         return generateToken(claims, userDetails);
     }
@@ -97,6 +104,14 @@ public class JwtService {
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public UUID extractGimnasioId(String token) {
+        String gimnasioId = extractClaim(token, claims -> claims.get(CLAIM_GYM_ID, String.class));
+        if (gimnasioId == null) {
+            throw new IllegalArgumentException("El token no contiene el gimnasio.");
+        }
+        return UUID.fromString(gimnasioId);
     }
 
     private boolean isTokenExpired(String token) {

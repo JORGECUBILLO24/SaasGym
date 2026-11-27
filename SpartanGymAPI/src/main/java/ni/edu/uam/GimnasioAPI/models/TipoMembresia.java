@@ -9,11 +9,14 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "tipos_membresia")
 public class TipoMembresia {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(unique = true, nullable = false, length = 50)
+    @Column(nullable = false, length = 50)
     private String nombre;
 
     @Column(name = "duracion_dias", nullable = false)

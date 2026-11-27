@@ -16,6 +16,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "solicitudes_pago_membresia")
 public class SolicitudPagoMembresia {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     public static final String PENDIENTE = "Pendiente";
     public static final String APROBADA = "Aprobada";
     public static final String RECHAZADA = "Rechazada";
