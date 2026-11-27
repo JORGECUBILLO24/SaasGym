@@ -11,6 +11,9 @@ import java.time.LocalDate;
 @Table(name = "detalle_rutinas")
 @IdClass(RutinaDetalleId.class)
 public class RutinaDetalle {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
 
     @Id
     @ManyToOne(fetch = FetchType.LAZY)

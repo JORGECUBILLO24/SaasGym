@@ -15,6 +15,7 @@ const cabecerasEnviadas = (): Record<string, string> =>
 
 beforeEach(() => {
   fetchMock.mockReset();
+  localStorage.removeItem('saasgym_gym_slug');
   vi.stubGlobal('fetch', fetchMock);
   // window.location.href = '/login' no se puede ejecutar de verdad en jsdom: se reemplaza.
   vi.stubGlobal('location', { href: 'http://localhost/admin' });
@@ -49,18 +50,20 @@ describe('apiRequest: cabecera Accept', () => {
 
 describe('apiRequest: autenticación y sucursal', () => {
   it('envía el token y la sucursal elegida', async () => {
-    localStorage.setItem('spartan_token', 'tok-123');
+    localStorage.setItem('saasgym_token', 'tok-123');
     localStorage.setItem('global_sucursal_id', 'suc-9');
+    localStorage.setItem('saasgym_gym_slug', 'titan-gym');
     fetchMock.mockResolvedValue(respuesta('[]', 200, 'application/json'));
 
     await apiRequest('/socios');
 
     expect(cabecerasEnviadas().Authorization).toBe('Bearer tok-123');
+    expect(cabecerasEnviadas()['X-Gimnasio-Slug']).toBe('titan-gym');
     expect(cabecerasEnviadas()['X-Sucursal-Id']).toBe('suc-9');
   });
 
   it('con skipAuth no envía el token y con ignoreSucursal no envía la sucursal', async () => {
-    localStorage.setItem('spartan_token', 'tok-123');
+    localStorage.setItem('saasgym_token', 'tok-123');
     localStorage.setItem('global_sucursal_id', 'suc-9');
     fetchMock.mockResolvedValue(respuesta('{}', 200, 'application/json'));
 
@@ -158,8 +161,8 @@ describe('apiRequest: errores RFC 9457', () => {
 
 describe('apiRequest: 401 y sesión vencida', () => {
   beforeEach(() => {
-    localStorage.setItem('spartan_token', 'vencido');
-    localStorage.setItem('spartan_user', JSON.stringify({ email: 'x@x.com', rol: 'ROLE_ADMIN' }));
+    localStorage.setItem('saasgym_token', 'vencido');
+    localStorage.setItem('saasgym_user', JSON.stringify({ email: 'x@x.com', rol: 'ROLE_ADMIN' }));
     localStorage.setItem(CLAVE_CUENTA_ACTUAL, JSON.stringify({ username: 'x@x.com', role: 'Administrador' }));
   });
 
@@ -169,8 +172,8 @@ describe('apiRequest: 401 y sesión vencida', () => {
     await expect(apiRequest('/socios')).rejects.toMatchObject({ status: 401, codigo: 'NO_AUTENTICADO' });
 
     // La sesión vive en dos lugares; si solo se limpiara uno, /login volvía a /admin en loop.
-    expect(localStorage.getItem('spartan_token')).toBeNull();
-    expect(localStorage.getItem('spartan_user')).toBeNull();
+    expect(localStorage.getItem('saasgym_token')).toBeNull();
+    expect(localStorage.getItem('saasgym_user')).toBeNull();
     expect(localStorage.getItem(CLAVE_CUENTA_ACTUAL)).toBeNull();
     expect(JSON.parse(localStorage.getItem(CLAVE_ULTIMO_CIERRE) ?? '{}')).toMatchObject({ motivo: 'sesion-expirada' });
     expect(window.location.href).toBe('/login');
@@ -184,7 +187,7 @@ describe('apiRequest: 401 y sesión vencida', () => {
       status: 401,
     });
 
-    expect(localStorage.getItem('spartan_token')).toBe('vencido');
+    expect(localStorage.getItem('saasgym_token')).toBe('vencido');
     expect(window.location.href).toBe('http://localhost/admin');
   });
 });
@@ -202,16 +205,20 @@ describe('apiRequest: fallos de conexión', () => {
 });
 
 describe('authApi y authStorage', () => {
-  it('login manda email y password por POST /auth/login', async () => {
+  it('login manda email, password y slug por POST /auth/login', async () => {
     fetchMock.mockResolvedValue(
       respuesta(JSON.stringify({ id: '1', token: 't', email: 'a@a.com', rol: 'ROLE_ADMIN' }), 200, 'application/json'),
     );
 
-    const sesion = await authApi.login('a@a.com', 'clave');
+    const sesion = await authApi.login('a@a.com', 'clave', ' Titan-Gym ');
 
     expect(sesion.rol).toBe('ROLE_ADMIN');
     expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/auth\/login$/);
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', body: '{"email":"a@a.com","password":"clave"}' });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      body: '{"email":"a@a.com","password":"clave","gimnasioSlug":" Titan-Gym "}',
+    });
+    expect(cabecerasEnviadas()['X-Gimnasio-Slug']).toBe('titan-gym');
   });
 
   it('setSession guarda el token aparte del usuario y clear borra ambos', () => {
@@ -220,7 +227,7 @@ describe('authApi y authStorage', () => {
     expect(authStorage.getToken()).toBe('secreto');
     expect(authStorage.getUser()).toEqual({ id: '1', email: 'a@a.com', rol: 'ROLE_ADMIN' });
     // El token nunca se guarda dentro del objeto de usuario.
-    expect(localStorage.getItem('spartan_user')).not.toContain('secreto');
+    expect(localStorage.getItem('saasgym_user')).not.toContain('secreto');
 
     authStorage.clear();
 
@@ -229,7 +236,7 @@ describe('authApi y authStorage', () => {
   });
 
   it('getUser tolera un valor corrupto', () => {
-    localStorage.setItem('spartan_user', '{corrupto');
+    localStorage.setItem('saasgym_user', '{corrupto');
 
     expect(authStorage.getUser()).toBeNull();
   });

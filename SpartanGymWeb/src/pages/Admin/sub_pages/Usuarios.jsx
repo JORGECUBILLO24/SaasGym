@@ -268,7 +268,7 @@ const Usuarios = () => {
                   <Mail className="absolute left-4 top-3.5 text-gray-500" size={18} />
                   <input 
                     type="email" name="correo" required value={formData.correo} onChange={handleChange}
-                    placeholder="admin@spartangym.com" 
+                    placeholder="admin@saasgym.com" 
                     className="w-full bg-[#111] border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-red-600 focus:bg-[#151515] transition-all" 
                   />
                 </div>
@@ -386,7 +386,7 @@ const Usuarios = () => {
               
               {/* Correo con break-all para cortar strings sin espacios */}
               <p className="text-xs text-gray-400 mt-1 mb-6 font-mono w-full text-center break-all px-2">
-                {formData.correo || 'usuario@spartangym.com'}
+                {formData.correo || 'usuario@saasgym.com'}
               </p>
             </div>
 

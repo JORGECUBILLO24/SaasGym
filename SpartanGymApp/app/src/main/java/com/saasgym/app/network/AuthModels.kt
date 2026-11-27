@@ -2,7 +2,8 @@ package com.saasgym.app.network
 
 data class LoginRequest(
     val email: String,
-    val password: String
+    val password: String,
+    val gimnasioSlug: String
 )
 
 data class PasswordRecoveryRequest(
@@ -75,10 +76,10 @@ data class AppConfigResponse(
     val sessionTimeout: String? = null
 ) {
     private fun logoValidoParaNombre(logo: String?, nombreAsociado: String?): String? {
-        val nombreActual = gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "Spartan Gym"
+        val nombreActual = gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "SaasGym"
         val logoNombre = nombreAsociado?.trim().orEmpty()
         val coincide = if (logoNombre.isEmpty()) {
-            nombreActual.equals("Spartan Gym", ignoreCase = true)
+            nombreActual.equals("SaasGym", ignoreCase = true)
         } else {
             logoNombre.equals(nombreActual, ignoreCase = true)
         }
@@ -91,13 +92,13 @@ data class AppConfigResponse(
 
     fun nombreVisibleApp(): String = appName?.trim()?.takeIf { it.isNotEmpty() }
         ?: gymName?.trim()?.takeIf { it.isNotEmpty() }
-        ?: "Spartan Gym"
+        ?: "SaasGym"
 
     fun logoAppActual(): String? {
         val nombreActual = nombreVisibleApp()
         val nombreLogo = appLogoNombre?.trim().orEmpty()
         val coincide = if (nombreLogo.isEmpty()) {
-            nombreActual.equals("Spartan Gym", ignoreCase = true)
+            nombreActual.equals("SaasGym", ignoreCase = true)
         } else {
             nombreLogo.equals(nombreActual, ignoreCase = true)
         }
@@ -403,6 +404,7 @@ data class EntrenadorClienteResponse(
 
 data class EntrenadorPerfilResponse(
     val id: String? = null,
+    val fotoUrl: String? = null,
     val email: String? = null,
     val rol: String? = null,
     val activo: Boolean? = null,
@@ -414,6 +416,18 @@ data class EntrenadorPerfilResponse(
     val sucursalId: String? = null,
     val sucursal: String? = null
 )
+
+data class AsistenciaHistorialResponse(
+    val fechaHora: String? = null, val estado: String? = null, val mensaje: String? = null
+)
+
+data class ActualizarPerfilEntrenadorRequest(
+    val nombres: String, val apellidos: String? = null, val telefono: String, val especialidad: String
+)
+
+data class CrearGrupoRequest(val nombre: String)
+
+data class CrearEjercicioRequest(val nombre: String, val grupoMuscular: GrupoMuscularResponse)
 
 data class PagoSocioResponse(
     val id: String? = null,

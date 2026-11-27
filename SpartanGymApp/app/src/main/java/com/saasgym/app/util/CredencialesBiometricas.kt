@@ -14,16 +14,25 @@ import javax.crypto.spec.GCMParameterSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 
-data class CredencialesBiometricas(val correo: String, val contrasena: String)
+data class CredencialesBiometricas(val correo: String, val contrasena: String, val gimnasioSlug: String)
 
 object CredencialesBiometricasStore {
     private const val PREFERENCIAS = "acceso_biometrico"
-    private const val ALIAS = "spartangym_biometric_credentials"
+    private const val ALIAS = "saasgym_biometric_credentials"
     private const val CLAVE_CIFRADO = "credentials_ciphertext"
     private const val CLAVE_IV = "credentials_iv"
     private const val CLAVE_CORREO_HASH = "credentials_email_hash"
 
-    fun disponibles(context: Context): Boolean = preferencias(context).contains(CLAVE_CIFRADO)
+    fun disponibles(context: Context): Boolean {
+        if (!preferencias(context).contains(CLAVE_CIFRADO)) return false
+        // Datos cifrados sin su clave (p. ej. la clave se guardaba con otro alias): no se pueden
+        // descifrar, así que se borran y el usuario vuelve a activar la huella tras iniciar sesión.
+        if (runCatching { obtenerClave() }.isFailure) {
+            preferencias(context).edit().clear().apply()
+            return false
+        }
+        return true
+    }
 
     fun correspondenA(context: Context, correo: String): Boolean {
         val hashGuardado = preferencias(context).getString(CLAVE_CORREO_HASH, null) ?: return false
@@ -46,10 +55,11 @@ object CredencialesBiometricasStore {
         return cipher
     }
 
-    fun guardar(context: Context, cipher: Cipher, correo: String, contrasena: String) {
+    fun guardar(context: Context, cipher: Cipher, correo: String, contrasena: String, gimnasioSlug: String) {
         val contenido = JSONObject()
             .put("email", correo.trim())
             .put("password", contrasena)
+            .put("gimnasioSlug", gimnasioSlug.trim().lowercase())
             .toString()
             .toByteArray(StandardCharsets.UTF_8)
         val cifrado = cipher.doFinal(contenido)
@@ -67,7 +77,8 @@ object CredencialesBiometricasStore {
         val json = JSONObject(String(cipher.doFinal(contenidoCifrado), StandardCharsets.UTF_8))
         return CredencialesBiometricas(
             correo = json.getString("email"),
-            contrasena = json.getString("password")
+            contrasena = json.getString("password"),
+            gimnasioSlug = json.optString("gimnasioSlug", "spartan-gym")
         )
     }
 

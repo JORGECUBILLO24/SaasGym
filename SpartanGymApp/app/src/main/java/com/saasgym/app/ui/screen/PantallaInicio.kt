@@ -60,6 +60,7 @@ fun PantallaInicio(
     val reducirMovimiento = movimientoReducido()
 
     var correo by remember { mutableStateOf("") }
+    var gimnasioSlug by remember { mutableStateOf("spartan-gym") }
     var contrasena by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var mostrarRecuperacion by remember { mutableStateOf(false) }
@@ -69,7 +70,7 @@ fun PantallaInicio(
     var loginPorHuella by remember { mutableStateOf(false) }
     var huellaConfigurada by remember { mutableStateOf(CredencialesBiometricasStore.disponibles(context)) }
 
-    val spartanRed = MaterialTheme.colorScheme.primary
+    val acentoMarca = MaterialTheme.colorScheme.primary
     val darkCardBg = Color(0xED1B1B22)
     val fieldBackground = Color(0xFF222226)
     val fieldBorder = Color(0xFF3A3A3F)
@@ -194,7 +195,7 @@ fun PantallaInicio(
                 completarAcceso()
             },
             icon = {
-                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = spartanRed, modifier = Modifier.size(28.dp))
+                Icon(Icons.Outlined.Fingerprint, contentDescription = null, tint = acentoMarca, modifier = Modifier.size(28.dp))
             },
             title = { Text("Acceso con huella", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
@@ -218,7 +219,9 @@ fun PantallaInicio(
                             "Confirma para cifrar tus credenciales en este dispositivo"
                         ) { cipherAutenticado ->
                             runCatching {
-                                CredencialesBiometricasStore.guardar(context, cipherAutenticado, correo, contrasena)
+                                CredencialesBiometricasStore.guardar(
+                                    context, cipherAutenticado, correo, contrasena, gimnasioSlug
+                                )
                                 huellaConfigurada = true
                             }.onFailure {
                                 Toast.makeText(context, "No se pudo guardar el acceso biométrico.", Toast.LENGTH_SHORT).show()
@@ -228,7 +231,7 @@ fun PantallaInicio(
                         }
                     },
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = acentoMarca)
                 ) { Text("Activar") }
             },
             dismissButton = {
@@ -318,13 +321,24 @@ fun PantallaInicio(
                         Text(message, color = Color(0xFFFFB4AB), style = MaterialTheme.typography.bodyMedium)
                     }
                     CampoInicio(
+                        label = "Slug del gimnasio",
+                        value = gimnasioSlug,
+                        onValueChange = { gimnasioSlug = it },
+                        placeholder = "spartan-gym",
+                        fieldBackground = fieldBackground,
+                        fieldBorder = fieldBorder,
+                        acentoMarca = acentoMarca,
+                        textLabel = textLabel,
+                        textPlaceholder = textPlaceholder
+                    )
+                    CampoInicio(
                         label = "Correo electrónico",
                         value = correo,
                         onValueChange = { correo = it },
                         placeholder = "Ingresa tu correo",
                         fieldBackground = fieldBackground,
                         fieldBorder = fieldBorder,
-                        spartanRed = spartanRed,
+                        acentoMarca = acentoMarca,
                         textLabel = textLabel,
                         textPlaceholder = textPlaceholder,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -345,7 +359,7 @@ fun PantallaInicio(
                         placeholder = "Ingresa tu contraseña",
                         fieldBackground = fieldBackground,
                         fieldBorder = fieldBorder,
-                        spartanRed = spartanRed,
+                        acentoMarca = acentoMarca,
                         textLabel = textLabel,
                         textPlaceholder = textPlaceholder,
                         isPassword = !passwordVisible,
@@ -383,7 +397,7 @@ fun PantallaInicio(
                     ) {
                         Text(
                             text = "Recuperar contraseña",
-                            color = spartanRed,
+                            color = acentoMarca,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -394,7 +408,7 @@ fun PantallaInicio(
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFF101010),
-                            border = BorderStroke(1.dp, spartanRed.copy(alpha = 0.35f))
+                            border = BorderStroke(1.dp, acentoMarca.copy(alpha = 0.35f))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -433,7 +447,7 @@ fun PantallaInicio(
                                         placeholder = "correo@ejemplo.com",
                                         fieldBackground = fieldBackground,
                                         fieldBorder = fieldBorder,
-                                        spartanRed = spartanRed,
+                                        acentoMarca = acentoMarca,
                                         textLabel = textLabel,
                                         textPlaceholder = textPlaceholder,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -472,12 +486,12 @@ fun PantallaInicio(
                                         if (emailParaEnviar.isBlank()) {
                                             Toast.makeText(context, "Ingresa tu correo registrado", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            loginViewModel.solicitarRecuperacion(emailParaEnviar)
+                                            loginViewModel.solicitarRecuperacion(emailParaEnviar, gimnasioSlug)
                                         }
                                     },
                                     enabled = !loginViewModel.isLoading,
                                     modifier = Modifier.fillMaxWidth(),
-                                    border = BorderStroke(1.dp, spartanRed),
+                                    border = BorderStroke(1.dp, acentoMarca),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
@@ -495,7 +509,8 @@ fun PantallaInicio(
                             loginPorHuella = false
                             loginViewModel.iniciarSesion(
                                 email = correo,
-                                pass = contrasena
+                                pass = contrasena,
+                                gimnasioSlug = gimnasioSlug
                             )
                         },
                         enabled = !loginViewModel.isLoading,
@@ -505,7 +520,7 @@ fun PantallaInicio(
                             .escalaAlPresionar(loginInteractionSource),
                         interactionSource = loginInteractionSource,
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = spartanRed)
+                        colors = ButtonDefaults.buttonColors(containerColor = acentoMarca)
                     ) {
                         if (loginViewModel.isLoading) {
                             CircularProgressIndicator(
@@ -542,9 +557,14 @@ fun PantallaInicio(
                                         val credenciales = CredencialesBiometricasStore.leer(context, cipherAutenticado)
                                         correo = credenciales.correo
                                         contrasena = credenciales.contrasena
+                                        gimnasioSlug = credenciales.gimnasioSlug
                                         loginPorHuella = true
                                         accionHuella = AccionHuella.NINGUNA
-                                        loginViewModel.iniciarSesion(credenciales.correo, credenciales.contrasena)
+                                        loginViewModel.iniciarSesion(
+                                            credenciales.correo,
+                                            credenciales.contrasena,
+                                            credenciales.gimnasioSlug
+                                        )
                                     }.onFailure {
                                         CredencialesBiometricasStore.borrar(context)
                                         huellaConfigurada = false
@@ -584,7 +604,7 @@ private fun CampoInicio(
     placeholder: String,
     fieldBackground: Color,
     fieldBorder: Color,
-    spartanRed: Color,
+    acentoMarca: Color,
     textLabel: Color,
     textPlaceholder: Color,
     isPassword: Boolean = false,
@@ -621,11 +641,11 @@ private fun CampoInicio(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = fieldBackground,
                 unfocusedContainerColor = fieldBackground,
-                focusedBorderColor = spartanRed,
+                focusedBorderColor = acentoMarca,
                 unfocusedBorderColor = fieldBorder,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
-                cursorColor = spartanRed
+                cursorColor = acentoMarca
             ),
             visualTransformation = if (isPassword) {
                 PasswordVisualTransformation()

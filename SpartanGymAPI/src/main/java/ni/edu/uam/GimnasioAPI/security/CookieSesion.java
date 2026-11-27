@@ -26,7 +26,7 @@ import java.time.Duration;
 @Component
 public class CookieSesion {
 
-    public static final String NOMBRE = "spartan_sesion";
+    public static final String NOMBRE = "saasgym_sesion";
     public static final String HEADER_WEB = "X-Requested-With";
 
     @Value("${app.auth.cookie-secure:true}")

@@ -16,8 +16,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detecta qué partes cambiaron para correr solo los jobs necesarios. Un job que no aplica
+  # queda como "skipped", que GitHub cuenta como aprobado (no bloquea el merge).
+  # Si cambia este archivo, corren los tres; con workflow_dispatch también.
+  changes:
+    name: Detectar cambios
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      api: ${{ steps.filtro.outputs.api }}
+      web: ${{ steps.filtro.outputs.web }}
+      android: ${{ steps.filtro.outputs.android }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Filtrar por carpeta
+        id: filtro
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'SpartanGymAPI/**'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'SpartanGymWeb/**'
+              - '.github/workflows/ci.yml'
+            android:
+              - 'SpartanGymApp/**'
+              - '.github/workflows/ci.yml'
+
   api:
     name: API tests
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Servicios reales para las pruebas de integracion (concurrencia de ventas y pagos contra
@@ -27,13 +61,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: spartangym_it
+          POSTGRES_DB: saasgym_it
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d spartangym_it"
+          --health-cmd "pg_isready -U postgres -d saasgym_it"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -47,10 +81,10 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      SPARTAN_IT_DB_URL: jdbc:postgresql://localhost:5432/spartangym_it
-      SPARTAN_IT_DB_USER: postgres
-      SPARTAN_IT_DB_PASSWORD: postgres
-      SPARTAN_IT_REDIS_URL: redis://localhost:6379
+      SAASGYM_IT_DB_URL: jdbc:postgresql://localhost:5432/saasgym_it
+      SAASGYM_IT_DB_USER: postgres
+      SAASGYM_IT_DB_PASSWORD: postgres
+      SAASGYM_IT_REDIS_URL: redis://localhost:6379
     defaults:
       run:
         working-directory: SpartanGymAPI
@@ -68,6 +102,8 @@ jobs:
 
   web:
     name: Web lint and build
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -96,6 +132,8 @@ jobs:
 
   android:
     name: Android unit tests
+    needs: changes
+    if: needs.changes.outputs.android == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:

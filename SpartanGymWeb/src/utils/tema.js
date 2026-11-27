@@ -1,6 +1,6 @@
 import { leerDatoLocal } from './almacenamientoLocal';
 
-export const CLAVE_CONFIGURACION = 'spartanGym.settings';
+export const CLAVE_CONFIGURACION = 'saasGym.settings';
 
 const TEMAS_VALIDOS = ['light', 'dark', 'system'];
 

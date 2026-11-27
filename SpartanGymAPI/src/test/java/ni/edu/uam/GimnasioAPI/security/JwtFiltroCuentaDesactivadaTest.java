@@ -18,6 +18,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.UUID;
+
 /**
  * Desactivar a un empleado debe cortarle el acceso aunque conserve un JWT
  * emitido antes de la desactivación.
@@ -40,11 +42,13 @@ class JwtFiltroCuentaDesactivadaTest {
         usuario.setEmail("recepcion@ejemplo.com");
         usuario.setRol(rol);
         usuario.setActivo(activa);
+        usuario.setGimnasioId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         return new UserDetailsImpl(usuario);
     }
 
     private void ejecutarCon(UserDetailsImpl detalles) throws Exception {
         when(jwtService.extractUsername("token")).thenReturn("recepcion@ejemplo.com");
+        when(jwtService.extractGimnasioId("token")).thenReturn(detalles.getUsuario().getGimnasioId());
         when(userDetailsService.loadUserByUsername(anyString())).thenReturn(detalles);
         when(jwtService.isTokenValid(any(), any())).thenReturn(true);
 

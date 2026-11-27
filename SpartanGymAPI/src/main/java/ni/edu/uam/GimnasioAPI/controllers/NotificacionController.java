@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.dto.MensajeGlobalRequest;
 import ni.edu.uam.GimnasioAPI.models.Notificacion;
 import ni.edu.uam.GimnasioAPI.repositories.NotificacionRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import ni.edu.uam.GimnasioAPI.services.NotificacionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,7 +45,7 @@ public class NotificacionController {
                 titulo,
                 mensaje
         );
-        notificacionService.enviarCorreoGlobal(tipo, titulo, mensaje);
+        notificacionService.enviarCorreoGlobal(TenantContext.requireTenantId(), tipo, titulo, mensaje);
         return ResponseEntity.ok(notificacion);
     }
 }

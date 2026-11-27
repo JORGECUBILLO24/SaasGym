@@ -418,18 +418,10 @@ public class VentaProductoService {
             // Pedidos nuevos: se devuelve exactamente lo que se apartó.
             venta.getReservas().forEach(reserva -> aDevolver.merge(reserva.getProductoId(), (long) reserva.getCantidad(), Long::sum));
         } else {
-            // Pedidos creados antes de guardar las reservas: se reconstruye con la receta actual.
-            List<UUID> ids = venta.getDetalles().stream().map(d -> d.getProducto().getId()).distinct().toList();
-            Map<UUID, List<LineaReceta>> recetas = componenteRepository.recetasDe(ids).stream()
-                    .collect(Collectors.groupingBy(LineaReceta::productoId));
-            for (VentaProductoDetalle detalle : venta.getDetalles()) {
-                List<LineaReceta> receta = recetas.getOrDefault(detalle.getProducto().getId(), List.of());
-                if (receta.isEmpty()) {
-                    aDevolver.merge(detalle.getProducto().getId(), (long) detalle.getCantidad(), Long::sum);
-                } else {
-                    receta.forEach(linea -> aDevolver.merge(linea.insumoId(), (long) detalle.getCantidad() * linea.cantidad(), Long::sum));
-                }
-            }
+            // Sin reservas históricas no consta qué unidades o insumos fueron descontados.
+            // La receta actual no demuestra el consumo original: se requiere ajuste manual.
+            log.warn("Pedido {} sin reservas: stock no restituido automáticamente; revisar inventario",
+                    venta.getCodigoPedido());
         }
 
         // Mismo orden de bloqueo que las ventas (ids ordenados) para no provocar deadlocks.

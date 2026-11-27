@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Gimnasio</string>
+    <string name="buscar_ejercicio_ejemplo">Sentadilla, curl bíceps, press de banca…</string>
 </resources>

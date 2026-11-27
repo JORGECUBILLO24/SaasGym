@@ -22,10 +22,11 @@ import {
   Zap,
 } from 'lucide-react';
 
-import imgLaptop from '../../../assets/ComputadoraSpartan.webp';
-import imgEstadisticas from '../../../assets/EstadisticasSpartan.webp';
-import imgMembresia from '../../../assets/MembresiaSpartan.webp';
-import imgSuplementos from '../../../assets/SuplementosSpartan.webp';
+import imgLaptop from '../../../assets/Computadora.webp';
+import imgEstadisticas from '../../../assets/Estadisticas.webp';
+import imgMembresia from '../../../assets/gym-aesthetic-coach.webp';
+import imgSuplementos from '../../../assets/gym-machine-studio.png';
+import imgSucursales from '../../../assets/gym-strength-floor.webp';
 import { formatearMoneda, obtenerNombreGimnasio, useConfiguracionApp } from '../../../utils/configuracionApp';
 import { finanzasApi, inventarioApi, membresiasApi, operacionApi, personalApi, reportesApi, sucursalesApi } from '../../../services/api';
 
@@ -84,7 +85,7 @@ const modulosAdministracion = [
     titulo: 'Sucursales y gimnasios',
     descripcion: 'Ubicaciones, horarios, capacidad y conteo operativo.',
     boton: 'Agregar gimnasio',
-    imagen: imgMembresia,
+    imagen: imgSucursales,
     icono: Building2,
     ruta: '/admin/sucursales',
     metrica: '...',

@@ -1,6 +1,6 @@
 package ni.edu.uam.GimnasioAPI.services;
 
-import ni.edu.uam.GimnasioAPI.dto.CompraMembresiaRequest;
+import ni.edu.uam.GimnasioAPI.dto.PagoRequest;
 import ni.edu.uam.GimnasioAPI.integracion.IntegracionPostgresBase;
 import ni.edu.uam.GimnasioAPI.models.Rol;
 import ni.edu.uam.GimnasioAPI.models.Socio;
@@ -10,6 +10,7 @@ import ni.edu.uam.GimnasioAPI.repositories.RolRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.TipoMembresiaRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * membresía que le corresponde, ni dos membresías activas para el mismo socio.
  */
 // La condicion va en cada clase: JUnit no la hereda de IntegracionPostgresBase.
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
 
     private static final String EMAIL = "socio-it-membresia@ejemplo.com";
@@ -111,15 +112,20 @@ class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
         List<Future<?>> futuros = new ArrayList<>();
         for (int i = 0; i < hilos; i++) {
             futuros.add(pool.submit(() -> {
-                listos.countDown();
-                salida.await();
                 try {
-                    tarea.call();
-                    exitos.incrementAndGet();
-                } catch (Exception esperado) {
-                    // Los perdedores de la carrera fallan (Conflicto / integridad): es lo correcto.
+                    TenantContext.setTenant(gimnasioPruebasId);
+                    listos.countDown();
+                    salida.await();
+                    try {
+                        tarea.call();
+                        exitos.incrementAndGet();
+                    } catch (Exception esperado) {
+                        // Los perdedores de la carrera fallan (Conflicto / integridad): es lo correcto.
+                    }
+                    return null;
+                } finally {
+                    TenantContext.clear();
                 }
-                return null;
             }));
         }
         listos.await(10, TimeUnit.SECONDS);
@@ -132,37 +138,32 @@ class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
     }
 
     @Test
-    void comprarLaMismaMembresiaVariasVecesALaVez_cobraYActivaUnaSolaVez() throws Exception {
-        CompraMembresiaRequest request = new CompraMembresiaRequest();
-        request.setTipoMembresiaId(tipo.getId());
-        request.setMetodoPago("Efectivo");
-
-        int exitos = ejecutarEnParalelo(6, () -> {
-            membresiaService.comprarMembresia(EMAIL, request);
-            return null;
-        });
-
-        assertThat(exitos).as("compras que terminaron bien").isEqualTo(1);
-        assertThat(membresiasActivas()).as("membresías activas").isEqualTo(1);
-        assertThat(pagos()).as("pagos cobrados (uno por membresía, ninguno huérfano)").isEqualTo(1);
-    }
-
-    @Test
     void renovarVariasVecesALaVez_noDejaDosMembresiasActivasNiPagosHuerfanos() throws Exception {
-        // Parte de un socio con membresía activa, como ocurre en una renovación real.
-        pagoService.renovarMembresiaSocio(EMAIL, tipo.getId(), "Efectivo");
+        // Parte de un socio con membresía activa; cada renovación la cobra recepción en mostrador.
+        pagoService.registrarPagoYMembresia(cobroEnRecepcion());
         assertThat(membresiasActivas()).isEqualTo(1);
         assertThat(pagos()).isEqualTo(1);
 
         int exitos = ejecutarEnParalelo(6, () -> {
-            pagoService.renovarMembresiaSocio(EMAIL, tipo.getId(), "Efectivo");
+            pagoService.registrarPagoYMembresia(cobroEnRecepcion());
             return null;
         });
 
-        assertThat(exitos).as("renovaciones simultáneas que terminaron bien").isEqualTo(1);
+        // Cuántas terminan depende del orden real de los hilos: si una renovación acaba antes de
+        // que empiece otra, la segunda es una renovación válida más. Lo que nunca puede pasar es
+        // quedar con dos membresías activas o con un pago que no tenga su membresía.
+        assertThat(exitos).as("renovaciones simultáneas que terminaron bien").isBetween(1, 6);
         assertThat(membresiasActivas()).as("membresías activas").isEqualTo(1);
-        assertThat(pagos()).as("pagos: el inicial + exactamente 1 de la renovación").isEqualTo(2);
+        assertThat(pagos()).as("pagos: el inicial + uno por cada renovación que terminó").isEqualTo(1 + exitos);
         assertThat(contar("SELECT COUNT(*) FROM membresias_socio WHERE socio_id = ?"))
-                .as("membresías totales (la anterior queda 'Renovada')").isEqualTo(2);
+                .as("membresías totales: una por pago (las anteriores quedan 'Renovada')").isEqualTo(1 + exitos);
+    }
+
+    private PagoRequest cobroEnRecepcion() {
+        PagoRequest request = new PagoRequest();
+        request.setIdSocio(socioId);
+        request.setIdTipoMembresia(tipo.getId());
+        request.setMetodoPago("Efectivo");
+        return request;
     }
 }

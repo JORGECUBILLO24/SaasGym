@@ -22,7 +22,7 @@ import java.util.UUID;
 @Component
 @ConditionalOnProperty(name = "app.qr.session-store", havingValue = "redis")
 public class RedisQrWebSessionStore implements QrWebSessionStore {
-    private static final String PREFIX = "spartangym:qr:web:";
+    private static final String PREFIX = "saasgym:qr:web:";
     private static final Duration RETENCION_POR_DEFECTO = Duration.ofSeconds(600);
 
     private final StringRedisTemplate redis;
@@ -40,14 +40,16 @@ public class RedisQrWebSessionStore implements QrWebSessionStore {
     }
 
     @Override
-    public void guardar(UUID sessionId, String tokenHash, Instant expira) {
+    public void guardar(UUID sessionId, String tokenHash, Instant expira, String creador) {
         // La sesion sigue consultable un rato despues de vencer para poder responder "Expirado"
         // en vez de "no encontrada" (mismo comportamiento que el almacen en memoria).
         Duration ttl = Duration.between(Instant.now(), expira.plus(retencion));
         if (ttl.isNegative() || ttl.isZero()) {
             throw new IllegalArgumentException("La sesion QR ya vencio");
         }
-        redis.opsForValue().set(PREFIX + sessionId, tokenHash + "|" + expira.toEpochMilli(), ttl);
+        // Formato: hashToken|creador|expiraMillis (creador vacio si no se conoce).
+        String valor = tokenHash + "|" + (creador == null ? "" : creador) + "|" + expira.toEpochMilli();
+        redis.opsForValue().set(PREFIX + sessionId, valor, ttl);
     }
 
     @Override
@@ -56,14 +58,17 @@ public class RedisQrWebSessionStore implements QrWebSessionStore {
         if (data == null) {
             return Optional.empty();
         }
-        int separator = data.lastIndexOf('|');
-        if (separator <= 0 || separator >= data.length() - 1) {
+        // Tambien acepta el formato anterior (hashToken|expiraMillis) de sesiones ya guardadas.
+        String[] partes = data.split("\\|", -1);
+        if ((partes.length != 2 && partes.length != 3) || partes[0].isEmpty() || partes[partes.length - 1].isEmpty()) {
             throw new IllegalStateException("Estado QR invalido en Redis");
         }
+        String creador = partes.length == 3 && !partes[1].isEmpty() ? partes[1] : null;
         try {
             return Optional.of(new Session(
-                    data.substring(0, separator),
-                    Instant.ofEpochMilli(Long.parseLong(data.substring(separator + 1)))));
+                    partes[0],
+                    Instant.ofEpochMilli(Long.parseLong(partes[partes.length - 1])),
+                    creador));
         } catch (NumberFormatException e) {
             throw new IllegalStateException("Expiracion QR invalida en Redis", e);
         }

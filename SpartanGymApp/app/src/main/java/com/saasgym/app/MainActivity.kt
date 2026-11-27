@@ -11,7 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.saasgym.app.ui.screen.PantallaEntrenador
 import com.saasgym.app.ui.screen.PantallaInicio
 import com.saasgym.app.ui.screen.PantallaUsuario
-import com.saasgym.app.ui.theme.SpartanGymAppTheme
+import com.saasgym.app.ui.theme.SaasGymAppTheme
 import com.saasgym.app.network.RetrofitClient
 import com.saasgym.app.network.SessionStore
 import com.saasgym.app.network.SesionGuardada
@@ -40,7 +40,7 @@ class MainActivity : FragmentActivity() {
                 getSharedPreferences("gym_branding", MODE_PRIVATE)
             }
             val nombreGimnasioGuardado = remember {
-                configuracionLocal.getString("gym_name", "Spartan Gym")?.trim().takeUnless { it.isNullOrBlank() } ?: "Spartan Gym"
+                configuracionLocal.getString("gym_name", "SaasGym")?.trim().takeUnless { it.isNullOrBlank() } ?: "SaasGym"
             }
             val nombreAppGuardado = remember {
                 configuracionLocal.getString("app_name", null)?.trim().takeUnless { it.isNullOrBlank() } ?: nombreGimnasioGuardado
@@ -104,8 +104,8 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            SpartanGymAppTheme(accentColor = accentColor) {
-                SpartanGymNavigation(appConfig = appConfig, sesionGuardada = sesionGuardada)
+            SaasGymAppTheme(accentColor = accentColor) {
+                SaasGymNavigation(appConfig = appConfig, sesionGuardada = sesionGuardada)
             }
         }
     }
@@ -121,7 +121,7 @@ private fun colorFromHex(hex: String?): Color {
 }
 
 @Composable
-fun SpartanGymNavigation(
+fun SaasGymNavigation(
     appConfig: AppConfigResponse = AppConfigResponse(),
     sesionGuardada: SesionGuardada? = null
 ) {

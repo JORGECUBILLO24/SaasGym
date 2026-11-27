@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SpartanGymApp"
+rootProject.name = "SaasGymApp"
 include(":app")
  

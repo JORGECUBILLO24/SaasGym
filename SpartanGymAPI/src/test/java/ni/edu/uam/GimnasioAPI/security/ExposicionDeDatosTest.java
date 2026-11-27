@@ -160,7 +160,7 @@ class ExposicionDeDatosTest {
         cuenta.setBanco("BAC");
         cuenta.setTipoCuenta("Ahorro");
         cuenta.setNumeroCuenta("123456789");
-        cuenta.setTitular("Spartan Gym S.A.");
+        cuenta.setTitular("SaasGym S.A.");
         cuenta.setMoneda("NIO");
 
         SolicitudPagoMembresia solicitud = new SolicitudPagoMembresia();

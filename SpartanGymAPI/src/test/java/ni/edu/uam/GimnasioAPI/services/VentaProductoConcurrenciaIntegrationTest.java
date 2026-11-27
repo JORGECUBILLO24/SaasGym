@@ -8,6 +8,7 @@ import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
@@ -37,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * y dos ventas con los mismos productos en orden opuesto terminaban en deadlock.
  */
 // La condicion va en cada clase: JUnit no la hereda de IntegracionPostgresBase.
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class VentaProductoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private VentaProductoService ventaProductoService;
@@ -117,19 +118,24 @@ class VentaProductoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
         List<Future<?>> futuros = new ArrayList<>();
         for (int i = 0; i < hilos; i++) {
             futuros.add(pool.submit(() -> {
-                listos.countDown();
-                salida.await();
                 try {
-                    tarea.call();
-                    exitos.incrementAndGet();
-                } catch (ReglaNegocioException e) {
-                    sinStock.incrementAndGet();
-                } catch (Exception e) {
-                    synchronized (otrosErrores) {
-                        otrosErrores.add(e.getClass().getSimpleName() + ": " + e.getMessage());
+                    TenantContext.setTenant(gimnasioPruebasId);
+                    listos.countDown();
+                    salida.await();
+                    try {
+                        tarea.call();
+                        exitos.incrementAndGet();
+                    } catch (ReglaNegocioException e) {
+                        sinStock.incrementAndGet();
+                    } catch (Exception e) {
+                        synchronized (otrosErrores) {
+                            otrosErrores.add(e.getClass().getSimpleName() + ": " + e.getMessage());
+                        }
                     }
+                    return null;
+                } finally {
+                    TenantContext.clear();
                 }
-                return null;
             }));
         }
         listos.await(10, TimeUnit.SECONDS);

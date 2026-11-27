@@ -62,21 +62,23 @@ public class AsistenciaController {
     // nombre, membresia y estado de acceso del socio que lo escaneo.
     @PostMapping("/qr-validacion/estado")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA')")
-    public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(@RequestBody AsistenciaQrRequest request) {
-        return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(request));
+    public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(
+            @RequestBody AsistenciaQrRequest request, Principal principal) {
+        return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(request, principal.getName()));
     }
 
     @GetMapping("/estado/{sessionId}")
     @PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA')")
-    public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(@PathVariable UUID sessionId) {
-        return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(sessionId));
+    public ResponseEntity<AsistenciaQrValidationResponse> consultarEstadoQrValidacion(
+            @PathVariable UUID sessionId, Principal principal) {
+        return ResponseEntity.ok(asistenciaService.consultarEstadoQrValidacion(sessionId, principal.getName()));
     }
 
-    // El socioId viaja por URL: sin el chequeo de propiedad cualquier usuario autenticado
-    // podia leer las asistencias de otro cambiando el UUID. El entrenador no las necesita.
+    // El entrenador solo puede consultar socios de su propia sucursal.
     @GetMapping("/socio/{socioId}")
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA') "
-            + "or @accesoSocio.esElMismo(authentication, #socioId)")
+            + "or @accesoSocio.esElMismo(authentication, #socioId) "
+            + "or @accesoSocio.entrenadorDeSucursal(authentication, #socioId)")
     public ResponseEntity<List<AsistenciaResponse>> obtenerHistorialSocio(@PathVariable UUID socioId) {
         return ResponseEntity.ok(asistenciaService.obtenerHistorial(socioId).stream()
                 .map(AsistenciaResponse::desde)

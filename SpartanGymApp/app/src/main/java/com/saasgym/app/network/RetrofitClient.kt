@@ -10,6 +10,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     private var authToken: String? = null
+    private var gimnasioSlug: String = "spartan-gym"
     private var appContext: Context? = null
 
     fun init(context: Context) {
@@ -23,6 +24,10 @@ object RetrofitClient {
         }
     }
 
+    fun setGimnasioSlug(slug: String) {
+        gimnasioSlug = slug.trim().lowercase()
+    }
+
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(Interceptor { chain ->
@@ -30,6 +35,7 @@ object RetrofitClient {
                 val builder: Request.Builder = chain.request().newBuilder()
                     // Pide el formato de error RFC 9457; ver mensajeDeError().
                     .header("Accept", ACCEPT_ERRORES)
+                    .header("X-Gimnasio-Slug", gimnasioSlug)
                 if (!token.isNullOrBlank()) {
                     builder.addHeader("Authorization", "Bearer $token")
                 }
@@ -43,12 +49,12 @@ object RetrofitClient {
             .build()
     }
 
-    val apiService: SpartanGymApi by lazy {
+    val apiService: SaasGymApi by lazy {
         Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL)
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create()) // Convierte de JSON a Kotlin automatico
             .build()
-            .create(SpartanGymApi::class.java)
+            .create(SaasGymApi::class.java)
     }
 }

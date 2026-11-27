@@ -1,4 +1,4 @@
-# Revisión de documentación y contratos de SpartanGym
+# Revisión de documentación y contratos de SaasGym
 
 Revisión del 8 de noviembre de 2026. El documento `Tests_Postman_QA.docx`
 contiene nueve secciones de pruebas y ocho capturas de Postman. Se revisaron
@@ -57,7 +57,7 @@ de primera compra para probar este comportamiento.
 | Media | README afirmaba que todos los errores eran estructurados. `exceptions/RespuestaError.java` solo produce problem JSON con `Accept: application/problem+json`; de lo contrario usa texto. | Corregido README. Postman debe enviar el encabezado para comprobar `codigo`, `status`, `detail` e `instance`. |
 | Media | README solo pedía Java 17+; `gradle/gradle-daemon-jvm.properties` exige Java 21 para Android y `app/build.gradle.kts` declara SDK 36 con minorApiLevel 1. | Corregidos requisitos README. Java 17 sigue siendo el nivel de compilación de la API. |
 | Media | `.github/workflows/ci.yml` instala explícitamente `platforms;android-36` y Java 17 para Android; la app pide SDK 36.1 y daemon Java 21. | Diferencia de aprovisionamiento pendiente de comprobar en CI: Gradle puede descargar componentes adicionales, pero el workflow no los declara explícitamente. Alinear SDK y Java con el proyecto para evitar depender de descargas implícitas. |
-| Media | La copia `SpartanGymApp/app/src/main/java/com/example/spartangymapp/resources/database/scrips.txt` no incluye `password_reset_tokens`, `ejercicios_completados` ni los campos semanales actuales, y contiene caracteres mal codificados. | Usar exclusivamente `gimnasio_schema.sql` raíz. La copia Android debe retirarse o convertirse en una referencia al esquema canónico, sin ejecutar ambos scripts. |
+| Media | La copia `SpartanGymApp/app/src/main/java/com/saasgym/app/resources/database/scrips.txt` no incluye `password_reset_tokens`, `ejercicios_completados` ni los campos semanales actuales, y contiene caracteres mal codificados. | Usar exclusivamente `gimnasio_schema.sql` raíz. La copia Android debe retirarse o convertirse en una referencia al esquema canónico, sin ejecutar ambos scripts. |
 | Baja | README usaba `npm install`, aunque hay un lockfile y CI usa `npm ci`. Las dependencias instaladas Vite y ESLint requieren versiones concretas de Node. | README raíz actualizado a `npm ci` y Node 22.13+ (recomendado 24). |
 
 ## Observaciones del esquema y de las reglas de negocio

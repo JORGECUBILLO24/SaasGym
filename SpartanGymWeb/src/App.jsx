@@ -34,6 +34,7 @@ const MembresiasRecepcion = lazy(() => import('./pages/Recepcionista/sub_pages/M
 const Asistencias = lazy(() => import('./pages/Recepcionista/sub_pages/Asistencias.jsx'));
 const Notificaciones = lazy(() => import('./pages/Recepcionista/sub_pages/Notificaciones.jsx'));
 const Perfil = lazy(() => import('./pages/Recepcionista/sub_pages/Perfil.jsx'));
+const PantallaAsistencia = lazy(() => import('./pages/PantallaAsistencia/PantallaAsistencia.jsx'));
 
 const PantallaCarga = () => {
   const configuracion = useConfiguracionApp();
@@ -144,6 +145,16 @@ function App() {
               <Route path="notificaciones" element={<Notificaciones />} />
               <Route path="perfil" element={<Perfil />} />
             </Route>
+
+            {/* Segundo monitor de recepción, mirando a la entrada (sin menú) */}
+            <Route
+              path="/pantalla-asistencia"
+              element={(
+                <ProtectedRoute allowedRoles={['ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_RECEPCIONISTA']}>
+                  <PantallaAsistencia />
+                </ProtectedRoute>
+              )}
+            />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

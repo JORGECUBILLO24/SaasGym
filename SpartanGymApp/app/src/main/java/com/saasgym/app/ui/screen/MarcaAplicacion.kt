@@ -72,7 +72,7 @@ internal fun MarcaAplicacion(
     mostrarNombre: Boolean = false
 ) {
     val nombre = appConfig.nombreVisibleApp()
-    val nombreGym = appConfig.gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "Spartan Gym"
+    val nombreGym = appConfig.gymName?.trim()?.takeIf { it.isNotEmpty() } ?: "SaasGym"
     val nombreAppAlineado = appConfig.appName.isNullOrBlank() || appConfig.appName.trim().equals(nombreGym, ignoreCase = true)
     val source = appConfig.logoAppActual() ?: if (nombreAppAlineado) {
         appConfig.logoAccesoActual() ?: appConfig.logoPrincipalActual()

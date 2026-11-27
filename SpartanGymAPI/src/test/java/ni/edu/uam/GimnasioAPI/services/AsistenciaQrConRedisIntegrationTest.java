@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
  * reutilizar, alterar y vencer. PostgreSQL (la verdad sobre "QR ya usado") va con mocks: lo que
  * se prueba acá es que Redis como almacén de sesiones no cambia ninguna regla del flujo.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_REDIS_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_REDIS_URL", matches = ".+")
 class AsistenciaQrConRedisIntegrationTest {
 
     private static final String SECRETO = "n7Qx2vLp9sTm4Ke8Rw1Yc6Hb3Zd5Fa0JuGiOeXtVnMy";
@@ -106,7 +106,7 @@ class AsistenciaQrConRedisIntegrationTest {
     void flujoNormal_pendienteLuegoPermitido() {
         AsistenciaQrTokenResponse qr = servicio.generarQrValidacionWeb("recepcion@ejemplo.com");
 
-        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId()).getEstado()).isEqualTo("Pendiente");
+        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId(), "recepcion@ejemplo.com").getEstado()).isEqualTo("Pendiente");
 
         var resultado = servicio.registrarEntradaQrWeb(request(qr.getToken()), "socio@ejemplo.com");
         assertThat(resultado.getEstado()).isEqualTo("Permitido");
@@ -145,18 +145,18 @@ class AsistenciaQrConRedisIntegrationTest {
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(token), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class).hasMessageContaining("sesion no encontrada");
-        assertThat(servicio.consultarEstadoQrValidacion(sessionId).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(sessionId, "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test
     void siRedisPierdeLaSesionElSocioRecibeUnMensajeClaroYNoUnError500() {
         AsistenciaQrTokenResponse qr = servicio.generarQrValidacionWeb("recepcion@ejemplo.com");
-        redis.plantilla().delete("spartangym:qr:web:" + qr.getSessionId()); // p. ej. reinicio de Redis
+        redis.plantilla().delete("saasgym:qr:web:" + qr.getSessionId()); // p. ej. reinicio de Redis
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(qr.getToken()), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessageContaining("Genera uno nuevo");
-        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId()).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(qr.getSessionId(), "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test
@@ -167,7 +167,7 @@ class AsistenciaQrConRedisIntegrationTest {
 
         assertThatThrownBy(() -> servicio.registrarEntradaQrWeb(request(token), "socio@ejemplo.com"))
                 .isInstanceOf(ReglaNegocioException.class).hasMessageContaining("expirado");
-        assertThat(servicio.consultarEstadoQrValidacion(sessionId).getEstado()).isEqualTo("Expirado");
+        assertThat(servicio.consultarEstadoQrValidacion(sessionId, "recepcion@ejemplo.com").getEstado()).isEqualTo("Expirado");
     }
 
     @Test

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-        Politica de red centralizada de Spartan Gym.
+        Politica de red centralizada de SaasGym.
         La configuración base corresponde a producción: solo HTTPS.
         La variante debug reemplaza este archivo para permitir la API local.
     -->

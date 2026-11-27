@@ -35,6 +35,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     private final NotificacionService notificacionService;
+    private final TenantLookupService tenantLookupService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -42,8 +43,8 @@ public class AuthService {
         String password = ValidacionCuenta.password(request.getPassword());
         String nombres = ValidacionCuenta.requerido(request.getNombres(), "nombres");
         String apellidos = ValidacionCuenta.requerido(request.getApellidos(), "apellidos");
-        if (usuarioRepository.findByEmailIgnoreCase(email).isPresent()) {
-            throw new ConflictoException("El correo ya está en uso.");
+        if (tenantLookupService.correoUsuarioEnUso(email)) {
+            throw new ConflictoException("No pudimos crear la cuenta con esos datos. Si ya tienes una cuenta, inicia sesión o recupera tu contraseña.");
         }
 
         Rol rolSocio = rolRepository.findByNombre("ROLE_SOCIO")
@@ -76,7 +77,7 @@ public class AuthService {
         String token = jwtService.generateToken(userDetails);
 
         // Enviamos el correo en segundo plano
-        notificacionService.enviarCorreoBienvenida(usuario.getEmail(), nombres);
+        notificacionService.enviarCorreoBienvenida(usuario.getGimnasioId(), usuario.getEmail(), nombres);
 
         // Hacemos el ÚNICO return correcto al final
         return AuthResponse.builder()

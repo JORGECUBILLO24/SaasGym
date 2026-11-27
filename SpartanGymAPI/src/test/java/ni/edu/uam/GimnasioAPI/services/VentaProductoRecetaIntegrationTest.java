@@ -10,6 +10,7 @@ import ni.edu.uam.GimnasioAPI.models.ProductoInventario;
 import ni.edu.uam.GimnasioAPI.models.Sucursal;
 import ni.edu.uam.GimnasioAPI.repositories.ProductoInventarioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Un batido no tiene stock propio: al venderlo se descuenta la proteína y la leche que lleva.
  * Contra PostgreSQL real, porque lo delicado son los bloqueos de fila y la consulta de recetas.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class VentaProductoRecetaIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private InventarioService inventarioService;
@@ -146,14 +147,19 @@ class VentaProductoRecetaIntegrationTest extends IntegracionPostgresBase {
         List<Future<?>> futuros = new ArrayList<>();
         for (int i = 0; i < hilos; i++) {
             futuros.add(pool.submit(() -> {
-                salida.await();
                 try {
-                    ventaService.vender(venta(batido.getId(), 1), null);
-                    exitos.incrementAndGet();
-                } catch (ReglaNegocioException esperado) {
-                    // Los que llegan cuando ya no alcanza la proteína fallan: es lo correcto.
+                    TenantContext.setTenant(gimnasioPruebasId);
+                    salida.await();
+                    try {
+                        ventaService.vender(venta(batido.getId(), 1), null);
+                        exitos.incrementAndGet();
+                    } catch (ReglaNegocioException esperado) {
+                        // Los que llegan cuando ya no alcanza la proteína fallan: es lo correcto.
+                    }
+                    return null;
+                } finally {
+                    TenantContext.clear();
                 }
-                return null;
             }));
         }
         salida.countDown();

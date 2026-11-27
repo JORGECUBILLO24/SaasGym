@@ -67,12 +67,11 @@ public class TransferenciaService {
         if (request == null) {
             throw new ReglaNegocioException("Faltan los datos del pago");
         }
+        String metodo = request.getMetodoPago() == null ? "" : request.getMetodoPago().trim();
+        if (!metodo.isEmpty() && !"Transferencia".equalsIgnoreCase(metodo)) {
+            throw new ReglaNegocioException("Paga en recepción o envía una transferencia para que la confirmen.");
+        }
         if (request.getCuentaBancariaId() == null) {
-            String metodo = request.getMetodoPago() == null ? "" : request.getMetodoPago().trim();
-            if (!metodo.isEmpty() && !"Transferencia".equalsIgnoreCase(metodo)) {
-                throw new ReglaNegocioException("Desde la app la membresía se paga por transferencia. "
-                        + "Actualiza la app o paga en recepción.");
-            }
             throw new ReglaNegocioException("Elige la cuenta bancaria a la que transferiste");
         }
         if (request.getTipoMembresiaId() == null) {

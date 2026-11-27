@@ -17,9 +17,9 @@ public class MemoryQrWebSessionStore implements QrWebSessionStore {
     private final ConcurrentMap<UUID, Session> sessions = new ConcurrentHashMap<>();
 
     @Override
-    public void guardar(UUID sessionId, String tokenHash, Instant expira) {
+    public void guardar(UUID sessionId, String tokenHash, Instant expira, String creador) {
         limpiar();
-        sessions.put(sessionId, new Session(tokenHash, expira));
+        sessions.put(sessionId, new Session(tokenHash, expira, creador));
     }
 
     @Override

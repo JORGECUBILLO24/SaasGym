@@ -17,10 +17,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
-val SpartanDefaultRed = Color(0xFFE10613)
-val LocalSpartanAccent = staticCompositionLocalOf { SpartanDefaultRed }
+val SaasGymDefaultRed = Color(0xFFE10613)
+val LocalSaasGymAccent = staticCompositionLocalOf { SaasGymDefaultRed }
 
-private fun darkSpartanColorScheme(accentColor: Color) = darkColorScheme(
+private fun darkSaasGymColorScheme(accentColor: Color) = darkColorScheme(
     primary = accentColor,
     secondary = accentColor,
     tertiary = accentColor,
@@ -38,7 +38,7 @@ private fun darkSpartanColorScheme(accentColor: Color) = darkColorScheme(
     onSurface = Color.White
 )
 
-private fun lightSpartanColorScheme(accentColor: Color) = lightColorScheme(
+private fun lightSaasGymColorScheme(accentColor: Color) = lightColorScheme(
     primary = accentColor,
     secondary = accentColor,
     tertiary = accentColor,
@@ -61,10 +61,10 @@ val Formas = Shapes(
 )
 
 @Composable
-fun SpartanGymAppTheme(
+fun SaasGymAppTheme(
     darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
-    accentColor: Color = SpartanDefaultRed,
+    accentColor: Color = SaasGymDefaultRed,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -73,11 +73,11 @@ fun SpartanGymAppTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> darkSpartanColorScheme(accentColor)
-        else -> lightSpartanColorScheme(accentColor)
+        darkTheme -> darkSaasGymColorScheme(accentColor)
+        else -> lightSaasGymColorScheme(accentColor)
     }
 
-    CompositionLocalProvider(LocalSpartanAccent provides accentColor) {
+    CompositionLocalProvider(LocalSaasGymAccent provides accentColor) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

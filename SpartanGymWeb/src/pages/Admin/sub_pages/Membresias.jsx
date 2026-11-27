@@ -162,7 +162,8 @@ const Membresias = () => {
               </span>
             </div>
 
-            <div className="workspace-grid--cards">
+            {/* Columnas según el ancho real del panel (no el de la página): cada tarjeta necesita ~15rem para sus botones. */}
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))]">
               {listaMembresias.map((membresia) => (
                 <div key={membresia.id} className="group relative">
                   <TarjetaMembresia data={membresia} formatearMonto={formatearMonto} nombreGimnasio={configuracion.gymName} />

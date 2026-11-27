@@ -106,7 +106,7 @@ const Configuracion = () => {
   const logoAppNombre = String(config.appLogoNombre || '').trim();
   const logoAppVigente = (logoAppNombre
     ? logoAppNombre.toLowerCase() === nombreApp.toLowerCase()
-    : nombreApp.toLowerCase() === 'spartan gym') ? config.appLogo : '';
+    : nombreApp.toLowerCase() === 'saasgym') ? config.appLogo : '';
   const {
     theme,
     accentColor,
@@ -338,7 +338,7 @@ const Configuracion = () => {
                       descripcion="Se usa en la web, menús y documentos."
                       valor={logosVigentes.principal}
                       hayValor={Boolean(config.logoPrincipal)}
-                      respaldo={nombreGimnasio.toLowerCase() === 'spartan gym' ? LOGOS_APP_DEFECTO.principal : ''}
+                      respaldo={nombreGimnasio.toLowerCase() === 'saasgym' ? LOGOS_APP_DEFECTO.principal : ''}
                       marcaTexto={nombreGimnasio}
                       onChange={(archivo) => actualizarLogo('logoPrincipal', archivo, { maxWidth: 900, maxHeight: 520 })}
                       onReset={() => restaurarLogo('logoPrincipal')}
@@ -348,7 +348,7 @@ const Configuracion = () => {
                       descripcion="Se usa en login y registro web."
                       valor={logosVigentes.acceso}
                       hayValor={Boolean(config.logoAcceso)}
-                      respaldo={nombreGimnasio.toLowerCase() === 'spartan gym' ? LOGOS_APP_DEFECTO.acceso : ''}
+                      respaldo={nombreGimnasio.toLowerCase() === 'saasgym' ? LOGOS_APP_DEFECTO.acceso : ''}
                       marcaTexto={nombreGimnasio}
                       onChange={(archivo) => actualizarLogo('logoAcceso', archivo, { maxWidth: 640, maxHeight: 640 })}
                       onReset={() => restaurarLogo('logoAcceso')}

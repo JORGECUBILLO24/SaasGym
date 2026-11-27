@@ -10,6 +10,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

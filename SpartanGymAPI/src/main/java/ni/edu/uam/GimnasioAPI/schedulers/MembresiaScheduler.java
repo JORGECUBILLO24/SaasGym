@@ -6,13 +6,17 @@ import ni.edu.uam.GimnasioAPI.models.MembresiaSocio;
 import ni.edu.uam.GimnasioAPI.models.Socio;
 import ni.edu.uam.GimnasioAPI.repositories.MembresiaSocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import ni.edu.uam.GimnasioAPI.services.NotificacionService;
+import ni.edu.uam.GimnasioAPI.services.TenantLookupService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j // Para poder imprimir mensajes bonitos en la consola
 @Component
@@ -22,13 +26,30 @@ public class MembresiaScheduler {
     private final MembresiaSocioRepository membresiaRepository;
     private final SocioRepository socioRepository;
     private final NotificacionService notificacionService;
+    private final TenantLookupService tenantLookupService;
+    private final PlatformTransactionManager transactionManager;
 
     // "0 0 0 * * *" significa: Todos los días a las 00:00 (Medianoche)
     // Para hacer pruebas rápidas podrías usar @Scheduled(fixedRate = 60000) que corre cada 1 minuto
     @Scheduled(cron = "0 0 0 * * *")
-    @Transactional
     public void verificarMembresiasVencidas() {
-        log.info("Iniciando revisión automática de membresías vencidas...");
+        for (UUID gimnasioId : tenantLookupService.listarGimnasiosActivos()) {
+            TenantContext.setTenant(gimnasioId);
+            try {
+                new TransactionTemplate(transactionManager).executeWithoutResult(
+                        status -> verificarMembresiasVencidasDelGimnasio(gimnasioId)
+                );
+            } catch (RuntimeException e) {
+                log.error("No se pudieron revisar las membresías vencidas del gimnasio {}: {}",
+                        gimnasioId, e.getMessage(), e);
+            } finally {
+                TenantContext.clear();
+            }
+        }
+    }
+
+    private void verificarMembresiasVencidasDelGimnasio(UUID gimnasioId) {
+        log.info("Iniciando revisión automática de membresías vencidas del gimnasio {}...", gimnasioId);
 
         // Buscamos las que están "Activas" pero su fecha de vencimiento es ANTES de hoy
         List<MembresiaSocio> vencidas = membresiaRepository.findByEstadoAndFechaVencimientoBefore("Activa", LocalDate.now());
@@ -62,7 +83,9 @@ public class MembresiaScheduler {
                         "Membresía vencida",
                         "Tu membresía ha vencido. Acércate a recepción para renovarla."
                 );
-                notificacionService.enviarCorreoVencimiento(socio.getUsuario().getEmail(), socio.getNombres());
+                notificacionService.enviarCorreoVencimiento(
+                        gimnasioId, socio.getUsuario().getEmail(), socio.getNombres()
+                );
             } catch (Exception e) {
                 fallidas++;
                 log.error("No se pudo vencer la membresía {} (socio {})",
@@ -73,10 +96,11 @@ public class MembresiaScheduler {
         }
 
         if (fallidas > 0) {
-            log.warn("Revisión terminada con errores: {} actualizadas, {} fallidas de {} encontradas.",
-                    contador, fallidas, vencidas.size());
+            log.warn("Revisión terminada en gimnasio {} con errores: {} actualizadas, {} fallidas de {} encontradas.",
+                    gimnasioId, contador, fallidas, vencidas.size());
         } else {
-            log.info("Revisión terminada. Membresías actualizadas: {}", contador);
+            log.info("Revisión terminada en gimnasio {}. Membresías actualizadas: {}",
+                    gimnasioId, contador);
         }
     }
 }

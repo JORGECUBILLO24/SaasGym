@@ -27,7 +27,8 @@ public class SocioController {
     // Mismo criterio que el resto de endpoints con socioId: el personal ve a cualquier socio,
     // un socio solo se ve a si mismo.
     @GetMapping("/estado/{socioId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+    @PreAuthorize("(hasAnyRole('SUPERADMIN', 'ADMIN', 'RECEPCIONISTA', 'ENTRENADOR') "
+            + "and @alcanceSucursal.puedeAtenderSocio(authentication, #socioId)) "
             + "or @accesoSocio.esElMismo(authentication, #socioId)")
     public ResponseEntity<EstadoSocioResponse> consultarEstado(@PathVariable UUID socioId) {
         return ResponseEntity.ok(socioService.consultarEstado(socioId));

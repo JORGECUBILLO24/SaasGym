@@ -23,13 +23,13 @@ android {
 
     buildTypes {
         debug {
-            val debugApiBaseUrl = project.findProperty("SPARTANGYM_API_BASE_URL_DEBUG") as String?
+            val debugApiBaseUrl = project.findProperty("SAASGYM_API_BASE_URL_DEBUG") as String?
                 ?: "http://10.0.2.2:8080/"
             buildConfigField("String", "API_BASE_URL", "\"${debugApiBaseUrl}\"")
         }
         release {
             isMinifyEnabled = false
-            val releaseApiBaseUrl = project.findProperty("SPARTANGYM_API_BASE_URL_RELEASE") as String?
+            val releaseApiBaseUrl = project.findProperty("SAASGYM_API_BASE_URL_RELEASE") as String?
                 ?: "https://spartangym-api.onrender.com/"
             buildConfigField("String", "API_BASE_URL", "\"${releaseApiBaseUrl}\"")
             proguardFiles(

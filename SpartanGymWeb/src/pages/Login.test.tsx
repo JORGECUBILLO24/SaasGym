@@ -12,7 +12,7 @@ vi.mock('../utils/logosApp', () => ({
 }));
 vi.mock('../utils/configuracionApp', () => ({
   useConfiguracionApp: () => ({}),
-  obtenerNombreGimnasio: () => 'Spartan Gym',
+  obtenerNombreGimnasio: () => 'SaasGym',
 }));
 
 const fetchMock = vi.fn();
@@ -36,7 +36,7 @@ const renderizar = () =>
 
 async function completarYEnviar(rol = '') {
   const usuario = userEvent.setup();
-  await usuario.type(screen.getByLabelText('Correo electrónico'), 'admin@spartangym.com');
+  await usuario.type(screen.getByLabelText('Correo electrónico'), 'admin@saasgym.com');
   await usuario.type(screen.getByLabelText('Contraseña'), 'clave-de-prueba');
   if (rol) await usuario.selectOptions(screen.getByLabelText(/^Rol/), rol);
   await usuario.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
@@ -85,43 +85,59 @@ describe('Login: mensajes de error', () => {
   });
 
   it('el rol elegido no coincide con el de la cuenta: avisa y no deja la sesión guardada', async () => {
-    fetchMock.mockResolvedValue(json({ id: '1', token: 't', email: 'admin@spartangym.com', rol: 'ROLE_ADMIN' }));
+    fetchMock.mockResolvedValue(json({ id: '1', token: 't', email: 'admin@saasgym.com', rol: 'ROLE_ADMIN' }));
 
     renderizar();
-    await completarYEnviar('ROLE_SUPERADMIN');
+    await completarYEnviar('ROLE_RECEPCIONISTA');
 
     expect(await screen.findByText('El rol seleccionado no coincide con el usuario autenticado.')).toBeInTheDocument();
-    expect(localStorage.getItem('spartan_token')).toBeNull();
+    expect(localStorage.getItem('saasgym_token')).toBeNull();
   });
 
-  it('un rol sin acceso al panel web (socio) se rechaza', async () => {
-    fetchMock.mockResolvedValue(json({ id: '1', token: 't', email: 'socio@spartangym.com', rol: 'ROLE_SOCIO' }));
-
+  it('el selector no ofrece Superadmin', () => {
     renderizar();
-    await completarYEnviar();
 
-    expect(await screen.findByText('Tu rol no tiene acceso al panel web administrativo.')).toBeInTheDocument();
-    expect(localStorage.getItem('spartan_token')).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Superadmin' })).not.toBeInTheDocument();
   });
-});
 
-describe('Login: inicio de sesión correcto', () => {
-  it('un administrador entra a /admin y queda la sesión guardada en los dos lugares', async () => {
-    fetchMock.mockResolvedValue(json({ id: '1', token: 'tok', email: 'admin@spartangym.com', rol: 'ROLE_ADMIN' }));
+  it('una cuenta superadmin entra eligiendo "Administrador"', async () => {
+    fetchMock.mockResolvedValue(json({ id: '9', token: 'tok', email: 'super@saasgym.com', rol: 'ROLE_SUPERADMIN' }));
 
     renderizar();
     await completarYEnviar('ROLE_ADMIN');
 
     expect(await screen.findByText('Panel de administración')).toBeInTheDocument();
-    expect(localStorage.getItem('spartan_token')).toBe('tok');
+    expect(localStorage.getItem('saasgym_token')).toBe('tok');
+  });
+
+  it('un rol sin acceso al panel web (socio) se rechaza', async () => {
+    fetchMock.mockResolvedValue(json({ id: '1', token: 't', email: 'socio@saasgym.com', rol: 'ROLE_SOCIO' }));
+
+    renderizar();
+    await completarYEnviar();
+
+    expect(await screen.findByText('Tu rol no tiene acceso al panel web administrativo.')).toBeInTheDocument();
+    expect(localStorage.getItem('saasgym_token')).toBeNull();
+  });
+});
+
+describe('Login: inicio de sesión correcto', () => {
+  it('un administrador entra a /admin y queda la sesión guardada en los dos lugares', async () => {
+    fetchMock.mockResolvedValue(json({ id: '1', token: 'tok', email: 'admin@saasgym.com', rol: 'ROLE_ADMIN' }));
+
+    renderizar();
+    await completarYEnviar('ROLE_ADMIN');
+
+    expect(await screen.findByText('Panel de administración')).toBeInTheDocument();
+    expect(localStorage.getItem('saasgym_token')).toBe('tok');
     expect(JSON.parse(localStorage.getItem(CLAVE_CUENTA_ACTUAL) ?? '{}')).toMatchObject({
-      username: 'admin@spartangym.com',
+      username: 'admin@saasgym.com',
       role: 'Administrador',
     });
   });
 
   it('un recepcionista entra a /recepcion', async () => {
-    fetchMock.mockResolvedValue(json({ id: '2', token: 'tok', email: 'recepcion@spartangym.com', rol: 'ROLE_RECEPCIONISTA' }));
+    fetchMock.mockResolvedValue(json({ id: '2', token: 'tok', email: 'recepcion@saasgym.com', rol: 'ROLE_RECEPCIONISTA' }));
 
     renderizar();
     await completarYEnviar();

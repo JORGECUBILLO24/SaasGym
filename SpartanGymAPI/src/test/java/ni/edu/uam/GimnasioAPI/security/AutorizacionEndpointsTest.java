@@ -5,6 +5,7 @@ import ni.edu.uam.GimnasioAPI.repositories.SucursalRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
 import ni.edu.uam.GimnasioAPI.services.DashboardService;
 import ni.edu.uam.GimnasioAPI.services.ReporteService;
+import ni.edu.uam.GimnasioAPI.services.TenantLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,6 +44,7 @@ class AutorizacionEndpointsTest {
     @MockitoBean private DashboardService dashboardService;
     @MockitoBean private SucursalRepository sucursalRepository;
     @MockitoBean private UsuarioRepository usuarioRepository;
+    @MockitoBean private TenantLookupService tenantLookupService;
 
     private MockMvc mockMvc;
 
@@ -52,6 +55,8 @@ class AutorizacionEndpointsTest {
                 .build();
 
         org.mockito.Mockito.when(sucursalRepository.findByEstadoIgnoreCase("Operativa")).thenReturn(List.of());
+        org.mockito.Mockito.when(tenantLookupService.buscarGimnasioActivoPorSlug("spartan-gym"))
+                .thenReturn(Optional.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
 
         Usuario socio = new Usuario();
         socio.setId(ID_SOCIO);
@@ -64,7 +69,8 @@ class AutorizacionEndpointsTest {
 
     @Test
     void visitante_puedeConsultarSucursalesOperativasParaRegistrarse() throws Exception {
-        mockMvc.perform(get("/api/sucursales/disponibles"))
+        mockMvc.perform(get("/api/sucursales/disponibles")
+                    .header(TenantContextFilter.SLUG_HEADER, "spartan-gym"))
                 .andExpect(status().isOk());
     }
 

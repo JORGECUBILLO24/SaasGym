@@ -23,6 +23,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "ventas_productos")
 public class VentaProducto {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;

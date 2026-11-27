@@ -19,13 +19,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * RedisQrWebSessionStore contra un Redis REAL (la CI lo levanta como servicio; en local:
- * docker run -d -p 127.0.0.1:6390:6379 redis:7-alpine y SPARTAN_IT_REDIS_URL=redis://localhost:6390).
+ * docker run -d -p 127.0.0.1:6390:6379 redis:7-alpine y SAASGYM_IT_REDIS_URL=redis://localhost:6390).
  * Cada ConexionRedis simula una instancia distinta de la API.
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_REDIS_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_REDIS_URL", matches = ".+")
 class RedisQrWebSessionStoreIntegrationTest {
 
-    private static final String PREFIJO = "spartangym:qr:web:";
+    private static final String PREFIJO = "saasgym:qr:web:";
 
     private final List<ConexionRedis> abiertas = new ArrayList<>();
     private final List<UUID> sesiones = new ArrayList<>();
@@ -66,6 +66,31 @@ class RedisQrWebSessionStoreIntegrationTest {
         assertThat(recuperada.tokenHash()).isEqualTo("hash-del-token");
         assertThat(recuperada.expira().toEpochMilli()).isEqualTo(expira.toEpochMilli());
         assertThat(recuperada.expirado()).isFalse();
+    }
+
+    @Test
+    void guardaQuienGeneroElQr() {
+        RedisQrWebSessionStore almacen = new RedisQrWebSessionStore(instanciaA.plantilla());
+        UUID id = sesion();
+        String creador = UUID.randomUUID().toString();
+
+        almacen.guardar(id, "hash-del-token", Instant.now().plusSeconds(180), creador);
+
+        assertThat(almacen.buscar(id).orElseThrow().creador()).isEqualTo(creador);
+    }
+
+    @Test
+    void leeSesionesGuardadasConElFormatoAnterior() {
+        // Antes se guardaba hashToken|expiraMillis, sin creador.
+        UUID id = sesion();
+        Instant expira = Instant.now().plusSeconds(180);
+        instanciaA.plantilla().opsForValue().set(PREFIJO + id, "hash-viejo|" + expira.toEpochMilli());
+
+        QrWebSessionStore.Session recuperada = new RedisQrWebSessionStore(instanciaA.plantilla()).buscar(id).orElseThrow();
+
+        assertThat(recuperada.tokenHash()).isEqualTo("hash-viejo");
+        assertThat(recuperada.creador()).isNull();
+        assertThat(recuperada.expira().toEpochMilli()).isEqualTo(expira.toEpochMilli());
     }
 
     @Test

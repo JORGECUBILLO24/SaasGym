@@ -34,21 +34,21 @@ describe('cuentaActual', () => {
   });
 
   it('sin cuenta actual usa el usuario que dejó el login de la API', () => {
-    localStorage.setItem('spartan_user', JSON.stringify({ id: '1', email: 'a@a.com', rol: 'ROLE_ADMIN' }));
+    localStorage.setItem('saasgym_user', JSON.stringify({ id: '1', email: 'a@a.com', rol: 'ROLE_ADMIN' }));
 
     expect(leerCuentaActual()).toMatchObject({ username: 'a@a.com', role: 'ROLE_ADMIN', id: '1' });
   });
 
-  it('la cuenta actual guardada tiene prioridad sobre spartan_user', () => {
-    localStorage.setItem('spartan_user', JSON.stringify({ email: 'api@a.com', rol: 'ROLE_ADMIN' }));
+  it('la cuenta actual guardada tiene prioridad sobre saasgym_user', () => {
+    localStorage.setItem('saasgym_user', JSON.stringify({ email: 'api@a.com', rol: 'ROLE_ADMIN' }));
     guardarCuentaActual({ username: 'cuenta@a.com', role: 'Superadmin' });
 
     expect(leerCuentaActual()).toMatchObject({ username: 'cuenta@a.com', role: 'Superadmin' });
     expect(haySesionActiva()).toBe(true);
   });
 
-  it('un spartan_user corrupto no rompe la lectura', () => {
-    localStorage.setItem('spartan_user', '{corrupto');
+  it('un saasgym_user corrupto no rompe la lectura', () => {
+    localStorage.setItem('saasgym_user', '{corrupto');
 
     expect(leerCuentaActual()).toEqual({ username: '', role: '' });
   });
@@ -66,8 +66,8 @@ describe('cuentaActual', () => {
   });
 
   it('cerrarSesionActual limpia los dos lugares de la sesión, anota el motivo y avisa', () => {
-    localStorage.setItem('spartan_token', 't');
-    localStorage.setItem('spartan_user', '{"email":"a@a.com"}');
+    localStorage.setItem('saasgym_token', 't');
+    localStorage.setItem('saasgym_user', '{"email":"a@a.com"}');
     guardarCuentaActual({ username: 'a@a.com', role: 'Administrador' });
     const aviso = vi.fn();
     window.addEventListener(EVENTO_CUENTA_ACTUAL, aviso);
@@ -75,8 +75,8 @@ describe('cuentaActual', () => {
     cerrarSesionActual('sesion-expirada');
     window.removeEventListener(EVENTO_CUENTA_ACTUAL, aviso);
 
-    expect(localStorage.getItem('spartan_token')).toBeNull();
-    expect(localStorage.getItem('spartan_user')).toBeNull();
+    expect(localStorage.getItem('saasgym_token')).toBeNull();
+    expect(localStorage.getItem('saasgym_user')).toBeNull();
     expect(localStorage.getItem(CLAVE_CUENTA_ACTUAL)).toBeNull();
     expect(JSON.parse(localStorage.getItem(CLAVE_ULTIMO_CIERRE) ?? '{}').motivo).toBe('sesion-expirada');
     expect(aviso).toHaveBeenCalledTimes(1);

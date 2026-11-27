@@ -14,6 +14,8 @@ public class AsistenciaQrValidationResponse {
     private UUID sessionId;
     private UUID socioId;
     private String socio;
+    /** Foto de perfil que el socio subio desde la app (para la pantalla de la entrada). */
+    private String fotoUrl;
     private String membresia;
     private String tipoMembresia;
     private String estadoAcceso;

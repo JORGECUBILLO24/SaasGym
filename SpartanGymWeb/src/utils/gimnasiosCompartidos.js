@@ -1,7 +1,7 @@
 export const gimnasiosDisponibles = [
   {
     id: "11111111-1111-1111-1111-111111111111", // Example UUID
-    nombre: "SpartanGym Central",
+    nombre: "Sede Central",
     ciudad: "Managua",
     estado: "Activo",
     usuarios: 1250,
@@ -13,7 +13,7 @@ export const gimnasiosDisponibles = [
   },
   {
     id: "22222222-2222-2222-2222-222222222222", // Example UUID
-    nombre: "SpartanGym Norte",
+    nombre: "Sede Norte",
     ciudad: "Estelí",
     estado: "Activo",
     usuarios: 850,

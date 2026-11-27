@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Pedido del socio desde la app: aparta el stock y queda pendiente con un código; recepción lo
  * valida (y entra a caja) o lo cancela (y el stock vuelve).
  */
-@EnabledIfEnvironmentVariable(named = "SPARTAN_IT_DB_URL", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 class PedidoProductoIntegrationTest extends IntegracionPostgresBase {
 
     @Autowired private VentaProductoService ventaService;
@@ -193,6 +193,17 @@ class PedidoProductoIntegrationTest extends IntegracionPostgresBase {
         assertThat(stock(agua)).isEqualTo(10);
         assertThat(stock(leche)).isEqualTo(1000);
         assertThat(movimientos()).isZero();
+    }
+
+    @Test
+    void cancelarPedidoAntiguoSinReservas_noAdivinaInsumosConRecetaActual() {
+        VentaProductoResponse creado = ventaService.crearPedidoSocio(pedido("Transferencia", batido, 1), socio);
+        assertThat(stock(leche)).isEqualTo(700);
+        jdbc.update("DELETE FROM reservas_ventas_productos WHERE venta_id = ?", creado.getId());
+
+        ventaService.cancelarPedido(creado.getCodigoPedido(), recepcion);
+
+        assertThat(stock(leche)).isEqualTo(700);
     }
 
     @Test

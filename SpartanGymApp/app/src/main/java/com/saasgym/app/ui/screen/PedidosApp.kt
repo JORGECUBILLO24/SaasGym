@@ -246,7 +246,7 @@ internal fun ValidarPedidoApp(moneda: String?, acento: Color) {
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
-                    value = codigo, onValueChange = { codigo = it.uppercase().take(12) }, singleLine = true,
+                    value = codigo, onValueChange = { codigo = it.uppercase().take(12); pedido = null; mensaje = null }, singleLine = true,
                     placeholder = { Text("P-7K3M9Q", color = P_GRIS) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                     textStyle = TextStyle(color = Color.White, fontSize = 16.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp),
@@ -254,7 +254,7 @@ internal fun ValidarPedidoApp(moneda: String?, acento: Color) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { recibido = ""; ejecutar({ RetrofitClient.apiService.buscarPedido(codigo.trim()) }) { null } },
+                    onClick = { pedido = null; recibido = ""; ejecutar({ RetrofitClient.apiService.buscarPedido(codigo.trim()) }) { null } },
                     enabled = codigo.isNotBlank() && !ocupado, shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = acento)
                 ) { Icon(Icons.Rounded.Search, "Buscar pedido") }
@@ -267,7 +267,7 @@ internal fun ValidarPedidoApp(moneda: String?, acento: Color) {
                 }
             }
 
-            pedido?.let { p ->
+            pedido?.takeUnless { ocupado || esError }?.let { p ->
                 Spacer(Modifier.height(10.dp))
                 Text("${p.clienteNombre.orEmpty()} · ${p.sucursal.orEmpty()}", color = P_GRIS, fontSize = 12.sp)
                 Spacer(Modifier.height(6.dp))

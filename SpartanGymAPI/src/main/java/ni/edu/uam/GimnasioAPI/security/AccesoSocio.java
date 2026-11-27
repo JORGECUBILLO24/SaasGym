@@ -3,6 +3,8 @@ package ni.edu.uam.GimnasioAPI.security;
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.repositories.PersonalRepository;
+import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,19 @@ import java.util.UUID;
 public class AccesoSocio {
 
     private final UsuarioRepository usuarioRepository;
+    private final PersonalRepository personalRepository;
+    private final SocioRepository socioRepository;
+
+    public boolean entrenadorDeSucursal(Authentication auth, UUID socioId) {
+        if (auth == null || socioId == null || auth.getAuthorities().stream()
+                .noneMatch(a -> "ROLE_ENTRENADOR".equals(a.getAuthority()))) return false;
+        return usuarioRepository.findByEmailIgnoreCase(auth.getName())
+                .flatMap(u -> personalRepository.findById(u.getId()))
+                .flatMap(p -> socioRepository.findById(socioId).map(s ->
+                        p.getSucursal() != null && s.getSucursal() != null
+                        && p.getSucursal().getId().equals(s.getSucursal().getId())))
+                .orElse(false);
+    }
 
     public boolean esElMismo(Authentication auth, UUID socioId) {
         if (auth == null || auth.getName() == null || socioId == null) {

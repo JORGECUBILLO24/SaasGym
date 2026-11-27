@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import {
   AlertCircle,
@@ -8,6 +8,7 @@ import {
   Clock,
   CreditCard,
   Loader2,
+  MonitorPlay,
   QrCode,
   RefreshCw,
   RotateCcw,
@@ -16,7 +17,9 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { asistenciasApi, operacionApi, sociosApi } from '../../../services/api';
+import { asistenciasApi, operacionApi, sociosApi, urlArchivoApi } from '../../../services/api';
+import { abrirPantallaAsistencia, SEGUNDOS_RESULTADO } from '../../PantallaAsistencia/canalAsistencia';
+import { usePublicadorAsistencia } from '../../PantallaAsistencia/usePublicadorAsistencia';
 
 const formularioManualInicial = {
   nombre: '',
@@ -109,6 +112,12 @@ const CheckIn = () => {
   const [qrSesion, setQrSesion] = useState(null);
   const [qrImagen, setQrImagen] = useState('');
   const [ahora, setAhora] = useState(() => Date.now());
+  // Último acceso que ve el socio en la pantalla de la entrada (se borra a los pocos segundos).
+  const [accesoPantalla, setAccesoPantalla] = useState(null);
+
+  const anunciarAcceso = useCallback((datos) => {
+    setAccesoPantalla({ ...datos, pulso: Date.now() });
+  }, []);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -144,8 +153,14 @@ const CheckIn = () => {
       origenAcceso,
       fechaHoraValidacion: respuesta.fechaHora,
       mensajeValidacion: respuesta.mensaje || 'Asistencia validada.',
+      fotoUrl: respuesta.fotoUrl || socioApi?.fotoUrl || '',
     });
-  }, [socios]);
+    anunciarAcceso({
+      nombre: nombreCompleto,
+      foto: urlArchivoApi(respuesta.fotoUrl || socioApi?.fotoUrl) || '',
+      permitido: normalizarTexto(respuesta.estado || 'Permitido') === 'permitido',
+    });
+  }, [anunciarAcceso, socios]);
 
   const generarSesionQr = useCallback(async () => {
     setCargandoQr(true);
@@ -177,6 +192,7 @@ const CheckIn = () => {
       const ttl = Number(respuesta?.ttlSegundos);
       setQrSesion({
         ...respuesta,
+        ttlSegundos: Number.isFinite(ttl) && ttl > 0 ? ttl : 0,
         expiraMs: Number.isFinite(ttl) && ttl > 0 ? Date.now() + ttl * 1000 : 0,
       });
       setQrImagen(imagen);
@@ -258,6 +274,30 @@ const CheckIn = () => {
     }
   }, [estadoQr, expiraMs, segundosRestantes]);
 
+  // La entrada nunca se queda sin código: el QR se renueva solo al vencer, tras un error y
+  // después de mostrar la bienvenida.
+  useEffect(() => {
+    const espera = { expirado: 1500, error: 10_000, validado: SEGUNDOS_RESULTADO * 1000 }[estadoQr];
+    if (!espera || cargandoQr) return undefined;
+    const t = window.setTimeout(generarSesionQr, espera);
+    return () => window.clearTimeout(t);
+  }, [cargandoQr, estadoQr, generarSesionQr]);
+
+  useEffect(() => {
+    if (!accesoPantalla) return undefined;
+    const t = window.setTimeout(() => setAccesoPantalla(null), SEGUNDOS_RESULTADO * 1000);
+    return () => window.clearTimeout(t);
+  }, [accesoPantalla]);
+
+  const estadoPantalla = useMemo(() => ({
+    estadoQr,
+    qrImagen,
+    expiraMs: qrSesion?.expiraMs ?? 0,
+    ttlSegundos: qrSesion?.ttlSegundos ?? 0,
+    acceso: accesoPantalla,
+  }), [accesoPantalla, estadoQr, qrImagen, qrSesion?.expiraMs, qrSesion?.ttlSegundos]);
+  const pantallaConectada = usePublicadorAsistencia(estadoPantalla);
+
   const actualizarCampoManual = (evento) => {
     setFormularioManual({ ...formularioManual, [evento.target.name]: evento.target.value });
     setErrorManual('');
@@ -285,6 +325,11 @@ const CheckIn = () => {
         fechaHoraValidacion: respuesta?.fechaHora || new Date().toISOString(),
         mensajeValidacion: respuesta?.mensaje || 'Asistencia validada.',
       });
+      anunciarAcceso({
+        nombre: `${socio.nombres} ${socio.apellidos}`.trim(),
+        foto: urlArchivoApi(socio.fotoUrl) || '',
+        permitido: normalizarTexto(respuesta?.estado || 'Permitido') === 'permitido',
+      });
       setFormularioManual(formularioManualInicial);
       await cargarDatos();
     } catch (error) {
@@ -294,7 +339,13 @@ const CheckIn = () => {
         estadoAccesoValidado: 'Denegado',
         origenAcceso: origen,
       });
-      setErrorManual(extraerMensajeError(error, 'Acceso denegado por la API.'));
+      const motivo = extraerMensajeError(error, 'Acceso denegado por la API.');
+      setErrorManual(motivo);
+      anunciarAcceso({
+        nombre: `${socio.nombres} ${socio.apellidos}`.trim(),
+        foto: urlArchivoApi(socio.fotoUrl) || '',
+        permitido: false,
+      });
     } finally {
       setValidando(false);
     }
@@ -327,6 +378,22 @@ const CheckIn = () => {
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <h3 className="text-sm font-black tracking-wide">Validacion de acceso</h3>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={abrirPantallaAsistencia}
+                title="Abre la pantalla para la entrada; arrástrala al monitor que ven los socios"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <MonitorPlay size={16} />
+                Pantalla de asistencia
+                {pantallaConectada && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-green-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-400" aria-hidden="true" />
+                    Conectada
+                  </span>
+                )}
+              </button>
               {(socioValidado || errorManual || errorQr || mensajeQr) && (
                 <button
                   type="button"
@@ -337,6 +404,7 @@ const CheckIn = () => {
                   Limpiar
                 </button>
               )}
+              </div>
             </div>
 
             <div className="panel-qr-validacion rounded-2xl border border-white/10 bg-[#0a0a0a]/70 p-4">
@@ -454,7 +522,15 @@ const CheckIn = () => {
               
               {/* Profile Photo Placeholder */}
               <div className="relative mb-4 flex h-32 w-32 items-center justify-center rounded-3xl border-2 border-red-600/40 bg-[#1a1a1a] shadow-[0_0_20px_rgba(220,38,38,0.15)]">
-                <Camera size={40} className="text-gray-500 opacity-50" />
+                {urlArchivoApi(socioValidado.fotoUrl) ? (
+                  <img
+                    src={urlArchivoApi(socioValidado.fotoUrl)}
+                    alt={`Foto de ${socioValidado.nombreCompleto || 'el socio'}`}
+                    className="h-full w-full rounded-3xl object-cover"
+                  />
+                ) : (
+                  <Camera size={40} className="text-gray-500 opacity-50" aria-hidden="true" />
+                )}
                 {esAccesoPermitido ? (
                   <div className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white shadow-lg shadow-green-900/50">
                     <CheckCircle2 size={18} />
@@ -471,7 +547,7 @@ const CheckIn = () => {
                 {socioValidado.nombreCompleto || `${socioValidado.nombres} ${socioValidado.apellidos}`.trim()}
               </h2>
               <p className="mb-6 text-sm font-medium text-gray-400">
-                {socioValidado.email || 'socio@spartangym.com'}
+                {socioValidado.email || 'Sin correo registrado'}
               </p>
 
               {/* Validation Status Message */}
