@@ -73,7 +73,7 @@ class AislamientoGimnasiosIntegracionTest extends IntegracionPostgresBase {
                     (id, gimnasio_id, numero_factura, sucursal_id, socio_id, cliente_nombre,
                      metodo_pago, subtotal, impuesto, total)
                 VALUES (?, ?, ?, ?, ?, 'Socio Gimnasio B', 'Efectivo', 25.00, 0.00, 25.00)
-                """, ventaB, gimnasioB, "FACT-" + sufijo, sucursalB, socioB);
+                """, ventaB, gimnasioB, "FACT-" + sufijo.replace("-", ""), sucursalB, socioB);
 
         Usuario adminA = new Usuario();
         adminA.setId(usuarioAdminA);

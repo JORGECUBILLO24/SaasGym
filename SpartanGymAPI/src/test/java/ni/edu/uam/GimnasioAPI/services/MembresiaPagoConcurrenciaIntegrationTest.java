@@ -10,6 +10,7 @@ import ni.edu.uam.GimnasioAPI.repositories.RolRepository;
 import ni.edu.uam.GimnasioAPI.repositories.SocioRepository;
 import ni.edu.uam.GimnasioAPI.repositories.TipoMembresiaRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,15 +112,20 @@ class MembresiaPagoConcurrenciaIntegrationTest extends IntegracionPostgresBase {
         List<Future<?>> futuros = new ArrayList<>();
         for (int i = 0; i < hilos; i++) {
             futuros.add(pool.submit(() -> {
-                listos.countDown();
-                salida.await();
                 try {
-                    tarea.call();
-                    exitos.incrementAndGet();
-                } catch (Exception esperado) {
-                    // Los perdedores de la carrera fallan (Conflicto / integridad): es lo correcto.
+                    TenantContext.setTenant(gimnasioPruebasId);
+                    listos.countDown();
+                    salida.await();
+                    try {
+                        tarea.call();
+                        exitos.incrementAndGet();
+                    } catch (Exception esperado) {
+                        // Los perdedores de la carrera fallan (Conflicto / integridad): es lo correcto.
+                    }
+                    return null;
+                } finally {
+                    TenantContext.clear();
                 }
-                return null;
             }));
         }
         listos.await(10, TimeUnit.SECONDS);
