@@ -7,6 +7,7 @@ import ni.edu.uam.GimnasioAPI.models.Notificacion;
 import ni.edu.uam.GimnasioAPI.models.Usuario;
 import ni.edu.uam.GimnasioAPI.repositories.NotificacionRepository;
 import ni.edu.uam.GimnasioAPI.repositories.UsuarioRepository;
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -20,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -51,13 +53,13 @@ public class NotificacionService {
     }
 
     @Async
-    public void enviarCorreoVencimiento(String correoDestino, String nombreSocio) {
+    public void enviarCorreoVencimiento(UUID gimnasioId, String correoDestino, String nombreSocio) {
         if (!correoDisponible(correoDestino)) {
             return;
         }
 
         try {
-            EmailBrand marca = obtenerMarcaCorreo(null);
+            EmailBrand marca = obtenerMarcaCorreo(gimnasioId, null);
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
@@ -79,13 +81,13 @@ public class NotificacionService {
     }
 
     @Async
-    public void enviarCorreoBienvenida(String correoDestino, String nombreSocio) {
+    public void enviarCorreoBienvenida(UUID gimnasioId, String correoDestino, String nombreSocio) {
         if (!correoDisponible(correoDestino)) {
             return;
         }
 
         try {
-            EmailBrand marca = obtenerMarcaCorreo(null);
+            EmailBrand marca = obtenerMarcaCorreo(gimnasioId, null);
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
@@ -108,6 +110,7 @@ public class NotificacionService {
 
     @Async
     public void enviarCorreoRutinaAsignada(
+            UUID gimnasioId,
             String correoDestino,
             String nombreSocio,
             String nombreRutina,
@@ -123,7 +126,7 @@ public class NotificacionService {
         }
 
         try {
-            EmailBrand marca = obtenerMarcaCorreo(null);
+            EmailBrand marca = obtenerMarcaCorreo(gimnasioId, null);
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
@@ -160,14 +163,16 @@ public class NotificacionService {
     }
 
     @Async
-    public void enviarCorreoRecuperacionPassword(String correoDestino, String nombreUsuario, String enlace, long minutosValidez) {
+    public void enviarCorreoRecuperacionPassword(
+            UUID gimnasioId, String correoDestino, String nombreUsuario, String enlace, long minutosValidez
+    ) {
         if (!correoDisponible(correoDestino)) {
             registrarEnlaceSoloEnLocal(correoDestino, enlace);
             return;
         }
 
         try {
-            EmailBrand marca = obtenerMarcaCorreo(null);
+            EmailBrand marca = obtenerMarcaCorreo(gimnasioId, null);
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = crearHelper(mensaje);
 
@@ -205,7 +210,16 @@ public class NotificacionService {
     }
 
     @Async
-    public void enviarCorreoGlobal(String tipo, String titulo, String cuerpo) {
+    public void enviarCorreoGlobal(UUID gimnasioId, String tipo, String titulo, String cuerpo) {
+        TenantContext.setTenant(gimnasioId);
+        try {
+            enviarCorreoGlobalDelGimnasio(tipo, titulo, cuerpo);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void enviarCorreoGlobalDelGimnasio(String tipo, String titulo, String cuerpo) {
         if (correoEmisor == null || correoEmisor.isBlank()) {
             log.warn("MAIL_USERNAME no configurado. No se envio el mensaje global por correo.");
             return;
@@ -224,7 +238,7 @@ public class NotificacionService {
         }
 
         try {
-            EmailBrand marca = obtenerMarcaCorreo(null);
+            EmailBrand marca = obtenerMarcaCorreo(TenantContext.requireTenantId(), null);
             String asunto = titulo == null || titulo.isBlank()
                     ? "Aviso global de " + marca.nombreGimnasio()
                     : titulo.trim();
@@ -550,6 +564,15 @@ public class NotificacionService {
         }
 
         return new EmailBrand(nombreGimnasio, "", null, null);
+    }
+
+    private EmailBrand obtenerMarcaCorreo(UUID gimnasioId, String logoPreferido) {
+        TenantContext.setTenant(gimnasioId);
+        try {
+            return obtenerMarcaCorreo(logoPreferido);
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     private String logoConfiguradoParaNombre(Map<String, Object> config, String nombreActual, String claveLogo, String claveNombre) {

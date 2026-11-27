@@ -60,6 +60,7 @@ fun PantallaInicio(
     val reducirMovimiento = movimientoReducido()
 
     var correo by remember { mutableStateOf("") }
+    var gimnasioSlug by remember { mutableStateOf("spartan-gym") }
     var contrasena by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var mostrarRecuperacion by remember { mutableStateOf(false) }
@@ -218,7 +219,9 @@ fun PantallaInicio(
                             "Confirma para cifrar tus credenciales en este dispositivo"
                         ) { cipherAutenticado ->
                             runCatching {
-                                CredencialesBiometricasStore.guardar(context, cipherAutenticado, correo, contrasena)
+                                CredencialesBiometricasStore.guardar(
+                                    context, cipherAutenticado, correo, contrasena, gimnasioSlug
+                                )
                                 huellaConfigurada = true
                             }.onFailure {
                                 Toast.makeText(context, "No se pudo guardar el acceso biométrico.", Toast.LENGTH_SHORT).show()
@@ -317,6 +320,17 @@ fun PantallaInicio(
                     loginViewModel.errorMessage?.let { message ->
                         Text(message, color = Color(0xFFFFB4AB), style = MaterialTheme.typography.bodyMedium)
                     }
+                    CampoInicio(
+                        label = "Slug del gimnasio",
+                        value = gimnasioSlug,
+                        onValueChange = { gimnasioSlug = it },
+                        placeholder = "spartan-gym",
+                        fieldBackground = fieldBackground,
+                        fieldBorder = fieldBorder,
+                        acentoMarca = acentoMarca,
+                        textLabel = textLabel,
+                        textPlaceholder = textPlaceholder
+                    )
                     CampoInicio(
                         label = "Correo electrónico",
                         value = correo,
@@ -472,7 +486,7 @@ fun PantallaInicio(
                                         if (emailParaEnviar.isBlank()) {
                                             Toast.makeText(context, "Ingresa tu correo registrado", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            loginViewModel.solicitarRecuperacion(emailParaEnviar)
+                                            loginViewModel.solicitarRecuperacion(emailParaEnviar, gimnasioSlug)
                                         }
                                     },
                                     enabled = !loginViewModel.isLoading,
@@ -495,7 +509,8 @@ fun PantallaInicio(
                             loginPorHuella = false
                             loginViewModel.iniciarSesion(
                                 email = correo,
-                                pass = contrasena
+                                pass = contrasena,
+                                gimnasioSlug = gimnasioSlug
                             )
                         },
                         enabled = !loginViewModel.isLoading,
@@ -542,9 +557,14 @@ fun PantallaInicio(
                                         val credenciales = CredencialesBiometricasStore.leer(context, cipherAutenticado)
                                         correo = credenciales.correo
                                         contrasena = credenciales.contrasena
+                                        gimnasioSlug = credenciales.gimnasioSlug
                                         loginPorHuella = true
                                         accionHuella = AccionHuella.NINGUNA
-                                        loginViewModel.iniciarSesion(credenciales.correo, credenciales.contrasena)
+                                        loginViewModel.iniciarSesion(
+                                            credenciales.correo,
+                                            credenciales.contrasena,
+                                            credenciales.gimnasioSlug
+                                        )
                                     }.onFailure {
                                         CredencialesBiometricasStore.borrar(context)
                                         huellaConfigurada = false

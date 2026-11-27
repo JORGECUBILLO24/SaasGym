@@ -244,6 +244,7 @@ public class RutinaService {
 
         notificacionService.registrarNotificacion(usuario, "RUTINA", "Nueva rutina agregada", mensaje);
         notificacionService.enviarCorreoRutinaAsignada(
+                rutina.getSocio().getGimnasioId(),
                 usuario != null ? usuario.getEmail() : null,
                 nombreSocio,
                 rutina.getNombre(),

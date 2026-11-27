@@ -5,6 +5,7 @@ import type { Sucursal, SucursalDisponible, SesionUsuario, TipoMembresia, Usuari
 // Render y en desarrollo lo hace el proxy de Vite. Así la cookie de sesión HttpOnly es de primera
 // parte (Safari/iPhone bloquea las de otro dominio).
 const FALLBACK_API_BASE_URL = '/api';
+const DEFAULT_GYM_SLUG = String(import.meta.env.VITE_DEFAULT_GYM_SLUG ?? 'spartan-gym').trim();
 
 const normalizeApiBaseUrl = (rawValue: unknown): string => {
   const value = String(rawValue ?? '').trim();
@@ -42,6 +43,11 @@ export const urlArchivoApi = (ruta: string | null | undefined): string | null =>
  * El token en localStorage queda solo para sesiones iniciadas antes de este cambio.
  */
 export const authStorage = {
+  getGymSlug: (): string => localStorage.getItem('saasgym_gym_slug') || DEFAULT_GYM_SLUG,
+  setGymSlug: (slug: string): void => {
+    const normalized = String(slug ?? '').trim().toLowerCase();
+    if (normalized) localStorage.setItem('saasgym_gym_slug', normalized);
+  },
   getToken: (): string | null => localStorage.getItem('saasgym_token'),
   haySesion: (): boolean => Boolean(localStorage.getItem('saasgym_user')),
   getUser: (): UsuarioGuardado | null => {
@@ -99,6 +105,7 @@ interface ProblemaRespuesta {
 
 export async function apiRequest<T = unknown>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const token = options.skipAuth ? null : authStorage.getToken();
+  const gymSlug = authStorage.getGymSlug();
   const sucursalId = localStorage.getItem('global_sucursal_id');
   const { skipAuth, ignoreSucursal, ...fetchOptions } = options;
   const normalizedPath = String(path ?? '').startsWith('/') ? path : `/${String(path ?? '')}`;
@@ -116,6 +123,7 @@ export async function apiRequest<T = unknown>(path: string, options: ApiRequestO
       Accept: 'application/json, application/problem+json;q=0.9, */*;q=0.8',
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(gymSlug ? { 'X-Gimnasio-Slug': gymSlug } : {}),
       ...(sucursalId && !ignoreSucursal ? { 'X-Sucursal-Id': sucursalId } : {}),
       ...fetchOptions.headers,
     },
@@ -187,25 +195,39 @@ export interface MovimientoFinancieroRequest {
 }
 
 export const authApi = {
-  loginGoogle: (credential: string) => apiRequest<SesionUsuario>('/auth/google', {
-    method: 'POST',
-    body: JSON.stringify({ credential }),
-  }),
-  login: (email: string, password: string) => apiRequest<SesionUsuario>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  }),
-  solicitarRestablecimiento: (email: string) => apiRequest('/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  }),
+  loginGoogle: (credential: string, gimnasioSlug = authStorage.getGymSlug()) => {
+    authStorage.setGymSlug(gimnasioSlug);
+    return apiRequest<SesionUsuario>('/auth/google', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ credential }),
+    });
+  },
+  login: (email: string, password: string, gimnasioSlug = authStorage.getGymSlug()) => {
+    authStorage.setGymSlug(gimnasioSlug);
+    return apiRequest<SesionUsuario>('/auth/login', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email, password, gimnasioSlug }),
+    });
+  },
+  solicitarRestablecimiento: (email: string, gimnasioSlug = authStorage.getGymSlug()) => {
+    authStorage.setGymSlug(gimnasioSlug);
+    return apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email }),
+    });
+  },
   restablecerPassword: ({ token, password }: { token: string; password: string }) => apiRequest('/auth/reset-password', {
     method: 'POST',
+    skipAuth: true,
     body: JSON.stringify({ token, password }),
   }),
   logout: () => apiRequest('/auth/logout', { method: 'POST', skipAuth: true }),
   registerSocio: ({ nombres, apellidos, email, password, telefono, sucursalId }: RegistroSocioRequest) => apiRequest('/auth/register', {
     method: 'POST',
+    skipAuth: true,
     body: JSON.stringify({ nombres, apellidos, email, password, telefono, sucursalId }),
   }),
 };

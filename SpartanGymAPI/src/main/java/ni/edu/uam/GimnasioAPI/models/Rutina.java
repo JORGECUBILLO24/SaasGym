@@ -12,6 +12,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "rutinas")
 public class Rutina {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

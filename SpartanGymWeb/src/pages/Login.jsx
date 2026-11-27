@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
+  Building2,
   Eye,
   EyeOff,
   Lock,
@@ -31,6 +32,7 @@ const roleLabels = {
 
 const Login = () => {
   const [role, setRole] = useState('');
+  const [gimnasioSlug, setGimnasioSlug] = useState(() => authStorage.getGymSlug());
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -83,7 +85,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const session = await authApi.login(email.trim(), password);
+      const session = await authApi.login(email.trim(), password, gimnasioSlug);
       completarSesion(session);
     } catch (err) {
       setError(
@@ -100,7 +102,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const session = await authApi.loginGoogle(credential);
+      const session = await authApi.loginGoogle(credential, gimnasioSlug);
       completarSesion(session);
     } catch (err) {
       setError(err.message || 'No se pudo iniciar sesión con Google.');
@@ -122,7 +124,7 @@ const Login = () => {
 
     try {
       setRecoveryLoading(true);
-      await authApi.solicitarRestablecimiento(correoDestino);
+      await authApi.solicitarRestablecimiento(correoDestino, gimnasioSlug);
       setRecoveryMessage('Hemos enviado un correo con las instrucciones de recuperación.');
     } catch (err) {
       setRecoveryError(err.message || 'No se pudo solicitar el enlace de recuperación.');
@@ -177,6 +179,23 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3.5" aria-busy={loading}>
+            <div>
+              <label htmlFor="login-gym-slug" className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
+                Slug del gimnasio
+              </label>
+              <div className="group relative">
+                <Building2 className="absolute left-3.5 top-3.5 h-4 w-4 text-neutral-500 transition-colors group-focus-within:text-white" />
+                <input
+                  id="login-gym-slug"
+                  autoComplete="organization"
+                  value={gimnasioSlug}
+                  onChange={(e) => setGimnasioSlug(e.target.value)}
+                  required
+                  placeholder="spartan-gym"
+                  className="w-full rounded-2xl border border-white/10 bg-[#121111] py-2.5 pl-11 pr-4 text-sm text-white placeholder-neutral-600 outline-none transition-all focus:border-white/30 focus:bg-[#181616] focus:ring-1 focus:ring-white/20"
+                />
+              </div>
+            </div>
             <div>
               <label htmlFor="login-email" className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">
                 Correo electrónico

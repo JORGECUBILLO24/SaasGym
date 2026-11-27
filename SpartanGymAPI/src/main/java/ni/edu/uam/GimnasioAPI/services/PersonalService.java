@@ -43,6 +43,7 @@ public class PersonalService {
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final TenantLookupService tenantLookupService;
 
     @Transactional(readOnly = true)
     public List<PersonalResponse> listarPersonal() {
@@ -91,7 +92,7 @@ public class PersonalService {
         String password = ValidacionCuenta.password(request.getPassword());
         String nombres = ValidacionCuenta.requerido(request.getNombres(), "nombres");
         String apellidos = ValidacionCuenta.requerido(request.getApellidos(), "apellidos");
-        if (usuarioRepository.findByEmailIgnoreCase(email).isPresent()) {
+        if (tenantLookupService.correoUsuarioEnUso(email)) {
             throw new ConflictoException("El correo ya está en uso.");
         }
 

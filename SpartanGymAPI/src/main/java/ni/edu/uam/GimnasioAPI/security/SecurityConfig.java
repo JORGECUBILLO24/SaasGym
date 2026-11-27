@@ -2,6 +2,7 @@ package ni.edu.uam.GimnasioAPI.security;
 
 import lombok.RequiredArgsConstructor;
 import ni.edu.uam.GimnasioAPI.exceptions.RespuestaError;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final TenantContextFilter tenantContextFilter;
     private final UserDetailsService userDetailsService;
     private final RespuestaError respuestaError;
 
@@ -50,6 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/gimnasios/registro").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/sucursales/disponibles").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/configuracion").permitAll()
@@ -70,8 +73,17 @@ public class SecurityConfig {
                                 response, HttpStatus.FORBIDDEN, "ACCESO_DENEGADO",
                                 "No tienes permisos para realizar esta acción.", request)))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(tenantContextFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<TenantContextFilter> tenantContextFilterRegistration(
+            TenantContextFilter filter) {
+        FilterRegistrationBean<TenantContextFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -79,7 +91,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(java.util.Arrays.asList(allowedOrigins.split("\\s*,\\s*")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Sucursal-Id", "X-Requested-With", "Accept"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "X-Sucursal-Id", "X-Gimnasio-Slug", "X-Requested-With", "Accept"
+        ));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

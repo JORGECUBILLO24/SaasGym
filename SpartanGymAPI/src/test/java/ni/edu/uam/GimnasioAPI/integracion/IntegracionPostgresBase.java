@@ -1,9 +1,16 @@
 package ni.edu.uam.GimnasioAPI.integracion;
 
+import ni.edu.uam.GimnasioAPI.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import java.util.UUID;
 
 /**
  * Base de las pruebas de integración contra un PostgreSQL REAL (concurrencia, bloqueos,
@@ -20,6 +27,23 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "SAASGYM_IT_DB_URL", matches = ".+")
 public abstract class IntegracionPostgresBase {
+
+    @Autowired private JdbcTemplate jdbcTemplate;
+    protected UUID gimnasioPruebasId;
+
+    @BeforeEach
+    void establecerGimnasioDePrueba() {
+        gimnasioPruebasId = jdbcTemplate.queryForObject(
+                "SELECT id FROM gimnasios WHERE slug = 'spartan-gym'",
+                UUID.class
+        );
+        TenantContext.setTenant(gimnasioPruebasId);
+    }
+
+    @AfterEach
+    void limpiarContextoDeGimnasio() {
+        TenantContext.clear();
+    }
 
     @DynamicPropertySource
     static void baseDeDatos(DynamicPropertyRegistry registro) {

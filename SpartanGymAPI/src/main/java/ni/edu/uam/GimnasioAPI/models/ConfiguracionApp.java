@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "configuracion_app")
 public class ConfiguracionApp {
+    @org.hibernate.annotations.TenantId
+    @jakarta.persistence.Column(name = "gimnasio_id", nullable = false, updatable = false)
+    private java.util.UUID gimnasioId;
 
     @Id
     private Integer id = 1;

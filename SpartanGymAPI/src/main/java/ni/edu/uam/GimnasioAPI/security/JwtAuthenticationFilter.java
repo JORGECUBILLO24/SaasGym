@@ -56,6 +56,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Una cuenta desactivada no debe seguir operando con un token emitido antes.
                 if (userDetails.isEnabled() && jwtService.isTokenValid(jwt, userDetails)) {
+                    if (!(userDetails instanceof UserDetailsImpl detalles)
+                            || !jwtService.extractGimnasioId(jwt).equals(detalles.getUsuario().getGimnasioId())) {
+                        SecurityContextHolder.clearContext();
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
@@ -63,6 +69,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    if (userDetails.getAuthorities().stream()
+                            .anyMatch(authority -> "ROLE_SUPERADMIN".equals(authority.getAuthority()))) {
+                        TenantContext.allowRootAccess();
+                    }
                 }
             }
         } catch (Exception e) {

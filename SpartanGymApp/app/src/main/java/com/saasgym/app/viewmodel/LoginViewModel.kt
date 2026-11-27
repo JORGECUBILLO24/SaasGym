@@ -24,17 +24,19 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var userEmail by mutableStateOf("")
     var userId by mutableStateOf("")
 
-    fun iniciarSesion(email: String, pass: String) {
+    fun iniciarSesion(email: String, pass: String, gimnasioSlug: String) {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
             loginSuccess = false
 
             try {
+                RetrofitClient.setGimnasioSlug(gimnasioSlug)
                 val response = RetrofitClient.apiService.login(
                     LoginRequest(
                         email = email.trim(),
-                        password = pass
+                        password = pass,
+                        gimnasioSlug = gimnasioSlug.trim().lowercase()
                     )
                 )
 
@@ -73,13 +75,14 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun solicitarRecuperacion(email: String) {
+    fun solicitarRecuperacion(email: String, gimnasioSlug: String) {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
             recoveryMessage = null
 
             try {
+                RetrofitClient.setGimnasioSlug(gimnasioSlug)
                 val response = RetrofitClient.apiService.solicitarRestablecimiento(
                     PasswordRecoveryRequest(email = email.trim())
                 )

@@ -79,6 +79,7 @@ class PasswordResetServiceLogTest {
     void solicitudValida_registraQueSeEmitioElEnlace_sinElToken() {
         Usuario usuario = new Usuario();
         usuario.setId(UUID.randomUUID());
+        usuario.setGimnasioId(UUID.randomUUID());
         usuario.setEmail("socio@ejemplo.com");
         usuario.setActivo(true);
         when(usuarioRepository.findByEmailIgnoreCase("socio@ejemplo.com")).thenReturn(Optional.of(usuario));
@@ -88,7 +89,9 @@ class PasswordResetServiceLogTest {
         // El enlace que se le pasa al servicio de correo trae el token real: lo capturamos
         // para buscarlo literalmente en todo lo que escribió el log.
         ArgumentCaptor<String> enlace = ArgumentCaptor.forClass(String.class);
-        verify(notificacionService).enviarCorreoRecuperacionPassword(eq("socio@ejemplo.com"), anyString(), enlace.capture(), anyLong());
+        verify(notificacionService).enviarCorreoRecuperacionPassword(
+                eq(usuario.getGimnasioId()), eq("socio@ejemplo.com"), anyString(), enlace.capture(), anyLong()
+        );
         String token = enlace.getValue().substring(enlace.getValue().indexOf("token=") + "token=".length());
 
         assertTrue(lineas().stream().anyMatch(l -> l.contains("Enlace de restablecimiento emitido para socio@ejemplo.com")),

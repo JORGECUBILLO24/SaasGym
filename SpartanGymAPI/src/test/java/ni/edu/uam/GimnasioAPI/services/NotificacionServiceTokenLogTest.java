@@ -17,6 +17,7 @@ import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +36,7 @@ class NotificacionServiceTokenLogTest {
     private static final String TOKEN = "TOKEN-SECRETO-NO-DEBE-SALIR-EN-LOGS";
     private static final String ENLACE =
             "https://gimnasio.example.com/restablecer-contrasena?token=" + TOKEN;
+    private static final UUID GIMNASIO_ID = UUID.randomUUID();
 
     private final Logger logger = (Logger) LoggerFactory.getLogger(NotificacionService.class);
     private final ListAppender<ILoggingEvent> capturados = new ListAppender<>();
@@ -80,7 +82,8 @@ class NotificacionServiceTokenLogTest {
     void envioFallido_enProduccion_registraElErrorPeroNoElToken() {
         doThrow(new MailSendException("puerto SMTP bloqueado")).when(mailSender).send(any(MimeMessage.class));
 
-        servicio("gym@ejemplo.com", "default").enviarCorreoRecuperacionPassword("socio@ejemplo.com", "Ana", ENLACE, 30);
+        servicio("gym@ejemplo.com", "default")
+                .enviarCorreoRecuperacionPassword(GIMNASIO_ID, "socio@ejemplo.com", "Ana", ENLACE, 30);
 
         assertTrue(lineas().stream().anyMatch(l -> l.contains("Error al enviar recuperacion")),
                 "el fallo tiene que seguir quedando registrado");
@@ -89,7 +92,8 @@ class NotificacionServiceTokenLogTest {
 
     @Test
     void correoSinConfigurar_enProduccion_noRegistraElToken() {
-        servicio("", "default").enviarCorreoRecuperacionPassword("socio@ejemplo.com", "Ana", ENLACE, 30);
+        servicio("", "default")
+                .enviarCorreoRecuperacionPassword(GIMNASIO_ID, "socio@ejemplo.com", "Ana", ENLACE, 30);
 
         assertTrue(lineas().stream().anyMatch(l -> l.contains("no configurado")),
                 "tiene que quedar registrado que el correo no está configurado");
@@ -98,7 +102,8 @@ class NotificacionServiceTokenLogTest {
 
     @Test
     void enPerfilLocal_siRegistraElEnlaceParaPoderProbarSinCorreo() {
-        servicio("", "local").enviarCorreoRecuperacionPassword("socio@ejemplo.com", "Ana", ENLACE, 30);
+        servicio("", "local")
+                .enviarCorreoRecuperacionPassword(GIMNASIO_ID, "socio@ejemplo.com", "Ana", ENLACE, 30);
 
         assertTrue(algunaLineaContieneElToken(), "en local el enlace debe verse para probar el flujo");
     }

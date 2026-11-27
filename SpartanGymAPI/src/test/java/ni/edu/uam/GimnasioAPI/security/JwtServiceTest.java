@@ -7,6 +7,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.UUID;
+
 class JwtServiceTest {
 
     private JwtService crearServicio(String secretConfigurado, String... perfilesActivos) {
@@ -55,9 +57,11 @@ class JwtServiceTest {
         usuario.setEmail("socio@ejemplo.com");
         usuario.setPasswordHash("x");
         usuario.setRol(rol);
+        usuario.setGimnasioId(UUID.randomUUID());
         UserDetailsImpl detalles = new UserDetailsImpl(usuario);
 
         String token = service.generateToken(detalles);
+        org.junit.jupiter.api.Assertions.assertEquals(usuario.getGimnasioId(), service.extractGimnasioId(token));
         org.junit.jupiter.api.Assertions.assertTrue(service.isTokenValid(token, detalles));
 
         usuario.cerrarSesionesAbiertas();
